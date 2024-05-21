@@ -14,7 +14,19 @@
 #define SAVED_SIZE 100
 #define MAX_BREADTH 10000
 
-int eval_king[64] = {
+#define KING_VALUE 10000
+#define QUEEN_VALUE 900
+#define CASTLE_VALUE 500
+#define BISHOP_VALUE 300
+#define KNIGHT_VALUE 300
+#define PAWN_VALUE 100
+
+/*
+how to flip an array:
+Just invert the row number...
+*/
+
+int KING_EVAL[64] = {
   -25, -25, -25, -25, -25, -25, -25, -25,
   -25, -25, -25, -25, -25, -25, -25, -25,
   -25, -25, -25, -25, -25, -25, -25, -25,
@@ -22,10 +34,10 @@ int eval_king[64] = {
   -25, -25, -25, -25, -25, -25, -25, -25,
   -25, -25, -25, -25, -25, -25, -25, -25,
   -25, -25, -25, -25, -25, -25, -25, -25,
-  10, 15, -15, -15, -15, -15, 15, 10
+  5, 15, 10, -15, -15, -15, 15, 5
 };
 
-int eval_pawn[64] = {
+int PAWN_EVAL[64] = {
   20, 20, 20, 20, 20, 20, 20, 20,
   10, 10, 10, 10, 10, 10, 10, 10,
   0, 0, 0, 0, 0, 0, 0, 0,

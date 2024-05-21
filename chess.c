@@ -237,18 +237,64 @@ int calculate_score(Grapher* grapher, colour mover, int new_score, int running_s
 }
 
 
-void take_train_heuristic(Board* board, GraphNode* node) {
+int take_train_heuristic(Board* board, GraphNode* node) {
     // just the previous move
-
+    return 0;
 }
 
-void evaluate_position(Board* board, GraphNode* node) {
+int count_bitboard(U64 mask) {
+    int count = 0;
+    for (int i = 0; i < CELLS; i++) {
+        if (mask % 2 == 1) {
+            count += 1;
+        }
+        mask >>= 1;
+    }
+    return count;
+}
+
+int count_moves(Board* board, colour mover) {
+    int count = 0;
+    for (int i=0; i<16; i++) {
+        if (board->pieces[mover][i]->alive) {
+            U64 mask = board->pieces[mover][i]->move_func(board, board->pieces[mover][i]);
+            count += count_bitboard(mask);
+        }
+    }
+    return count;
+}
+
+int initiative_heuristic(Board* board, GraphNode* node, colour mover, Grapher* grapher) {
+    // Do you care if it's legal or not at this point??
+    int score = 0;
+    if (mover == grapher->start_player) {
+        score += count_moves(board, mover);
+    }
+    else {
+        score -= count_moves(board, mover);
+    }
+    return score;
+}
+
+int king_safety_heuristic(Board* board, GraphNode* node, colour mover, Grapher* grapher) {
+    int cell = board->pieces[mover][KING_INDEX(mover)]->cell;
+    if (mover != grapher->start_player) {
+        int row = 7 - (cell / 8);
+        cell = (row * 8) + (cell % 8);
+        return -KING_EVAL[cell];
+    }
+    return KING_EVAL[cell];
+}
+
+int evaluate_position(Board* board, GraphNode* node, colour mover, Grapher* grapher) {
+    int score = 0;
     // heuristics based
     // king safety
-    // controlling squares
-    // initiative -- make threatening moves
+    score += king_safety_heuristic(board, node, mover, grapher);
+    // initiative / controlling squares
+    score += initiative_heuristic(board, node, mover, grapher);   
     // take chain (heuristic, not actual)
-    
+    return score;    
 }
 
 int create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover) {
@@ -284,6 +330,11 @@ int create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover
             if (killed) {
                 evaluate_killed(move, killed, mover, grapher);
             }
+
+            // EVALUATE POSITION OF board
+            // evaluate_position(board, parent->children[parent->i-1], mover, grapher);
+
+
             grapher->depth -= 1;
             grapher->value_limit += 1;
             int new_score = create_graph(grapher, parent->children[parent->i-1], board, invert_colour(mover));
@@ -323,20 +374,16 @@ void get_all_moves_for_piece(Board* board, Piece* piece, Moves* moves) {
             // bit found on the bit board
             if (is_move_legal(board, piece, i)) {
                 bool allowed = true;
-                if (piece->no_moves == 0 && piece->type == king && (i == g1 || i == g8 || i == c1 || i == c8)) {
-                     if (is_check(board, piece->c)) {
+                if (piece->no_moves == 0 && piece->type == king) {
+                    if ((i == g1 || i == g8 || i == c1 || i == c8) && is_check(board, piece->c)) {
                         allowed = false;
-                     }
-                }
-                if (piece->no_moves == 0 && piece->type == king && (i == g1 || i == g8)) {
-                     if (!is_move_legal(board, piece, piece->cell + 1)) {
+                    }
+                    if ((i == g1 || i == g8) && (!is_move_legal(board, piece, piece->cell + 1))) {
                         allowed = false;
-                     }
-                }
-                if (piece->no_moves == 0 && piece->type == king && (i == c1 || i == c8)) {
-                     if (!is_move_legal(board, piece, piece->cell - 1)) {
+                    }
+                    if ((i == c1 || i == c8) && (!is_move_legal(board, piece, piece->cell - 1))) {
                         allowed = false;
-                     }
+                    }
                 }
                 if (allowed) {
                     moves->moves[moves->length] = calloc(1, sizeof(Move));
@@ -533,7 +580,7 @@ Board* init_board(void) {
         if (i < 8 || i > 23) {
             if (i % 8 == 0 || i % 8 == 7) {
                 piece->type = castle;
-                piece->value = 5;
+                piece->value = CASTLE_VALUE;
                 piece->move_func = get_castle_mask;
                 piece->index_func = castle_index;
                 if (i < 8) {
@@ -545,7 +592,7 @@ Board* init_board(void) {
             }
             if (i % 8 == 1 || i % 8 == 6) {
                 piece->type = knight;
-                piece->value = 3;
+                piece->value = KNIGHT_VALUE;
                 piece->move_func = get_knight_mask;
                 piece->index_func = knight_index;
                 if (i < 8) {
@@ -557,7 +604,7 @@ Board* init_board(void) {
             }
             if (i % 8 == 2 || i % 8 == 5) {
                 piece->type = bishop;
-                piece->value = 3;
+                piece->value = BISHOP_VALUE;
                 piece->move_func = get_bishop_mask;
                 piece->index_func = bishop_index;
                 if (i < 8) {
@@ -569,7 +616,7 @@ Board* init_board(void) {
             }
             if (i % 8 == 3) {
                 piece->type = queen;
-                piece->value = 9;
+                piece->value = QUEEN_VALUE;
                 piece->move_func = get_queen_mask;
                 piece->index_func = queen_index;
                 if (i < 8) {
@@ -581,7 +628,7 @@ Board* init_board(void) {
             }
             if (i % 8 == 4) {
                 piece->type = king;
-                piece->value = 64;
+                piece->value = KING_VALUE;
                 piece->move_func = get_king_mask;
                 piece->index_func = king_index;
                 if (i < 8) {
@@ -594,7 +641,7 @@ Board* init_board(void) {
         }
         else {
             piece->type = pawn;
-            piece->value = 1;
+            piece->value = PAWN_VALUE;
             piece->move_func = get_pawn_mask;
             piece->index_func = pawn_index;
             if (i < 16) {
