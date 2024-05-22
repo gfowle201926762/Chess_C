@@ -13,6 +13,7 @@
 #define MAX_SCORE 100
 #define SAVED_SIZE 100
 #define MAX_BREADTH 10000
+#define MAX_BRANCH 10
 
 #define KING_VALUE 10000
 #define QUEEN_VALUE 900
@@ -151,6 +152,14 @@ struct Grapher {
 };
 typedef struct Grapher Grapher;
 
+struct Scores {
+    int highest[MAX_BRANCH];
+    int indices[MAX_BRANCH];
+    int max_breadth;
+    int breadth;
+};
+typedef struct Scores Scores;
+
 
 // bitboard macros
 #define get_bit(bitboard, cell) (bitboard & (1ULL << cell))
@@ -223,6 +232,7 @@ void test_forcing_moves_3();
 // Initialisation
 Board* init_board(void);
 void set_board(Board* board);
+Board* set_board_notation(char* s);
 
 // Miscellaneous
 void clear_board(Board* board);
@@ -240,6 +250,7 @@ void print_piece(Piece* piece);
 void print_tracer(Tracer* tracer);
 void colour_to_string(colour c, char* string);
 void piece_to_string(name n, char* string);
+void print_scores(Scores* scores, Moves* moves);
 
 // Move legal logic
 void execute_move(Board* board, Piece* piece, square to);
