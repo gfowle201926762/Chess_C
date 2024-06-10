@@ -3,7 +3,7 @@
 int main(void) {
     initialise();
 
-    test_forcing_moves_2();
+    test_forcing_moves_1();
     
     return 0;
 }
@@ -161,6 +161,7 @@ void update_graph(GraphNode* parent, Move* move) {
 
 int evaluate_no_moves(Grapher* grapher, GraphNode* parent, Board* board, colour mover) {
     if (!is_check(board, mover)) {
+        // STALEMATE
         return 0;
     }
     int score = MAX_SCORE - ((grapher->max_depth - grapher->depth) / 2);
@@ -191,12 +192,12 @@ int init_breadth(Grapher* grapher, colour mover) {
     return grapher->max_breadth;
 }
 
-void evaluate_killed(Move* move, Piece* killed, colour mover, Grapher* grapher) {
+int evaluate_killed(Piece* killed, colour mover, Grapher* grapher) {
     if (mover == grapher->start_player) {
-        move->evaluation += killed->value;
+        return killed->value;
     }
     else {
-        move->evaluation -= killed->value;
+        return -killed->value;
     }
 }
 
@@ -240,19 +241,31 @@ int count_bitboard(U64 mask) {
     return count;
 }
 
+int count_threats(Board* board, colour mover, U64 mask) {
+    int count = 0;
+    for (int i=0; i<16; i++) {
+        if (board->pieces[invert_colour(mover)][i]->alive) {
+            if (get_bit(mask, board->pieces[invert_colour(mover)][i]->cell)) {
+                count += board->pieces[invert_colour(mover)][i]->value / 10;
+            }
+        }
+    }
+    return count;
+}
+
 int count_moves(Board* board, colour mover) {
     int count = 0;
     for (int i=0; i<16; i++) {
         if (board->pieces[mover][i]->alive) {
             U64 mask = board->pieces[mover][i]->move_func(board, board->pieces[mover][i]);
             count += count_bitboard(mask);
+            count += count_threats(board, mover, mask);
         }
     }
     return count;
 }
 
 int initiative_heuristic(Board* board, GraphNode* node, colour mover, Grapher* grapher) {
-    // Do you care if it's legal or not at this point??
     int score = 0;
     if (mover == grapher->start_player) {
         score += count_moves(board, mover);
@@ -286,11 +299,12 @@ int measure_points(Board* board, colour mover) {
     return score;
 }
 
-int evaluate_position(Board* board, GraphNode* node, colour mover, Grapher* grapher) {
+int evaluate_position(Board* board, GraphNode* node, colour mover, Grapher* grapher, Piece* killed) {
     int score = 0;
     score += king_safety_heuristic(board, node, mover, grapher);
     score += initiative_heuristic(board, node, mover, grapher);   
     score += measure_points(board, mover);
+    score += evaluate_killed(killed, mover, grapher);
     return score;    
 }
 
@@ -358,8 +372,9 @@ int create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover
     for (int i = 0; i < moves->length; i++) {
         Move* move = moves->moves[i];
         Piece* killed = pretend_move(board, move->piece, move->destination);
-        int score = evaluate_position(board, parent->children[parent->i-1], mover, grapher);
+        int score = evaluate_position(board, parent->children[parent->i-1], mover, grapher, killed);
         update_scores(scores, score, i);
+        move->evaluation += score;
         undo_pretend_move(board, move->piece, killed, move->from);
     }
 
@@ -369,9 +384,9 @@ int create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover
         Move* move = moves->moves[scores->indices[i]];
         Piece* killed = pretend_move(board, move->piece, move->destination);
         update_graph(parent, move);
-        if (killed) {
-            evaluate_killed(move, killed, mover, grapher);
-        }
+        // if (killed) {
+        //     evaluate_killed(move, killed, mover, grapher);
+        // }
         grapher->depth -= 1;
         grapher->value_limit += 1;
         int new_score = create_graph(grapher, parent->children[parent->i-1], board, invert_colour(mover));
