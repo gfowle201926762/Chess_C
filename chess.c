@@ -1328,6 +1328,7 @@ void test_puzzle_win_queen() {
 
     Tracer* tracer = init_tracer(black);
     dfs(grapher->start, tracer);
+    assert_evals_match_best_eval(tracer);
     print_tracer(tracer);
 }
 
@@ -1345,7 +1346,7 @@ void test_board_notation() {
 
     Tracer* tracer = init_tracer(black);
     dfs(grapher->start, tracer);
-    print_tracer(tracer);
+    assert_evals_match_best_eval(tracer);
 
 }
 
@@ -2453,7 +2454,7 @@ void test_detect_mate_2() {
     // printf("score: %i\n", score);
     Tracer* tracer = init_tracer(black);
     dfs(grapher->start, tracer);
-    // print_tracer(tracer);
+    assert_evals_match_best_eval(tracer);
     assert(score == 99);
 }
 
@@ -2519,7 +2520,7 @@ void test_mate_in_four() {
 
     Tracer* tracer = init_tracer(black);
     dfs(grapher->start, tracer);
-    // print_tracer(tracer);
+    assert_evals_match_best_eval(tracer);
     assert(tracer->best_eval == 95);
     assert(tracer->best->length == 7);
     assert(tracer->best->moves[0]->from == d7);
@@ -2563,7 +2564,15 @@ void test_mate_in_four_2() {
     Tracer* tracer = init_tracer(black);
     dfs(grapher->start, tracer);
     assert(score == 97);
+    assert_evals_match_best_eval(tracer);
+}
 
+void assert_evals_match_best_eval(Tracer* tracer) {
+    int evals = 0;
+    for (int i = 0; i < tracer->best->length; i++) {
+        evals += tracer->best->moves[i]->evaluation;
+    }
+    assert(evals == tracer->best_eval);
 }
 
 void test_mate_in_four_3() {
@@ -2584,7 +2593,7 @@ void test_mate_in_four_3() {
 
     Tracer* tracer = init_tracer(white);
     dfs(grapher->start, tracer);
-    // print_tracer(tracer);
+    assert_evals_match_best_eval(tracer);
     assert(tracer->best_eval == 104);
     assert(tracer->best->length == 7);
     assert(tracer->best->moves[0]->from == e5);

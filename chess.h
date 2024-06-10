@@ -207,6 +207,7 @@ void test_puzzle_fork();
 void test_forcing_moves_1();
 void test_forcing_moves_2();
 void test_forcing_moves_3();
+void assert_evals_match_best_eval(Tracer* tracer);
 
 // Initialisation
 Board* init_board(void);
