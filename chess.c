@@ -194,6 +194,9 @@ int init_breadth(Grapher* grapher, colour mover) {
 }
 
 int evaluate_killed(Piece* killed, colour mover, Grapher* grapher) {
+    if (killed == NULL) {
+        return 0;
+    }
     if (mover == grapher->start_player) {
         return killed->value;
     }
