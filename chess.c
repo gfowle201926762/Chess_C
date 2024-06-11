@@ -108,6 +108,7 @@ void update_high_low_eval(Tracer* tracer, int* high_low_eval, int* best_index, i
     }
 }
 
+// I am so confused to how the fuck I actually made this...
 Moves* dfs(GraphNode* node, Tracer* tracer) {
     if (node->move != NULL) {
         tracer->best_eval += node->move->evaluation;
