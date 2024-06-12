@@ -35,29 +35,41 @@ void test_take_train() {
 
 void test_forcing_moves_1() {
     Board* board = set_board_notation("bkg6 bcc6 wqe3 ");
-    print_board_pro(board);
 
     U64 test_board = board->bitboard;
-    Grapher* grapher = init_grapher(2, 3, white);
+    Grapher* grapher = init_grapher(3, 3, white);
     int score = create_graph(grapher, grapher->start, board, white);
     assert(test_board == board->bitboard);
-    Tracer* tracer = init_tracer(white);
-    dfs(grapher->start, tracer);
-    print_tracer(tracer);
+    Moves* tracer = calloc(1, sizeof(Moves));
+    bfs(grapher->start, tracer);
 
     assert(score == 0);
-    // assert(tracer->best_eval == 500);
-    assert(tracer->best->length == 3);
-    assert(tracer->best->moves[0]->from == e3);
-    assert((tracer->best->moves[0]->destination == e8) || ((tracer->best->moves[0]->destination == e3)));
-    assert(tracer->best->moves[0]->piece->c == white);
-    assert(tracer->best->moves[0]->piece->type == queen);
+    assert(tracer->moves[0]->from == e3);
+    assert((tracer->moves[0]->destination == e8) || ((tracer->moves[0]->destination == e4)));
+    assert(tracer->moves[0]->piece->c == white);
+    assert(tracer->moves[0]->piece->type == queen);
 
-    assert((tracer->best->moves[2]->from == e8) || ((tracer->best->moves[2]->from == e3)));
-    assert(tracer->best->moves[2]->destination == c6);
-    assert(tracer->best->moves[2]->piece->c == white);
-    assert(tracer->best->moves[2]->piece->type == queen);
+    assert((tracer->moves[2]->from == e8) || ((tracer->moves[2]->from == e4)));
+    assert(tracer->moves[2]->destination == c6);
+    assert(tracer->moves[2]->piece->c == white);
+    assert(tracer->moves[2]->piece->type == queen);
+}
 
+void test_dont_be_stupid() {
+    Board* board = set_board_notation("bkg6 bcd6 wqe6 wka1 ");
+
+    U64 test_board = board->bitboard;
+    Grapher* grapher = init_grapher(3, 3, black);
+    int score = create_graph(grapher, grapher->start, board, black);
+    assert(test_board == board->bitboard);
+    Moves* tracer = calloc(1, sizeof(Moves));
+    bfs(grapher->start, tracer);
+
+    assert(score == 0);
+    assert(tracer->moves[0]->from == d6);
+    assert(tracer->moves[0]->destination == e6);
+    assert(tracer->moves[0]->piece->c == black);
+    assert(tracer->moves[0]->piece->type == castle);
 }
 
 void test_forcing_moves_2() {
@@ -65,20 +77,18 @@ void test_forcing_moves_2() {
     print_board_pro(board);
 
     U64 test_board = board->bitboard;
-    Grapher* grapher = init_grapher(2, 3, white);
+    Grapher* grapher = init_grapher(5, 5, white);
     int score = create_graph(grapher, grapher->start, board, white);
     assert(test_board == board->bitboard);
-    Tracer* tracer = init_tracer(white);
-    dfs(grapher->start, tracer);
-    print_tracer(tracer);
+    Moves* tracer = calloc(1, sizeof(Moves));
+    bfs(grapher->start, tracer);
+    print_moves(tracer);
 
     assert(score == 0);
-    assert(tracer->best_eval == 5);
-    assert(tracer->best->length == 3);
-    assert(tracer->best->moves[0]->from == e3);
-    assert(tracer->best->moves[0]->destination == g3);
-    assert(tracer->best->moves[0]->piece->c == white);
-    assert(tracer->best->moves[0]->piece->type == queen);
+    assert(tracer->moves[0]->from == e3);
+    assert(tracer->moves[0]->destination == g3);
+    assert(tracer->moves[0]->piece->c == white);
+    assert(tracer->moves[0]->piece->type == queen);
 }
 
 void test_forcing_moves_3() {

@@ -4,6 +4,8 @@ int main(void) {
     initialise();
 
     test_forcing_moves_1();
+    test_dont_be_stupid();
+    test_forcing_moves_2();
     
     return 0;
 }
@@ -108,6 +110,37 @@ void update_high_low_eval(Tracer* tracer, int* high_low_eval, int* best_index, i
     }
 }
 
+// breadth-first search through the graph finding the highest eval score at each point.
+// Upon creating the graph, a dfs has already been done.
+// Therefore, making a locally optimal decision here will have a depth of information.
+void bfs(GraphNode* node, Moves* tracer) {
+    if (node == NULL) {
+        return;
+    }
+    int best_eval = -MAX_SCORE;
+    int best_index = 0;
+    Move* best_move = NULL;
+    for (int i = 0; i < node->i; i++) {
+        GraphNode* child = node->children[i];
+        if (child == NULL) {
+            continue;
+        }
+        Move* move = child->move;
+        if (best_move == NULL || move->evaluation > best_eval || (move->evaluation == best_eval && rand() % 2)) {
+            best_index = i;
+            best_move = move;
+            best_eval = move->evaluation;
+        }
+    }
+    if (node != NULL) {
+        tracer->moves[tracer->length] = best_move;
+        tracer->length += 1;
+    }
+    bfs(node->children[best_index], tracer);
+}
+
+
+
 // I am so confused to how the fuck I actually made this...
 Moves* dfs(GraphNode* node, Tracer* tracer) {
     if (node->move != NULL) {
@@ -193,16 +226,16 @@ int init_breadth(Grapher* grapher, colour mover) {
     return grapher->max_breadth;
 }
 
-int evaluate_killed(Piece* killed, colour mover, Grapher* grapher) {
+int evaluate_killed(Piece* killed, colour mover) {
     if (killed == NULL) {
         return 0;
     }
-    if (mover == grapher->start_player) {
+    // if (mover == grapher->start_player) {
         return killed->value;
-    }
-    else {
-        return -killed->value;
-    }
+    // }
+    // else {
+    //     return -(killed->value);
+    // }
 }
 
 void calculate_depth(Grapher* grapher, int running_score, colour mover) {
@@ -257,7 +290,7 @@ int count_threats(Board* board, colour mover, U64 mask) {
     return count;
 }
 
-int count_moves(Board* board, colour mover) {
+int initiative_heuristic(Board* board, colour mover) {
     int count = 0;
     for (int i=0; i<16; i++) {
         if (board->pieces[mover][i]->alive) {
@@ -267,17 +300,6 @@ int count_moves(Board* board, colour mover) {
         }
     }
     return count;
-}
-
-int initiative_heuristic(Board* board, GraphNode* node, colour mover, Grapher* grapher) {
-    int score = 0;
-    if (mover == grapher->start_player) {
-        score += count_moves(board, mover);
-    }
-    else {
-        score -= count_moves(board, mover);
-    }
-    return score;
 }
 
 int king_safety_heuristic(Board* board, GraphNode* node, colour mover, Grapher* grapher) {
@@ -303,13 +325,14 @@ int measure_points(Board* board, colour mover) {
     return score;
 }
 
-int evaluate_position(Board* board, GraphNode* node, colour mover, Grapher* grapher, Piece* killed) {
+int evaluate_position(Board* board, colour mover, Grapher* grapher, Piece* killed) {
     int score = 0;
-    score += king_safety_heuristic(board, node, mover, grapher);
-    score += initiative_heuristic(board, node, mover, grapher);   
-    score += measure_points(board, mover);
-    score += evaluate_killed(killed, mover, grapher);
-    return score;    
+    // score += king_safety_heuristic(board, node, mover, grapher);
+    score += initiative_heuristic(board, mover);   
+    // int points = measure_points(board, mover);
+    score += evaluate_killed(killed, mover);
+    // printf("threats: %i, points: %i\n", threats, points);
+    return score;
 }
 
 void reorder_scores(Scores* scores, int start, int new_high, int new_index) {
@@ -344,9 +367,9 @@ void update_scores(Scores* scores, int score, int new_index) {
     }
 }
 
-Scores* init_scores(int length) {
+Scores* init_scores(int length, int max_branch) {
     Scores* scores = calloc(length, sizeof(Scores));
-    scores->max_breadth = MAX_BRANCH;
+    scores->max_breadth = max_branch;
     return scores;
 }
 
@@ -369,32 +392,24 @@ int create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover
     bool looked_ahead = false;
 
     // You need to make a hashing function...
-    Scores* scores = init_scores(moves->length);
-
-    // print_moves(moves);
+    Scores* scores = init_scores(moves->length, grapher->max_breadth);
 
     for (int i = 0; i < moves->length; i++) {
         Move* move = moves->moves[i];
         Piece* killed = pretend_move(board, move->piece, move->destination);
-        int score = evaluate_position(board, parent->children[parent->i-1], mover, grapher, killed);
+        int score = evaluate_position(board, mover, grapher, killed);
         update_scores(scores, score, i);
         move->evaluation += score;
         undo_pretend_move(board, move->piece, killed, move->from);
     }
 
-    // print_scores(scores, moves);
-
     for (int i = 0; i < scores->breadth; i++) {
         Move* move = moves->moves[scores->indices[i]];
         Piece* killed = pretend_move(board, move->piece, move->destination);
         update_graph(parent, move);
-        // if (killed) {
-        //     evaluate_killed(move, killed, mover, grapher);
-        // }
+
         grapher->depth -= 1;
-        grapher->value_limit += 1;
         int new_score = create_graph(grapher, parent->children[parent->i-1], board, invert_colour(mover));
-        grapher->value_limit -= 1;
         grapher->depth += 1;
 
         running_score = calculate_score(grapher, mover, new_score, running_score);
@@ -724,9 +739,7 @@ Grapher* init_grapher(int breadth, int depth, colour start_player) {
 
 Tracer* init_tracer(colour mover) {
     Tracer* tracer = calloc(1, sizeof(Tracer));
-    Moves* track = calloc(1, sizeof(Moves));
     Moves* best = calloc(1, sizeof(Moves));
-    tracer->tracer = track;
     tracer->best = best;
     tracer->original_mover = mover;
     tracer->mover = mover;

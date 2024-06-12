@@ -1,7 +1,7 @@
 
 CC      := clang
 DEBUG   := -g3
-OPTIM   := -O3
+OPTIM   := -O1
 CFLAGS  := -Wall -std=c99
 RELEASE := $(CFLAGS) $(OPTIM)
 SANI    := $(CFLAGS) -fsanitize=undefined -fsanitize=address $(DEBUG)

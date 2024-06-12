@@ -10,7 +10,7 @@
 #define CELLS 64
 #define U64 unsigned long long
 #define MOVES_SIZE 100
-#define MAX_SCORE 100
+#define MAX_SCORE 10000
 #define SAVED_SIZE 100
 #define MAX_BREADTH 10000
 #define MAX_BRANCH 10
@@ -116,21 +116,17 @@ typedef struct Move Move;
 struct Moves {
     Move* moves[MOVES_SIZE];
     int length;
-    int max_length;
 };
 typedef struct Moves Moves;
 
 
 struct Tracer {
-    Moves* selection[MOVES_SIZE];
-    Moves* tracer;
     Moves* best;
+
     int best_eval;
     colour original_mover;
     colour mover;
     int depth;
-    int i;
-    int eval;
 };
 typedef struct Tracer Tracer;
 
@@ -269,6 +265,7 @@ void update_base(Grapher* grapher, int highest);
 int create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover);
 Grapher* init_grapher(int breadth, int depth, colour start_player);
 Moves* dfs(GraphNode* node, Tracer* tracer);
+void bfs(GraphNode* node, Moves* tracer);
 Tracer* init_tracer(colour mover);
 
 void play_game();
