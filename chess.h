@@ -10,7 +10,7 @@
 #define CELLS 64
 #define U64 unsigned long long
 #define MOVES_SIZE 100
-#define MAX_SCORE 10000
+#define MAX_SCORE 100000
 #define SAVED_SIZE 100
 #define MAX_BREADTH 10000
 #define MAX_BRANCH 10
@@ -149,10 +149,8 @@ struct Grapher {
 typedef struct Grapher Grapher;
 
 struct Scores {
-    int highest[MAX_BRANCH];
-    int indices[MAX_BRANCH];
-    int max_breadth;
-    int breadth;
+    Moves* moves;
+    int eval;
 };
 typedef struct Scores Scores;
 
@@ -229,6 +227,7 @@ void test_forcing_moves_3();
 Board* init_board(void);
 void set_board(Board* board);
 Board* set_board_notation(char* s);
+Scores* init_scores(GraphNode* node, int depth);
 
 // Miscellaneous
 void clear_board(Board* board);
@@ -246,7 +245,7 @@ void print_piece(Piece* piece);
 void print_tracer(Tracer* tracer);
 void colour_to_string(colour c, char* string);
 void piece_to_string(name n, char* string);
-void print_scores(Scores* scores, Moves* moves);
+void print_scores(Scores* scores);
 
 // Move legal logic
 void execute_move(Board* board, Piece* piece, square to);
@@ -267,6 +266,8 @@ Grapher* init_grapher(int breadth, int depth, colour start_player);
 Moves* dfs(GraphNode* node, Tracer* tracer);
 void bfs(GraphNode* node, Moves* tracer);
 Tracer* init_tracer(colour mover);
+int evaluate_leaf_position(Board* board, GraphNode* parent, colour mover, Grapher* grapher);
+Scores* min_max(GraphNode* node, Tracer* tracer);
 
 void play_game();
 void initialise();

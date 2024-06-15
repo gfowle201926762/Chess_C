@@ -6,6 +6,7 @@ int main(void) {
     test_forcing_moves_1();
     test_dont_be_stupid();
     test_forcing_moves_2();
+    test_forcing_moves_3();
     
     return 0;
 }
@@ -110,6 +111,50 @@ void update_high_low_eval(Tracer* tracer, int* high_low_eval, int* best_index, i
     }
 }
 
+void free_scores(Scores* scores) {
+    // TODO
+}
+
+
+Scores* min_max(GraphNode* node, Tracer* tracer) {
+    if (node == NULL) {
+        assert(false);
+        return NULL;
+    }
+    if (node->i == 0) {
+        return init_scores(node, tracer->depth);
+    }
+    bool original_mover = true;
+    if (node->move) {
+        original_mover = node->move->piece->c != tracer->original_mover;
+    }
+    Scores* best_scores;
+    int limit = MAX_SCORE;
+    if (original_mover) {
+        limit = -MAX_SCORE;
+    }
+    for (int i = 0; i < node->i; i++) {
+        tracer->depth += 1;
+        Scores* scores = min_max(node->children[i], tracer);
+        tracer->depth -= 1;
+        
+        if ((original_mover && scores->eval > limit) || (!original_mover && scores->eval < limit)) {
+            limit = scores->eval;
+            best_scores = scores;
+        }
+        else {
+            free_scores(scores);
+        }
+    }
+    if (node->move != NULL) {
+        best_scores->moves->moves[tracer->depth - 1] = node->move;
+    }
+    return best_scores;
+}
+
+
+
+
 // breadth-first search through the graph finding the highest eval score at each point.
 // Upon creating the graph, a dfs has already been done.
 // Therefore, making a locally optimal decision here will have a depth of information.
@@ -198,74 +243,10 @@ int evaluate_no_moves(Grapher* grapher, GraphNode* parent, Board* board, colour 
         // STALEMATE
         return 0;
     }
-    int score = MAX_SCORE - ((grapher->max_depth - grapher->depth) / 2);
-    // printf("MATE DETECTED: %i\n", score);
-    if (mover == grapher->start_player) {
-        parent->move->evaluation -= score;
-        return -score;
-    }
-    else {
-        parent->move->evaluation += score;
-        return score;
-    }
-}
-
-int init_score(Grapher* grapher, colour mover) {
-    if (grapher->start_player == mover) {
-        return -(MAX_SCORE);
-    }
-    else {
-        return MAX_SCORE;
-    }
-}
-
-int init_breadth(Grapher* grapher, colour mover) {
-    if (mover == grapher->start_player || grapher->depth == grapher->max_depth - 1) {
-        return MAX_BREADTH;
-    }
-    return grapher->max_breadth;
-}
-
-int evaluate_killed(Piece* killed, colour mover) {
-    if (killed == NULL) {
-        return 0;
-    }
-    // if (mover == grapher->start_player) {
-        return killed->value;
-    // }
-    // else {
-    //     return -(killed->value);
-    // }
-}
-
-void calculate_depth(Grapher* grapher, int running_score, colour mover) {
-    if (mover != grapher->start_player) {
-        running_score = -running_score;
-    }
-    if (MAX_SCORE - running_score < grapher->depth) {
-        // printf("previous depth: %i, new depth %i, running_score: %i\n", grapher->depth, (MAX_SCORE - running_score), running_score);
-        grapher->depth = MAX_SCORE - running_score;
-        if (grapher->depth == 0) {
-            grapher->depth = 1;
-        }
-    }
-}
-
-int calculate_score(Grapher* grapher, colour mover, int new_score, int running_score) {
-    if (grapher->start_player == mover && new_score > running_score) {
-        return new_score;
-    }
-    if (grapher->start_player != mover && new_score < running_score) {
-        return new_score;
-    }
-    return running_score;
+    return MAX_SCORE - ((grapher->max_depth - grapher->depth) / 2);
 }
 
 
-int take_train_heuristic(Board* board, GraphNode* node) {
-    // just the previous move
-    return 0;
-}
 
 int count_bitboard(U64 mask) {
     int count = 0;
@@ -295,7 +276,7 @@ int initiative_heuristic(Board* board, colour mover) {
     for (int i=0; i<16; i++) {
         if (board->pieces[mover][i]->alive) {
             U64 mask = board->pieces[mover][i]->move_func(board, board->pieces[mover][i]);
-            count += count_bitboard(mask);
+            // count += count_bitboard(mask);
             count += count_threats(board, mover, mask);
         }
     }
@@ -325,106 +306,135 @@ int measure_points(Board* board, colour mover) {
     return score;
 }
 
-int evaluate_position(Board* board, colour mover, Grapher* grapher, Piece* killed) {
+int evaluate_position(Board* board, colour mover) {
     int score = 0;
     // score += king_safety_heuristic(board, node, mover, grapher);
     score += initiative_heuristic(board, mover);   
-    // int points = measure_points(board, mover);
-    score += evaluate_killed(killed, mover);
+    score += measure_points(board, mover);
+    // score += evaluate_killed(killed);
     // printf("threats: %i, points: %i\n", threats, points);
     return score;
 }
 
-void reorder_scores(Scores* scores, int start, int new_high, int new_index) {
-    int saved;
-    int saved_index;
-    int i;
-    for (i = start; i < scores->breadth; i++) {
-        saved = scores->highest[start];
-        saved_index = scores->indices[start];
-        scores->highest[i] = new_high;
-        scores->indices[i] = new_index;
-        new_high = saved;
-        new_index = saved_index;
-    }
-    if (i < scores->max_breadth) {
-        scores->breadth += 1;
-    }
-}
 
-void update_scores(Scores* scores, int score, int new_index) {
-    int i;
-    for (i = 0; i < scores->breadth; i++) {
-        if (score > scores->highest[i]) {
-            reorder_scores(scores, i, score, new_index);
-            return;
+
+void reorder_best_scores(int* best_scores, Moves* best_moves, int max_breadth, Move* new_move) {
+    int i = 0;
+    int new_score = new_move->evaluation;
+    for (i = 0; i < best_moves->length; i++) {
+        if (new_score > best_scores[i]) {
+            int saved = best_scores[i];
+            Move* saved_move = best_moves->moves[i];
+            best_scores[i] = new_score;
+            best_moves->moves[i] = new_move;
+            new_score = saved;
+            new_move = saved_move;
         }
     }
-    if (i < scores->max_breadth) {
-        scores->indices[i] = new_index;
-        scores->highest[i] = score;
-        scores->breadth += 1;
+    if (i < max_breadth) {
+        best_scores[i] = new_score;
+        best_moves->moves[i] = new_move;
+        best_moves->length += 1;
     }
 }
 
-Scores* init_scores(int length, int max_branch) {
-    Scores* scores = calloc(length, sizeof(Scores));
-    scores->max_breadth = max_branch;
+Moves* get_best_scores(Moves* moves, int max_breadth) {
+    Moves* best_moves = calloc(1, sizeof(Moves));
+    int best_scores[max_breadth];
+    for (int i = 0; i < moves->length; i++) {
+        if (max_breadth > best_moves->length || best_scores[max_breadth-1] < moves->moves[i]->evaluation) {
+            reorder_best_scores(best_scores, best_moves, max_breadth, moves->moves[i]);
+        }
+    }
+    return best_moves;
+}
+
+
+Scores* init_scores(GraphNode* node, int depth) {
+    Scores* scores = calloc(1, sizeof(Scores));
+    scores->moves = calloc(1, sizeof(Moves));
+    scores->eval = node->move->evaluation;
+    scores->moves->moves[depth - 1] = node->move;
+    scores->moves->length = depth;
     return scores;
+}
+
+
+Moves* get_best_moves(Board* board, Moves* moves, colour mover, int max_breadth) {
+    for (int i = 0; i < moves->length; i++) {
+        Move* move = moves->moves[i];
+        Piece* killed = pretend_move(board, move->piece, move->destination);
+        move->evaluation = evaluate_position(board, mover);
+        undo_pretend_move(board, move->piece, killed, move->from);
+    }
+
+    return get_best_scores(moves, max_breadth);
+}
+
+Scores* create_graph_2(Grapher* grapher, GraphNode* parent, Board* board, colour mover) {
+    
+    if (grapher->depth == grapher->base) {
+        board->leaves += 1;
+        parent->move->evaluation = evaluate_position(board, mover);
+        return 0;
+    }
+    
+    Moves* moves = get_all_moves_for_colour(board, mover);
+    if (moves->length == 0) {
+        return evaluate_no_moves(grapher, parent, board, mover);
+    }
+
+    Moves* best_moves = get_best_moves(board, moves, mover, grapher->max_breadth);
+
+    for (int i = 0; i < best_moves->length; i++) {
+        Move* move = best_moves->moves[i];
+        Piece* killed = pretend_move(board, move->piece, move->destination);
+        update_graph(parent, move);
+
+        // if (grapher->depth == grapher->max_depth) {
+        //     // printf("\ndepth: %i\n", grapher->depth);
+        //     print_move(move);
+        // }
+
+        grapher->depth -= 1;
+        int new_score = create_graph(grapher, parent->children[parent->i-1], board, invert_colour(mover));
+        grapher->depth += 1;
+
+        undo_pretend_move(board, move->piece, killed, move->from);
+    }
 }
 
 int create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover) {
     
     if (grapher->depth == grapher->base) {
         board->leaves += 1;
+        parent->move->evaluation = evaluate_position(board, mover);
         return 0;
     }
     
     Moves* moves = get_all_moves_for_colour(board, mover);
-
     if (moves->length == 0) {
         return evaluate_no_moves(grapher, parent, board, mover);
     }
 
-    // int breadth = init_breadth(grapher, mover);
-    int running_score = init_score(grapher, mover);
-    int saved_depth = grapher->depth;
-    bool looked_ahead = false;
+    Moves* best_moves = get_best_moves(board, moves, mover, grapher->max_breadth);
 
-    // You need to make a hashing function...
-    Scores* scores = init_scores(moves->length, grapher->max_breadth);
-
-    for (int i = 0; i < moves->length; i++) {
-        Move* move = moves->moves[i];
-        Piece* killed = pretend_move(board, move->piece, move->destination);
-        int score = evaluate_position(board, mover, grapher, killed);
-        update_scores(scores, score, i);
-        move->evaluation += score;
-        undo_pretend_move(board, move->piece, killed, move->from);
-    }
-
-    for (int i = 0; i < scores->breadth; i++) {
-        Move* move = moves->moves[scores->indices[i]];
+    for (int i = 0; i < best_moves->length; i++) {
+        Move* move = best_moves->moves[i];
         Piece* killed = pretend_move(board, move->piece, move->destination);
         update_graph(parent, move);
+
+        // if (grapher->depth == grapher->max_depth) {
+        //     // printf("\ndepth: %i\n", grapher->depth);
+        //     print_move(move);
+        // }
 
         grapher->depth -= 1;
         int new_score = create_graph(grapher, parent->children[parent->i-1], board, invert_colour(mover));
         grapher->depth += 1;
 
-        running_score = calculate_score(grapher, mover, new_score, running_score);
-        calculate_depth(grapher, running_score, mover);
-        looked_ahead = true;
         undo_pretend_move(board, move->piece, killed, move->from);
     }
-    
-    free(scores);
-    if (!looked_ahead) {
-        board->leaves += 1;
-        return 0;
-    }
-    grapher->depth = saved_depth;
-    return running_score;
 }
 
 
@@ -1215,11 +1225,13 @@ void print_tracer(Tracer* tracer) {
     print_moves(tracer->best);
 }
 
-void print_scores(Scores* scores, Moves* moves) {
-    for (int i = 0; i < scores->breadth; i++) {
-        print_move(moves->moves[scores->indices[i]]);
-        printf("score: %i\n", scores->highest[i]);
+void print_scores(Scores* scores) {
+    printf("EVALUATION: %i\n", scores->eval);
+    for (int i = 0; i < scores->moves->length; i++) {
+        printf("move %i: ", i);
+        print_move(scores->moves->moves[i]);
     }
+    printf("\n");
 }
 
 
