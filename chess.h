@@ -228,6 +228,7 @@ Board* init_board(void);
 void set_board(Board* board);
 Board* set_board_notation(char* s);
 Scores* init_scores(GraphNode* node, int depth);
+int init_limit(bool original_mover);
 
 // Miscellaneous
 void clear_board(Board* board);
@@ -261,6 +262,7 @@ Moves* get_all_moves_for_colour(Board* board, colour c);
 // Evaluate moves
 int update_depth(int depth, int highest);
 void update_base(Grapher* grapher, int highest);
+Scores* create_graph_2(Grapher* grapher, GraphNode* parent, Board* board, colour mover, int prune);
 int create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover);
 Grapher* init_grapher(int breadth, int depth, colour start_player);
 Moves* dfs(GraphNode* node, Tracer* tracer);

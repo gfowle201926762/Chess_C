@@ -7,6 +7,9 @@ int main(void) {
     test_dont_be_stupid();
     test_forcing_moves_2();
     test_forcing_moves_3();
+    test_puzzle_fork();
+    test_puzzle_win_queen();
+    test_forcing_moves();
     
     return 0;
 }
@@ -238,12 +241,14 @@ void update_graph(GraphNode* parent, Move* move) {
     parent->i += 1;
 }
 
-int evaluate_no_moves(Grapher* grapher, GraphNode* parent, Board* board, colour mover) {
+Scores* evaluate_no_moves(Grapher* grapher, GraphNode* parent, Board* board, colour mover) {
     if (!is_check(board, mover)) {
         // STALEMATE
-        return 0;
+        parent->move->evaluation = 0;
+        return init_scores(parent, grapher->depth);
     }
-    return MAX_SCORE - ((grapher->max_depth - grapher->depth) / 2);
+    parent->move->evaluation = MAX_SCORE - ((grapher->max_depth - grapher->depth) / 2);
+    return init_scores(parent, grapher->depth);
 }
 
 
@@ -371,12 +376,30 @@ Moves* get_best_moves(Board* board, Moves* moves, colour mover, int max_breadth)
     return get_best_scores(moves, max_breadth);
 }
 
-Scores* create_graph_2(Grapher* grapher, GraphNode* parent, Board* board, colour mover) {
+bool init_original_mover(GraphNode* node, Grapher* grapher) {
+    if (node->move) {
+        return node->move->piece->c != grapher->start_player;
+    }
+    return true;
+}
+
+int init_limit(bool original_mover) {
+    if (original_mover) {
+        return -MAX_SCORE;
+    }
+    return MAX_SCORE;
+}
+
+int reverse_depth(Grapher* grapher) {
+    return grapher->max_depth - grapher->depth;
+}
+
+Scores* create_graph_2(Grapher* grapher, GraphNode* parent, Board* board, colour mover, int prune) {
     
     if (grapher->depth == grapher->base) {
         board->leaves += 1;
         parent->move->evaluation = evaluate_position(board, mover);
-        return 0;
+        return init_scores(parent, reverse_depth(grapher));
     }
     
     Moves* moves = get_all_moves_for_colour(board, mover);
@@ -385,6 +408,9 @@ Scores* create_graph_2(Grapher* grapher, GraphNode* parent, Board* board, colour
     }
 
     Moves* best_moves = get_best_moves(board, moves, mover, grapher->max_breadth);
+    Scores* best_scores;
+    bool original_mover = init_original_mover(parent, grapher);
+    int limit = init_limit(original_mover);
 
     for (int i = 0; i < best_moves->length; i++) {
         Move* move = best_moves->moves[i];
@@ -397,11 +423,27 @@ Scores* create_graph_2(Grapher* grapher, GraphNode* parent, Board* board, colour
         // }
 
         grapher->depth -= 1;
-        int new_score = create_graph(grapher, parent->children[parent->i-1], board, invert_colour(mover));
+        Scores* scores = create_graph_2(grapher, parent->children[parent->i-1], board, invert_colour(mover), limit);
         grapher->depth += 1;
 
         undo_pretend_move(board, move->piece, killed, move->from);
+
+        if ((original_mover && scores->eval > limit) || (!original_mover && scores->eval < limit)) {
+            limit = scores->eval;
+            best_scores = scores;
+        }
+        else {
+            free_scores(scores);
+        }
+        if (prune != MAX_SCORE && prune != -MAX_SCORE && ((original_mover && scores->eval > prune) || (!original_mover && scores->eval < prune))) {
+            // printf("prune: %i, scores->eval: %i, original_mover? %i\n", prune, scores->eval, original_mover);
+            break;
+        }
     }
+    if (parent->move != NULL) {
+        best_scores->moves->moves[reverse_depth(grapher) - 1] = parent->move;
+    }
+    return best_scores;
 }
 
 int create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover) {
@@ -414,7 +456,8 @@ int create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover
     
     Moves* moves = get_all_moves_for_colour(board, mover);
     if (moves->length == 0) {
-        return evaluate_no_moves(grapher, parent, board, mover);
+        return 0;
+        // return evaluate_no_moves(grapher, parent, board, mover);
     }
 
     Moves* best_moves = get_best_moves(board, moves, mover, grapher->max_breadth);
