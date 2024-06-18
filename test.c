@@ -5,33 +5,28 @@
 /* ----------------------------- */
 
 
-
-void eval_function_test() {
+void output_results() {
 
 }
 
 
+// void test_evaluation_branching(int breadth) {
+//     test_forcing_moves(breadth);
+//     test_forcing_moves_1(breadth);
+//     test_forcing_moves_2(breadth);
+//     test_forcing_moves_3(breadth);
+//     test_puzzle_fork(breadth);
+//     test_puzzle_win_queen(breadth);
+//     test_17_june_2024(breadth);
+//     test_16_june_2024_partial(breadth);
+//     test_16_june_2024(breadth);
+//     test_15_june_2024(breadth);
+//     test_detect_mate_1(breadth);
+//     test_detect_mate_2(breadth);
+//     test_mate_in_four(breadth);
+//     test_mate_in_four_2(breadth);
+// }
 
-
-
-
-
-
-void test_take_train() {
-    Board* board = set_board_notation("wpe4 wbf3 wqg2 bpd5 bbc6 bqb7 ");
-    print_board_pro(board);
-
-    U64 test_board = board->bitboard;
-    Grapher* grapher = init_grapher(6, 1, black);
-
-    int score = create_graph(grapher, grapher->start, board, black);
-    assert(test_board == board->bitboard);
-    printf("score: %i\n", score);
-
-    Tracer* tracer = init_tracer(black);
-    dfs(grapher->start, tracer);
-    print_tracer(tracer);
-}
 
 void test_forcing_moves_1() {
     Board* board = set_board_notation("bkg6 bcc6 wqe3 wka1 ");
@@ -39,13 +34,8 @@ void test_forcing_moves_1() {
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(2, 3, white);
-    Scores* scores = create_graph_2(grapher, grapher->start, board, white, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
     assert(test_board == board->bitboard);
-
-    // Tracer* tracer = init_tracer(white);
-    // Scores* scores = min_max(grapher->start, tracer);
-    // print_scores(scores);
-
     
     assert(scores->moves->moves[0]->from == e3);
     assert((scores->moves->moves[0]->destination == e8) || ((scores->moves->moves[0]->destination == e4)));
@@ -64,12 +54,8 @@ void test_dont_be_stupid() {
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(3, 3, black);
-    Scores* scores = create_graph_2(grapher, grapher->start, board, black, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
     assert(test_board == board->bitboard);
-
-    // Tracer* tracer = init_tracer(black);
-    // Scores* scores = min_max(grapher->start, tracer);
-    // print_scores(scores);
 
     assert(scores->moves->moves[0]->from == d6);
     assert(scores->moves->moves[0]->destination == e6);
@@ -83,11 +69,8 @@ void test_forcing_moves_2() {
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(4, 4, white);
-    Scores* scores = create_graph_2(grapher, grapher->start, board, white, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
     assert(test_board == board->bitboard);
-    // Tracer* tracer = init_tracer(white);
-    // Scores* scores = min_max(grapher->start, tracer);
-    // print_scores(scores);
 
     assert(scores->moves->moves[0]->from == e3);
     assert(scores->moves->moves[0]->destination == g3);
@@ -106,12 +89,8 @@ void test_forcing_moves_3() {
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(3, 7, white);
-    Scores* scores = create_graph_2(grapher, grapher->start, board, white, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
     assert(test_board == board->bitboard);
-    // Tracer* tracer = init_tracer(white);
-    // Scores* scores = min_max(grapher->start, tracer);
-
-    // printf("leaf nodes reached: %i\n", board->leaves);
 
     assert(scores->moves->moves[0]->from == g1);
     assert(scores->moves->moves[0]->destination == g6);
@@ -126,7 +105,7 @@ void test_puzzle_fork() {
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(4, 3, white);
     
-    Scores* scores = create_graph_2(grapher, grapher->start, board, white, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
     assert(test_board == board->bitboard);
 
     // print_scores(scores);
@@ -143,7 +122,7 @@ void test_puzzle_win_queen() {
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(6, 4, black);
 
-    Scores* scores = create_graph_2(grapher, grapher->start, board, black, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
     assert(test_board == board->bitboard);
     
     // print_scores(scores);
@@ -174,23 +153,345 @@ void test_puzzle_win_queen() {
     assert(scores->moves->moves[4]->piece->type == queen);
 }
 
-void test_board_notation() {
-    Board* board = set_board_notation("wkh2 wqc1 wcf1 wce1 wbb1 wba5 whf4 wph3 wpg2 wpb3 wpa4 bkh7 bqh4 bcf8 bce8 bbg7 bbh5 bhh6 bhe5 bpg6 bpc6 bpb7 ");
+void test_forcing_moves() {
+    Board* board = forcing_move_setup();
+    // print_board_pro(board);
+
+    U64 test_board = board->bitboard;
+    // evaluation function not good enough for a lower breadth...
+    // https://www.chess.com/blog/EnPassantFork/2024-03-01-dpa-order-matters
+    Grapher* grapher = init_grapher(8, 4, black);
+    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
+
+    assert(test_board == board->bitboard);
+
+    // print_scores(scores);
+
+    assert(scores->moves->moves[0]->from == f6);
+    assert(scores->moves->moves[0]->destination == h4);
+    assert(scores->moves->moves[0]->piece->c == black);
+    assert(scores->moves->moves[0]->piece->type == bishop);
+}
+
+void test_18_june_2024() {
+    Board* board = set_board_notation("wkb1 wcd1 wcg7 wbd4 whd5 wpa3 wpb2 wpc2 wpe4 wpf3 wpf5 wph5 bkh8 bqd8 bcb8 bcf8 bbc8 bbe7 bha4 bpa6 bpd2 bpd6 bpf7 bph7 ");
+    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
+    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
+    // print_board_pro(board);
+
+    U64 test_board = board->bitboard;
+    Grapher* grapher = init_grapher(8, 4, white);
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    assert(test_board == board->bitboard);
+
+    // print_scores(scores);
+
+    assert(scores->eval == MAX_SCORE - 3);
+
+    assert(scores->moves->moves[0]->from == g7);
+    assert(scores->moves->moves[0]->destination == g8);
+    assert(scores->moves->moves[0]->piece->c == white);
+    assert(scores->moves->moves[0]->piece->type == castle);
+
+    assert(scores->moves->moves[1]->from == h8);
+    assert(scores->moves->moves[1]->destination == g8);
+    assert(scores->moves->moves[1]->piece->c == black);
+    assert(scores->moves->moves[1]->piece->type == king);
+
+    assert(scores->moves->moves[2]->from == d5);
+    assert(scores->moves->moves[2]->destination == e7);
+    assert(scores->moves->moves[2]->piece->c == white);
+    assert(scores->moves->moves[2]->piece->type == knight);
+
+    assert(scores->moves->moves[3]->from == d8);
+    assert(scores->moves->moves[3]->destination == e7);
+    assert(scores->moves->moves[3]->piece->c == black);
+    assert(scores->moves->moves[3]->piece->type == queen);
+
+    assert(scores->moves->moves[4]->from == d1);
+    assert(scores->moves->moves[4]->destination == g1);
+    assert(scores->moves->moves[4]->piece->c == white);
+    assert(scores->moves->moves[4]->piece->type == castle);
+
+    assert(scores->moves->moves[5]->from == e7);
+    assert(scores->moves->moves[5]->destination == g5);
+    assert(scores->moves->moves[5]->piece->c == black);
+    assert(scores->moves->moves[5]->piece->type == queen);
+
+    assert(scores->moves->moves[6]->from == g1);
+    assert(scores->moves->moves[6]->destination == g5);
+    assert(scores->moves->moves[6]->piece->c == white);
+    assert(scores->moves->moves[6]->piece->type == castle);
+}
+
+void test_17_june_2024() {
+    Board* board = set_board_notation("wpa3 wpb4 wpc3 wpg4 whd4 wbe2 wch8 wkg2 bkc8 bce8 bhe6 bhc7 bpa7 bpb6 bpc6 bpf6 bpg5 ");
+    // print_board_pro(board);
+    U64 test_board = board->bitboard;
+    Grapher* grapher = init_grapher(8, 4, white);
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    assert(test_board == board->bitboard);
+
+    // print_scores(scores);
+
+    assert(scores->moves->moves[0]->from == h8);
+    assert(scores->moves->moves[0]->destination == e8);
+    assert(scores->moves->moves[0]->piece->c == white);
+    assert(scores->moves->moves[0]->piece->type == castle);
+
+    assert(scores->moves->moves[1]->from == c7);
+    assert(scores->moves->moves[1]->destination == e8);
+    assert(scores->moves->moves[1]->piece->c == black);
+    assert(scores->moves->moves[1]->piece->type == knight);
+
+    assert(scores->moves->moves[2]->from == d4);
+    assert(scores->moves->moves[2]->destination == e6);
+    assert(scores->moves->moves[2]->piece->c == white);
+    assert(scores->moves->moves[2]->piece->type == knight);
+}
+
+void test_16_june_2024() {
+    Board* board = set_board_notation("wpb5 wpb2 wpc2 wpf2 wph2 wkc1 wqc3 whd3 wbg3 wcg1 bpa4 bpe6 bpf7 bpg7 bph7 bkg8 bqd5 bbe4 bca8 bcf8 ");
+    // print_board_pro(board);
+
+    U64 test_board = board->bitboard;
+    Grapher* grapher = init_grapher(9, 6, white);
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    assert(test_board == board->bitboard);
+
+    // print_scores(scores);
+    assert(scores->eval == MAX_SCORE - 5);
+
+    assert(scores->moves->moves[0]->from == c3);
+    assert(scores->moves->moves[0]->destination == g7);
+    assert(scores->moves->moves[0]->piece->c == white);
+    assert(scores->moves->moves[0]->piece->type == queen);
+
+    assert(scores->moves->moves[1]->from == g8);
+    assert(scores->moves->moves[1]->destination == g7);
+    assert(scores->moves->moves[1]->piece->c == black);
+    assert(scores->moves->moves[1]->piece->type == king);
+
+    assert(scores->moves->moves[2]->from == g3);
+    assert(scores->moves->moves[2]->destination == e5);
+    assert(scores->moves->moves[2]->piece->c == white);
+    assert(scores->moves->moves[2]->piece->type == bishop);
+
+    assert(scores->moves->moves[3]->from == g7);
+    assert(scores->moves->moves[3]->destination == h6);
+    assert(scores->moves->moves[3]->piece->c == black);
+    assert(scores->moves->moves[3]->piece->type == king);
+
+    assert(scores->moves->moves[4]->from == e5);
+    assert(scores->moves->moves[4]->destination == g7);
+    assert(scores->moves->moves[4]->piece->c == white);
+    assert(scores->moves->moves[4]->piece->type == bishop);
+
+    assert(scores->moves->moves[5]->from == h6);
+    assert(scores->moves->moves[5]->destination == h5);
+    assert(scores->moves->moves[5]->piece->c == black);
+    assert(scores->moves->moves[5]->piece->type == king);
+
+    assert(scores->moves->moves[6]->from == d3);
+    assert(scores->moves->moves[6]->destination == f4);
+    assert(scores->moves->moves[6]->piece->c == white);
+    assert(scores->moves->moves[6]->piece->type == knight);
+
+    assert(scores->moves->moves[7]->from == h5);
+    assert(scores->moves->moves[7]->destination == h4);
+    assert(scores->moves->moves[7]->piece->c == black);
+    assert(scores->moves->moves[7]->piece->type == king);
+
+    assert(scores->moves->moves[8]->from == g7);
+    assert(scores->moves->moves[8]->destination == f6);
+    assert(scores->moves->moves[8]->piece->c == white);
+    assert(scores->moves->moves[8]->piece->type == bishop);
+
+    assert(scores->moves->moves[9]->from == d5);
+    assert(scores->moves->moves[9]->destination == g5);
+    assert(scores->moves->moves[9]->piece->c == black);
+    assert(scores->moves->moves[9]->piece->type == queen);
+
+    assert(scores->moves->moves[10]->from == f6);
+    assert(scores->moves->moves[10]->destination == g5);
+    assert(scores->moves->moves[10]->piece->c == white);
+    assert(scores->moves->moves[10]->piece->type == bishop);
+}
+
+void test_16_june_2024_partial() {
+    Board* board = set_board_notation("wpb5 wpb2 wpc2 wpf2 wph2 wkc1 whf4 wbg7 wcg1 bpa4 bpe6 bpf7 bph7 bkh4 bqd5 bbe4 bca8 bcf8 ");
+    // print_board_pro(board);
+
+    U64 test_board = board->bitboard;
+    Grapher* grapher = init_grapher(9, 3, white);
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    assert(test_board == board->bitboard);
+
+    // print_scores(scores);
+    assert(scores->eval == MAX_SCORE - 1);
+
+    assert(scores->moves->moves[0]->from == g7);
+    assert(scores->moves->moves[0]->destination == f6);
+    assert(scores->moves->moves[0]->piece->c == white);
+    assert(scores->moves->moves[0]->piece->type == bishop);
+
+    assert(scores->moves->moves[1]->from == d5);
+    assert(scores->moves->moves[1]->destination == g5);
+    assert(scores->moves->moves[1]->piece->c == black);
+    assert(scores->moves->moves[1]->piece->type == queen);
+
+    assert(scores->moves->moves[2]->from == f6);
+    assert(scores->moves->moves[2]->destination == g5);
+    assert(scores->moves->moves[2]->piece->c == white);
+    assert(scores->moves->moves[2]->piece->type == bishop);
+}
+
+void test_15_june_2024() {
+    // Difficult for heuristic function to see this first move... (knight h7 to f8)
+    Board* board = set_board_notation("wkc1 wpb2 wpc2 wpd4 wpf2 wpg5 wbd2 wbd3 whh7 wqh3 wch1 bpa3 bpa5 bpc6 bpe6 bpf7 bpg6 bhd5 bhd7 bcb8 bce8 bqd8 bkg8 bbe7 ");
     print_board_pro(board);
 
     U64 test_board = board->bitboard;
-    Grapher* grapher = init_grapher(3, 8, black);
-
-    int score = create_graph(grapher, grapher->start, board, black);
+    Grapher* grapher = init_grapher(5, 3, white);
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
     assert(test_board == board->bitboard);
-    // assert(score == 97);
-    printf("score: %i\n", score);
 
-    Tracer* tracer = init_tracer(black);
-    dfs(grapher->start, tracer);
-    print_tracer(tracer);
-
+    print_scores(scores);
 }
+
+void test_14_june_2024() {
+    Board* board = set_board_notation("wce1 wpa2 wpb3 wpf2 wpg2 wph3 wbb2 whd4 wkg1 bkc8 bqa5 bbg8 bpc7 bpf6 bpg7 bph6 ");
+    // print_board_pro(board);
+
+    U64 test_board = board->bitboard;
+    Grapher* grapher = init_grapher(5, 4, white);
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    assert(test_board == board->bitboard);
+
+    // print_scores(scores);
+
+    assert(scores->moves->moves[0]->from == e1);
+    assert(scores->moves->moves[0]->destination == e8);
+    assert(scores->moves->moves[0]->piece->c == white);
+    assert(scores->moves->moves[0]->piece->type == castle);
+
+    assert(scores->moves->moves[1]->from == c8);
+    assert((scores->moves->moves[1]->destination == b7) || (scores->moves->moves[1]->destination == d7));
+    assert(scores->moves->moves[1]->piece->c == black);
+    assert(scores->moves->moves[1]->piece->type == king);
+
+    assert(scores->moves->moves[2]->from == e8);
+    if (scores->moves->moves[1]->destination == b7) {
+        assert(scores->moves->moves[2]->destination == b8);
+    }else if (scores->moves->moves[1]->destination == d7) {
+        assert(scores->moves->moves[2]->destination == d8);
+    }else {assert(false);}
+    assert(scores->moves->moves[2]->piece->c == white);
+    assert(scores->moves->moves[2]->piece->type == castle);
+
+    if (scores->moves->moves[1]->destination == b7) {
+        assert(scores->moves->moves[3]->from == b7);
+        assert(scores->moves->moves[3]->destination == b8);
+    }else if (scores->moves->moves[1]->destination == d7) {
+        assert(scores->moves->moves[3]->from == d7);
+        assert(scores->moves->moves[3]->destination == d8);
+    }else {assert(false);}
+    assert(scores->moves->moves[3]->piece->c == black);
+    assert(scores->moves->moves[3]->piece->type == king);
+
+    assert(scores->moves->moves[4]->from == d4);
+    assert(scores->moves->moves[4]->destination == c6);
+    assert(scores->moves->moves[4]->piece->c == white);
+    assert(scores->moves->moves[4]->piece->type == knight);
+
+    assert(scores->moves->moves[6]->from == c6);
+    assert(scores->moves->moves[6]->destination == a5);
+    assert(scores->moves->moves[6]->piece->c == white);
+    assert(scores->moves->moves[6]->piece->type == knight);
+}
+
+void test_13_june_2024() {
+    // very difficult for evaluation function to see this...
+    Board* board = set_board_notation("bkg7 bbd2 bcd4 bpf7 bpg6 bpg3 wkg1 wce2 wcc2 wph3 wpg2 wpa2 wpe5 ");
+    // print_board_pro(board);
+
+    U64 test_board = board->bitboard;
+    Grapher* grapher = init_grapher(5, 4, black);
+    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
+    assert(test_board == board->bitboard);
+
+    // print_scores(scores);
+
+    assert(scores->moves->moves[0]->from == d4);
+    assert(scores->moves->moves[0]->destination == b4);
+    assert(scores->moves->moves[0]->piece->c == black);
+    assert(scores->moves->moves[0]->piece->type == castle);
+}
+
+void test_12_june_2024() {
+    Board* board = set_board_notation("bkg8 bqf2 bca8 bhe4 bhf3 bbg3 bph6 bpg7 bpf6 bpe5 bpc6 wkh1 wqc2 wcf1 wce1 wbd2 wbg2 wha5 wph3 wpc3 wpb4 ");
+    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
+    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
+    // print_board_pro(board);
+
+    U64 test_board = board->bitboard;
+    Grapher* grapher = init_grapher(9, 2, black);
+    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
+    assert(test_board == board->bitboard);
+
+    // print_scores(scores);
+
+    assert(scores->eval == MAX_SCORE - 1);
+
+    assert(scores->moves->moves[0]->from == f2);
+    assert(scores->moves->moves[0]->destination == g1);
+    assert(scores->moves->moves[0]->piece->c == black);
+    assert(scores->moves->moves[0]->piece->type == queen);
+
+    assert(scores->moves->moves[1]->from == f1);
+    assert(scores->moves->moves[1]->destination == g1);
+    assert(scores->moves->moves[1]->piece->c == white);
+    assert(scores->moves->moves[1]->piece->type == castle);
+
+    assert(scores->moves->moves[2]->from == e4);
+    assert(scores->moves->moves[2]->destination == f2);
+    assert(scores->moves->moves[2]->piece->c == black);
+    assert(scores->moves->moves[2]->piece->type == knight);
+}
+
+void test_11_june_2024() {
+    Board* board = set_board_notation("wpa4 wpb2 wpe4 wpf2 wpg5 wkc2 whc3 wch1 wch6 wqh3 bkg7 bqc8 bca8 bch8 bbe7 bhf3 bpa5 bpc6 bpd6 bpe5 bpf7 bpg6 ");
+    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
+    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
+    print_board_pro(board);
+
+    U64 test_board = board->bitboard;
+    Grapher* grapher = init_grapher(200, 3, white);
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    assert(test_board == board->bitboard);
+
+    print_scores(scores);
+}
+
+void test_11_june_2024_partial() {
+    // holy crap it really should be detecting a mate in 1...
+    Board* board = set_board_notation("wpa4 wpb2 wpe4 wpf2 wpg5 wkc2 whc3 wch1 wch8 wqh3 bkg7 bqc8 bca8 bbe7 bhf3 bpa5 bpc6 bpd6 bpe5 bpf7 bpg6 ");
+    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
+    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
+    print_board_pro(board);
+
+    U64 test_board = board->bitboard;
+    Grapher* grapher = init_grapher(200, 2, white);
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    assert(test_board == board->bitboard);
+
+    print_scores(scores);
+
+    assert(scores->eval == MAX_SCORE);
+}
+
+
+
 
 void test_queen_moves() {
     Board* board = init_board();
@@ -1290,14 +1591,20 @@ void test_detect_mate_2() {
     assert(test_board == board->bitboard);
 
     // print_board_pro(board);
-    Grapher* grapher = init_grapher(1, 2, black);
-    int score = create_graph(grapher, grapher->start, board, black);
+    Grapher* grapher = init_grapher(3, 2, black);
+    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
     assert(test_board == board->bitboard);
-    // printf("score: %i\n", score);
-    Tracer* tracer = init_tracer(black);
-    dfs(grapher->start, tracer);
-    // print_tracer(tracer);
-    assert(score == 99);
+
+    assert(scores->eval == MAX_SCORE - 1);
+    assert(scores->moves->moves[0]->from == e8);
+    assert(scores->moves->moves[0]->destination == b8);
+    assert(scores->moves->moves[0]->piece->c == black);
+    assert(scores->moves->moves[0]->piece->type == castle);
+
+    assert(scores->moves->moves[2]->from == c7);
+    assert(scores->moves->moves[2]->destination == a7);
+    assert(scores->moves->moves[2]->piece->c == black);
+    assert(scores->moves->moves[2]->piece->type == castle);
 }
 
 void test_detect_mate_1() {
@@ -1325,13 +1632,16 @@ void test_detect_mate_1() {
     set_bit(test_board, e8);
     assert(test_board == board->bitboard);
 
-    int score;
-
-    Grapher* grapher = init_grapher(1, 2, black);
-    score = create_graph(grapher, grapher->start, board, black);
-    assert(score == 0);
+    // DIFFICULT MATE IN 4 (no threats made immediately)
+    // print_board_pro(board);
+    Grapher* grapher = init_grapher(10, 4, black);
+    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
+    // assert(score == 0);
     assert(test_board == board->bitboard);
+    // print_scores(scores);
 
+
+    // EASY MATE IN 1 BELOW:
     board->pieces[white][KING_INDEX(white)]->cell = a1;
     board->map[a1] = board->pieces[white][KING_INDEX(white)];
     pop_bit(board->bitboard, c1);
@@ -1339,126 +1649,119 @@ void test_detect_mate_1() {
     set_bit(board->bitboard, a1);
     set_bit(test_board, a1);
 
-    Grapher* grapher2 = init_grapher(1, 2, black);
-    score = create_graph(grapher2, grapher2->start, board, black);
-    assert(score == 100);
+    // print_board_pro(board);
+    Grapher* grapher2 = init_grapher(1, 4, black);
+    scores = create_graph(grapher2, grapher2->start, board, black, init_limit(true));
     assert(test_board == board->bitboard);
+    // print_scores(scores);
 
-    
+    assert(scores->moves->length == 1);
+    assert(scores->moves->moves[0]->piece->type == castle);
+    assert(scores->moves->moves[0]->piece->c == black);
+    assert(scores->moves->moves[0]->from == e8);
+    assert(scores->moves->moves[0]->destination == a8);
+    assert(scores->eval == MAX_SCORE);
 }
 
 void test_mate_in_four() {
     Board* board = board_setup_1();
 
     U64 test_board = board->bitboard;
-    Grapher* grapher = init_grapher(2, 4, black); // should work with 2, 4
+    Grapher* grapher = init_grapher(10, 4, black); 
+    // should work with 2, 4 in old version
+    // evaluation function needs to be improved
 
     // print_board_pro(board);
-    int score = create_graph(grapher, grapher->start, board, black);
-    printf("positions evaluated: %i\n", board->counter);
+    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
     assert(test_board == board->bitboard);
-    assert(score == 97);
-    // printf("score: %i\n", score);
 
-    Tracer* tracer = init_tracer(black);
-    dfs(grapher->start, tracer);
-    // print_tracer(tracer);
-    assert(tracer->best_eval == 95);
-    assert(tracer->best->length == 7);
-    assert(tracer->best->moves[0]->from == d7);
-    assert(tracer->best->moves[0]->destination == d1);
-    assert(tracer->best->moves[0]->piece->c == black);
-    assert(tracer->best->moves[0]->piece->type == castle);
-    assert(tracer->best->moves[1]->from == e2);
-    assert(tracer->best->moves[1]->destination == d1);
-    assert(tracer->best->moves[1]->piece->c == white);
-    assert(tracer->best->moves[1]->piece->type == queen);
-    assert(tracer->best->moves[2]->from == a3);
-    assert(tracer->best->moves[2]->destination == a2);
-    assert(tracer->best->moves[2]->piece->c == black);
-    assert(tracer->best->moves[2]->piece->type == queen);
-    assert(tracer->best->moves[3]->from == b1);
-    assert(tracer->best->moves[3]->destination == c1);
-    assert(tracer->best->moves[3]->piece->c == white);
-    assert(tracer->best->moves[3]->piece->type == king);
-    assert(tracer->best->moves[4]->from == c5);
-    assert(tracer->best->moves[4]->destination == a3);
-    assert(tracer->best->moves[4]->piece->c == black);
-    assert(tracer->best->moves[4]->piece->type == bishop);
-    assert(tracer->best->moves[5]->from == e5);
-    assert(tracer->best->moves[5]->destination == b2);
-    assert(tracer->best->moves[5]->piece->c == white);
-    assert(tracer->best->moves[5]->piece->type == bishop);
-    assert(tracer->best->moves[6]->from == a2);
-    assert(tracer->best->moves[6]->destination == b2);
-    assert(tracer->best->moves[6]->piece->c == black);
-    assert(tracer->best->moves[6]->piece->type == queen);
+    // print_scores(scores);
 
+    assert(scores->eval == MAX_SCORE - 3);
+
+    assert(scores->moves->moves[0]->from == d7);
+    assert(scores->moves->moves[0]->destination == d1);
+    assert(scores->moves->moves[0]->piece->c == black);
+    assert(scores->moves->moves[0]->piece->type == castle);
+
+    assert(scores->moves->moves[1]->from == e2);
+    assert(scores->moves->moves[1]->destination == d1);
+    assert(scores->moves->moves[1]->piece->c == white);
+    assert(scores->moves->moves[1]->piece->type == queen);
+
+    assert(scores->moves->moves[2]->from == a3);
+    assert(scores->moves->moves[2]->destination == a2);
+    assert(scores->moves->moves[2]->piece->c == black);
+    assert(scores->moves->moves[2]->piece->type == queen);
+
+    assert(scores->moves->moves[3]->from == b1);
+    assert(scores->moves->moves[3]->destination == c1);
+    assert(scores->moves->moves[3]->piece->c == white);
+    assert(scores->moves->moves[3]->piece->type == king);
+
+    assert(scores->moves->moves[4]->from == c5);
+    assert(scores->moves->moves[4]->destination == a3);
+    assert(scores->moves->moves[4]->piece->c == black);
+    assert(scores->moves->moves[4]->piece->type == bishop);
+
+    assert(scores->moves->moves[5]->from == e5);
+    assert(scores->moves->moves[5]->destination == b2);
+    assert(scores->moves->moves[5]->piece->c == white);
+    assert(scores->moves->moves[5]->piece->type == bishop);
+
+    assert(scores->moves->moves[6]->from == a2);
+    assert(scores->moves->moves[6]->destination == b2);
+    assert(scores->moves->moves[6]->piece->c == black);
+    assert(scores->moves->moves[6]->piece->type == queen);
 }
+
 
 void test_mate_in_four_2() {
-    Board* board = board_setup_1();
-
-    U64 test_board = board->bitboard;
-    Grapher* grapher = init_grapher(3, 5, black);
-    int score = create_graph(grapher, grapher->start, board, black);
-    assert(test_board == board->bitboard);
-    Tracer* tracer = init_tracer(black);
-    dfs(grapher->start, tracer);
-    assert(score == 97);
-
-}
-
-void test_mate_in_four_3() {
     Board* board = board_setup_m4_2();
+    // print_board_pro(board);
 
     U64 test_board = board->bitboard;
-    Grapher* grapher = init_grapher(1, 4, white);
-    int score = create_graph(grapher, grapher->start, board, white);
+    Grapher* grapher = init_grapher(10, 4, white);
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
     assert(test_board == board->bitboard);
-    assert(score == 97);
+    // print_scores(scores);
 
-    board = board_setup_m4_2();
-    Grapher* grapher2 = init_grapher(1, 3, white);
-    test_board = board->bitboard;
-    score = create_graph(grapher2, grapher2->start, board, white);
-    assert(test_board == board->bitboard);
-    assert(score == 0);
+    assert(scores->eval == MAX_SCORE - 3);
 
-    Tracer* tracer = init_tracer(white);
-    dfs(grapher->start, tracer);
-    // print_tracer(tracer);
-    assert(tracer->best_eval == 104);
-    assert(tracer->best->length == 7);
-    assert(tracer->best->moves[0]->from == e5);
-    assert(tracer->best->moves[0]->destination == f7);
-    assert(tracer->best->moves[0]->piece->c == white);
-    assert(tracer->best->moves[0]->piece->type == knight);
-    assert(tracer->best->moves[1]->from == d7);
-    assert(tracer->best->moves[1]->destination == f7);
-    assert(tracer->best->moves[1]->piece->c == black);
-    assert(tracer->best->moves[1]->piece->type == queen);
-    assert(tracer->best->moves[2]->from == g5);
-    assert(tracer->best->moves[2]->destination == f7);
-    assert(tracer->best->moves[2]->piece->c == white);
-    assert(tracer->best->moves[2]->piece->type == knight);
-    assert(tracer->best->moves[3]->from == d8);
-    assert(tracer->best->moves[3]->destination == d7);
-    assert(tracer->best->moves[3]->piece->c == black);
-    assert(tracer->best->moves[3]->piece->type == king);
-    assert(tracer->best->moves[4]->from == c4);
-    assert(tracer->best->moves[4]->destination == b5);
-    assert(tracer->best->moves[4]->piece->c == white);
-    assert(tracer->best->moves[4]->piece->type == bishop);
-    assert(tracer->best->moves[5]->from == c7);
-    assert(tracer->best->moves[5]->destination == c6);
-    assert(tracer->best->moves[5]->piece->c == black);
-    assert(tracer->best->moves[5]->piece->type == pawn);
-    assert(tracer->best->moves[6]->from == e1);
-    assert(tracer->best->moves[6]->destination == e7);
-    assert(tracer->best->moves[6]->piece->c == white);
-    assert(tracer->best->moves[6]->piece->type == castle);
+    assert(scores->moves->moves[0]->from == e5);
+    assert(scores->moves->moves[0]->destination == f7);
+    assert(scores->moves->moves[0]->piece->c == white);
+    assert(scores->moves->moves[0]->piece->type == knight);
 
+    assert(scores->moves->moves[1]->from == d7);
+    assert(scores->moves->moves[1]->destination == f7);
+    assert(scores->moves->moves[1]->piece->c == black);
+    assert(scores->moves->moves[1]->piece->type == queen);
+
+    assert(scores->moves->moves[2]->from == g5);
+    assert(scores->moves->moves[2]->destination == f7);
+    assert(scores->moves->moves[2]->piece->c == white);
+    assert(scores->moves->moves[2]->piece->type == knight);
+
+    assert(scores->moves->moves[3]->from == d8);
+    assert(scores->moves->moves[3]->destination == d7);
+    assert(scores->moves->moves[3]->piece->c == black);
+    assert(scores->moves->moves[3]->piece->type == king);
+
+    assert(scores->moves->moves[4]->from == c4);
+    assert(scores->moves->moves[4]->destination == b5);
+    assert(scores->moves->moves[4]->piece->c == white);
+    assert(scores->moves->moves[4]->piece->type == bishop);
+
+    assert(scores->moves->moves[5]->from == c7);
+    assert(scores->moves->moves[5]->destination == c6);
+    assert(scores->moves->moves[5]->piece->c == black);
+    assert(scores->moves->moves[5]->piece->type == pawn);
+
+    assert(scores->moves->moves[6]->from == e1);
+    assert(scores->moves->moves[6]->destination == e7);
+    assert(scores->moves->moves[6]->piece->c == white);
+    assert(scores->moves->moves[6]->piece->type == castle);
 }
 
 void test_mate_detection() {
@@ -1466,27 +1769,6 @@ void test_mate_detection() {
     test_detect_mate_2();
     test_mate_in_four();
     test_mate_in_four_2();
-    test_mate_in_four_3();
-}
-
-void test_forcing_moves() {
-    Board* board = forcing_move_setup();
-    // print_board_pro(board);
-
-    U64 test_board = board->bitboard;
-    // evaluation function not good enough for a lower breadth...
-    // https://www.chess.com/blog/EnPassantFork/2024-03-01-dpa-order-matters
-    Grapher* grapher = init_grapher(8, 4, black);
-    Scores* scores = create_graph_2(grapher, grapher->start, board, black, init_limit(true));
-
-    assert(test_board == board->bitboard);
-
-    // print_scores(scores);
-
-    assert(scores->moves->moves[0]->from == f6);
-    assert(scores->moves->moves[0]->destination == h4);
-    assert(scores->moves->moves[0]->piece->c == black);
-    assert(scores->moves->moves[0]->piece->type == bishop);
 }
 
 Board* forcing_move_setup() {

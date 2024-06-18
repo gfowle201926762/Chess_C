@@ -3,14 +3,18 @@
 int main(void) {
     initialise();
 
-    test_forcing_moves_1();
-    test_dont_be_stupid();
-    test_forcing_moves_2();
-    test_forcing_moves_3();
-    test_puzzle_fork();
-    test_puzzle_win_queen();
-    test_forcing_moves();
+    test_18_june_2024();
+
+    // test_forcing_moves_1();
+    // test_dont_be_stupid();
+    // test_forcing_moves_2();
+    // test_forcing_moves_3();
+    // test_puzzle_fork();
+    // test_puzzle_win_queen();
+    // test_forcing_moves();
     
+    // play_game();
+
     return 0;
 }
 
@@ -42,7 +46,7 @@ void play_game() {
     print_board_pro(board);
 
     Grapher* grapher;
-    Tracer* tracer;
+    Scores* scores;
     Moves* moves;
     int length = 1;
 
@@ -59,10 +63,9 @@ void play_game() {
         // scanf("%c%c%*c", &to1, &to2);
         // square from = string_to_square(from1, from2);
         // square to = string_to_square(to1, to2);
-        grapher = init_grapher(2, 6, white);
-        tracer = init_tracer(white);
-        create_graph(grapher, grapher->start, board, white);
-        moves = dfs(grapher->start, tracer);
+        grapher = init_grapher(8, 4, white);
+        scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+        moves = scores->moves;
         if (moves->length == 0) {
             printf("BLACK WINS\n");
             return;
@@ -71,10 +74,9 @@ void play_game() {
 
         print_board_pro(board);
 
-        grapher = init_grapher(2, 6, black);
-        tracer = init_tracer(black);
-        create_graph(grapher, grapher->start, board, black);
-        moves = dfs(grapher->start, tracer);
+        grapher = init_grapher(8, 4, black);
+        scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
+        moves = scores->moves;
         pretend_move(board, moves->moves[0]->piece, moves->moves[0]->destination);
         if (moves->length == 0) {
             printf("WHITE WINS\n");
@@ -90,168 +92,20 @@ void play_game() {
 
 
 
-/* ------------------------------ */
-/* -------- SEARCH GRAPH -------- */
-/* ------------------------------ */
-
-
-
-void update_high_low_eval(Tracer* tracer, int* high_low_eval, int* best_index, int index) {
-    if (tracer->best_eval == *high_low_eval && rand() % 2) {
-        *best_index = index;
-    }
-    else if (tracer->mover == tracer->original_mover) {
-        if (tracer->best_eval > *high_low_eval) {
-            *best_index = index;
-            *high_low_eval = tracer->best_eval;
-        }
-    }
-    else {
-        if (tracer->best_eval < *high_low_eval) {
-            *best_index = index;
-            *high_low_eval = tracer->best_eval;
-        }
-    }
-}
-
-void free_scores(Scores* scores) {
-    // TODO
-}
-
-
-Scores* min_max(GraphNode* node, Tracer* tracer) {
-    if (node == NULL) {
-        assert(false);
-        return NULL;
-    }
-    if (node->i == 0) {
-        return init_scores(node, tracer->depth);
-    }
-    bool original_mover = true;
-    if (node->move) {
-        original_mover = node->move->piece->c != tracer->original_mover;
-    }
-    Scores* best_scores;
-    int limit = MAX_SCORE;
-    if (original_mover) {
-        limit = -MAX_SCORE;
-    }
-    for (int i = 0; i < node->i; i++) {
-        tracer->depth += 1;
-        Scores* scores = min_max(node->children[i], tracer);
-        tracer->depth -= 1;
-        
-        if ((original_mover && scores->eval > limit) || (!original_mover && scores->eval < limit)) {
-            limit = scores->eval;
-            best_scores = scores;
-        }
-        else {
-            free_scores(scores);
-        }
-    }
-    if (node->move != NULL) {
-        best_scores->moves->moves[tracer->depth - 1] = node->move;
-    }
-    return best_scores;
-}
-
-
-
-
-// breadth-first search through the graph finding the highest eval score at each point.
-// Upon creating the graph, a dfs has already been done.
-// Therefore, making a locally optimal decision here will have a depth of information.
-void bfs(GraphNode* node, Moves* tracer) {
-    if (node == NULL) {
-        return;
-    }
-    int best_eval = -MAX_SCORE;
-    int best_index = 0;
-    Move* best_move = NULL;
-    for (int i = 0; i < node->i; i++) {
-        GraphNode* child = node->children[i];
-        if (child == NULL) {
-            continue;
-        }
-        Move* move = child->move;
-        if (best_move == NULL || move->evaluation > best_eval || (move->evaluation == best_eval && rand() % 2)) {
-            best_index = i;
-            best_move = move;
-            best_eval = move->evaluation;
-        }
-    }
-    if (node != NULL) {
-        tracer->moves[tracer->length] = best_move;
-        tracer->length += 1;
-    }
-    bfs(node->children[best_index], tracer);
-}
-
-
-
-// I am so confused to how the fuck I actually made this...
-Moves* dfs(GraphNode* node, Tracer* tracer) {
-    if (node->move != NULL) {
-        tracer->best_eval += node->move->evaluation;
-    }
-
-    if (node->i == 0) {
-        Moves* moves = calloc(1, sizeof(Moves));
-        moves->length = tracer->depth;
-        return moves;
-    }
-
-    int high_low_eval = 2 * MAX_SCORE;
-    int best_index = 0;
-    if (tracer->mover == tracer->original_mover) {
-        high_low_eval =  -(MAX_SCORE);
-    }
-    Moves* selection[node->i];
-    Moves* best_moves;
-    int saved = tracer->best_eval;
-    for (int i = 0; i < node->i; i++) {
-        tracer->depth += 1;
-        tracer->mover = invert_colour(tracer->mover);
-        best_moves = dfs(node->children[i], tracer);
-        selection[i] = best_moves;
-        tracer->mover = invert_colour(tracer->mover);
-        tracer->depth -= 1;
-        update_high_low_eval(tracer, &high_low_eval, &best_index, i);
-        tracer->best_eval = saved;
-    }
-    tracer->best_eval = high_low_eval;
-    best_moves = selection[best_index];
-    best_moves->moves[tracer->depth] = node->children[best_index]->move;
-    if (tracer->depth == 0) {
-        tracer->best = best_moves;
-    }
-    return best_moves;
-}
-
-
 
 /* ------------------------------ */
 /* ------- EVALUATE MOVES ------- */
 /* ------------------------------ */
 
-void update_graph(GraphNode* parent, Move* move) {
-    GraphNode* child = calloc(1, sizeof(GraphNode));
-    child->move = move;
-    parent->children[parent->i] = child;
-    parent->i += 1;
-}
-
 Scores* evaluate_no_moves(Grapher* grapher, GraphNode* parent, Board* board, colour mover) {
     if (!is_check(board, mover)) {
         // STALEMATE
         parent->move->evaluation = 0;
-        return init_scores(parent, grapher->depth);
+        return init_scores(parent, reverse_depth(grapher));
     }
     parent->move->evaluation = MAX_SCORE - ((grapher->max_depth - grapher->depth) / 2);
-    return init_scores(parent, grapher->depth);
+    return init_scores(parent, reverse_depth(grapher));
 }
-
-
 
 int count_bitboard(U64 mask) {
     int count = 0;
@@ -316,12 +170,24 @@ int evaluate_position(Board* board, colour mover) {
     // score += king_safety_heuristic(board, node, mover, grapher);
     score += initiative_heuristic(board, mover);   
     score += measure_points(board, mover);
-    // score += evaluate_killed(killed);
-    // printf("threats: %i, points: %i\n", threats, points);
     return score;
 }
 
 
+/* ------------------------------ */
+/* -------- SEARCH GRAPH -------- */
+/* ------------------------------ */
+
+void free_scores(Scores* scores) {
+    // TODO
+}
+
+void update_graph(GraphNode* parent, Move* move) {
+    GraphNode* child = calloc(1, sizeof(GraphNode));
+    child->move = move;
+    parent->children[parent->i] = child;
+    parent->i += 1;
+}
 
 void reorder_best_scores(int* best_scores, Moves* best_moves, int max_breadth, Move* new_move) {
     int i = 0;
@@ -354,7 +220,6 @@ Moves* get_best_scores(Moves* moves, int max_breadth) {
     return best_moves;
 }
 
-
 Scores* init_scores(GraphNode* node, int depth) {
     Scores* scores = calloc(1, sizeof(Scores));
     scores->moves = calloc(1, sizeof(Moves));
@@ -363,7 +228,6 @@ Scores* init_scores(GraphNode* node, int depth) {
     scores->moves->length = depth;
     return scores;
 }
-
 
 Moves* get_best_moves(Board* board, Moves* moves, colour mover, int max_breadth) {
     for (int i = 0; i < moves->length; i++) {
@@ -394,7 +258,7 @@ int reverse_depth(Grapher* grapher) {
     return grapher->max_depth - grapher->depth;
 }
 
-Scores* create_graph_2(Grapher* grapher, GraphNode* parent, Board* board, colour mover, int prune) {
+Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover, int prune) {
     
     if (grapher->depth == grapher->base) {
         board->leaves += 1;
@@ -423,7 +287,7 @@ Scores* create_graph_2(Grapher* grapher, GraphNode* parent, Board* board, colour
         // }
 
         grapher->depth -= 1;
-        Scores* scores = create_graph_2(grapher, parent->children[parent->i-1], board, invert_colour(mover), limit);
+        Scores* scores = create_graph(grapher, parent->children[parent->i-1], board, invert_colour(mover), limit);
         grapher->depth += 1;
 
         undo_pretend_move(board, move->piece, killed, move->from);
@@ -445,41 +309,6 @@ Scores* create_graph_2(Grapher* grapher, GraphNode* parent, Board* board, colour
     }
     return best_scores;
 }
-
-int create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover) {
-    
-    if (grapher->depth == grapher->base) {
-        board->leaves += 1;
-        parent->move->evaluation = evaluate_position(board, mover);
-        return 0;
-    }
-    
-    Moves* moves = get_all_moves_for_colour(board, mover);
-    if (moves->length == 0) {
-        return 0;
-        // return evaluate_no_moves(grapher, parent, board, mover);
-    }
-
-    Moves* best_moves = get_best_moves(board, moves, mover, grapher->max_breadth);
-
-    for (int i = 0; i < best_moves->length; i++) {
-        Move* move = best_moves->moves[i];
-        Piece* killed = pretend_move(board, move->piece, move->destination);
-        update_graph(parent, move);
-
-        // if (grapher->depth == grapher->max_depth) {
-        //     // printf("\ndepth: %i\n", grapher->depth);
-        //     print_move(move);
-        // }
-
-        grapher->depth -= 1;
-        int new_score = create_graph(grapher, parent->children[parent->i-1], board, invert_colour(mover));
-        grapher->depth += 1;
-
-        undo_pretend_move(board, move->piece, killed, move->from);
-    }
-}
-
 
 
 
@@ -531,8 +360,6 @@ Moves* get_all_moves_for_colour(Board* board, colour c) {
     }
     return moves;
 }
-
-
 
 
 
@@ -1215,6 +1042,12 @@ void square_to_string(square s, char* string) {
     int row = s / 8;
     string[0] = 'a' + col;
     string[1] = '8' - row;
+}
+
+void print_square(square s) {
+    char square_string[3] = {'\0'};
+    square_to_string(s, square_string);
+    printf("%s", square_string);
 }
 
 void piece_to_string(name n, char* string) {

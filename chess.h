@@ -247,6 +247,7 @@ void print_tracer(Tracer* tracer);
 void colour_to_string(colour c, char* string);
 void piece_to_string(name n, char* string);
 void print_scores(Scores* scores);
+void print_square(square s);
 
 // Move legal logic
 void execute_move(Board* board, Piece* piece, square to);
@@ -260,16 +261,11 @@ void get_all_moves_for_piece(Board* board, Piece* piece, Moves* moves);
 Moves* get_all_moves_for_colour(Board* board, colour c);
 
 // Evaluate moves
-int update_depth(int depth, int highest);
-void update_base(Grapher* grapher, int highest);
-Scores* create_graph_2(Grapher* grapher, GraphNode* parent, Board* board, colour mover, int prune);
-int create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover);
+int reverse_depth(Grapher* grapher);
+Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover, int prune);
+// int create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover);
 Grapher* init_grapher(int breadth, int depth, colour start_player);
-Moves* dfs(GraphNode* node, Tracer* tracer);
-void bfs(GraphNode* node, Moves* tracer);
-Tracer* init_tracer(colour mover);
-int evaluate_leaf_position(Board* board, GraphNode* parent, colour mover, Grapher* grapher);
-Scores* min_max(GraphNode* node, Tracer* tracer);
+
 
 void play_game();
 void initialise();
