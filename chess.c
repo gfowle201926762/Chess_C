@@ -2,8 +2,8 @@
 
 int main(void) {
     initialise();
-
-    test_18_june_2024();
+    test();
+    // test_18_june_2024();
 
     // test_forcing_moves_1();
     // test_dont_be_stupid();
@@ -387,6 +387,13 @@ void check_castle(Board* board, Piece* piece, square to, square from) {
     }
 }
 
+void promote(Piece* piece, name promotion) {
+    if (promotion == NULL) {
+        return;
+    }
+
+}
+
 void execute_move(Board* board, Piece* piece, square to) {
     pop_bit(board->bitboard, piece->cell);
     set_bit(board->bitboard, to);
@@ -398,8 +405,8 @@ void execute_move(Board* board, Piece* piece, square to) {
     }
     board->map[to] = piece;
     board->last_moved = piece;
-
     check_castle(board, piece, to, from);
+    // promote(piece, promotion);
 }
 
 Piece* pretend_move(Board* board, Piece* piece, square to) {
@@ -502,15 +509,94 @@ int (*get_index_func(name n))(colour c, int i) {
     return pawn_index;
 }
 
+/* ------------------------------- */
+/* ----------- HASHING ----------- */
+/* ------------------------------- */
+
+// Not so easy to implement with history dependent information...
+// Or perhaps even easier than you thought?
+
+Transposition* get(HashTable* hashtable, U64 hash_value) {
+    return hashtable->transpositions[hash_value % HASH_TABLE_SIZE];
+}
+
+void put(HashTable* hashtable, U64 hash_value, int eval, int depth) {
+    int index = hash_value % HASH_TABLE_SIZE;
+    if (hashtable->transpositions[index] && hashtable->transpositions[index]->depth < depth) {
+        // keep (assuming a shallower depth is more valuable)
+        return;
+    }
+    if (hashtable->transpositions[index] == NULL) {
+        Transposition* transposition = calloc(1, sizeof(Transposition));
+        hashtable->transpositions[index] = transposition;
+    }
+    hashtable->transpositions[index]->hash_value = hash_value;
+    hashtable->transpositions[index]->eval = eval;
+    hashtable->transpositions[index]->depth = depth;
+}
+
+void hash_move_piece(Board* board, Move* move, Piece* killed) {
+    board->hash_value ^= board->keys_position[move->piece->c][move->piece->type][move->from];
+    if (killed) {
+        board->hash_value ^= board->keys_position[killed->c][killed->type][move->destination];
+    }
+    board->hash_value ^= board->keys_position[move->piece->c][move->piece->type][move->destination];
+    board->hash_value ^= board->keys_last_moved[board->last_moved->cell];
+    board->hash_value ^= board->keys_last_moved[move->destination];
+}
+
+void hash_change_colour(Board* board) {
+    board->hash_value ^= board->key_mover;
+}
+
+void hash_castle(Board* board, colour mover, castle_type type) {
+    board->hash_value ^= board->keys_castling[mover][type];
+}
+
+U64 rand64() {
+    return rand() ^ ((U64)rand() << 15) ^ ((U64)rand() << 30) ^
+        ((U64)rand() << 45) ^ ((U64)rand() << 60);
+}
+
+void init_hash_keys(Board* board) {
+    for (int i = 0; i < MAX_COLOUR; i++) {
+        for (int j = 0; j < MAX_PIECE_TYPE; j++) {
+            for (int k = 0; k < CELLS; k++) {
+                board->keys_position[i][j][k] = rand64();
+            }
+        }
+        for (int j = 0; j < MAX_CASTLING_OPTIONS; j++) {
+            board->keys_castling[i][j] = rand64();
+        }
+    }
+    for (int i = 0; i < CELLS; i++) {
+        board->keys_last_moved[i] = rand64();
+    }
+    board->key_mover = rand64();
+}
+
+
 /* -------------------------------- */
 /* -------- INITIALISATION -------- */
 /* -------------------------------- */
+
+void init_hash_value(Board* board) {
+
+}
 
 Board* init_board(void) {
     Board* board = calloc(1, sizeof(Board));
     board->bitboard = 0ULL;
     int cells[32] = {a8, b8, c8, d8, e8, f8, g8, h8, a7, b7, c7, d7, e7, f7, g7, h7, a2, b2, c2, d2, e2, f2, g2, h2, a1, b1, c1, d1, e1, f1, g1, h1};
     board->bitboard = set_multiple_bits(board->bitboard, cells, 32);
+
+    for (int c = 0; c < MAX_COLOUR; c++) {
+        for (int type = 0; type < MAX_PIECE_TYPE; type++) {
+            for (int num = 0; num < CELLS; num++) {
+                
+            }
+        }
+    }
 
     for (int i = 0; i < 32; i++) {
         Piece* piece = calloc(1, sizeof(Piece));
@@ -603,6 +689,8 @@ Board* init_board(void) {
             }
         }
     }
+
+
     return board;
 }
 
@@ -700,12 +788,12 @@ Board* set_board_notation(char* s) {
         }
         if (s[i] == ' ') {
             int n = get_piece_number(p, bishops, knights, castles, pawns);
-            char square_string[5] = {'\0'};
-            char colour_string[10] = {'\0'};
-            char piece_string[10] = {'\0'};
-            colour_to_string(c, colour_string);
-            square_to_string(sq, square_string);
-            piece_to_string(p, piece_string);
+            // char square_string[5] = {'\0'};
+            // char colour_string[10] = {'\0'};
+            // char piece_string[10] = {'\0'};
+            // colour_to_string(c, colour_string);
+            // square_to_string(sq, square_string);
+            // piece_to_string(p, piece_string);
             // printf("%s %s on %s\n", colour_string, piece_string, square_string);
             // print_piece(board->pieces[c][get_index_func(p)(c, n)]);
             board->pieces[c][get_index_func(p)(c, n)]->alive = true;

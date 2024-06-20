@@ -8,6 +8,11 @@
 #include <unistd.h>
 
 #define CELLS 64
+#define MAX_COLOUR 2
+#define MAX_PIECE_TYPE 6
+#define MAX_CASTLING_OPTIONS 2
+#define HASH_TABLE_SIZE 1000000000
+#define MAX_PROMOTABLE_PIECES 4
 #define U64 unsigned long long
 #define MOVES_SIZE 100
 #define MAX_SCORE 100000
@@ -21,6 +26,34 @@
 #define BISHOP_VALUE 300
 #define KNIGHT_VALUE 300
 #define PAWN_VALUE 100
+
+int WHITE_KINGS = 1;
+int WHITE_QUEENS = 1;
+int WHITE_CASTLES = 2;
+int WHITE_BISHOPS = 2;
+int WHITE_KNIGHTS = 2;
+int WHITE_PAWNS = 8;
+int BLACK_KINGS = 1;
+int BLACK_QUEENS = 1;
+int BLACK_CASTLES = 2;
+int BLACK_BISHOPS = 2;
+int BLACK_KNIGHTS = 2;
+int BLACK_PAWNS = 8;
+
+// bitboard macros
+#define get_bit(bitboard, cell) (bitboard & (1ULL << cell))
+#define set_bit(bitboard, cell) (bitboard |= (1ULL << cell))
+#define pop_bit(bitboard, cell) (get_bit(bitboard, cell) ? (bitboard ^= (1ULL << cell)) : 0)
+#define invert_colour(c) (1 - c)
+#define KING_INDEX(c) (c == black ? 4 : 12)
+#define CASTLE_1(c) (c == black ? 0 : 8)
+#define CASTLE_2(c) (c == black ? 7 : 15)
+#define KNIGHT_1(c) (c == black ? 1 : 9)
+#define KNIGHT_2(c) (c == black ? 6 : 14)
+#define BISHOP_1(c) (c == black ? 2 : 10)
+#define BISHOP_2(c) (c == black ? 5 : 13)
+#define QUEEN_INDEX(c) (c == black ? 3 : 11)
+#define PAWN_INDEX(c, n) (c == black ? (8 + n) : (n))
 
 /*
 how to flip an array:
@@ -78,6 +111,11 @@ enum name {
 };
 typedef enum name name;
 
+enum castle_type {
+    king_side, queen_side
+};
+typedef enum castle_type castle_type;
+
 struct Board;
 
 struct Piece {
@@ -94,11 +132,32 @@ struct Piece {
 };
 typedef struct Piece Piece;
 
+struct Transposition {
+    U64 hash_value;
+    int eval;
+    int depth;
+};
+typedef struct Transposition Transposition;
+
+struct HashTable {
+    // index is the hashtable's key (hash_value % HASH_TABLE_SIZE)
+    // the value is the U64 hash (and eval) -> check whether actually match
+    Transposition* transpositions[HASH_TABLE_SIZE];
+};
+typedef struct HashTable HashTable;
+
 struct Board {
     U64 bitboard;
-    Piece* map[64];
-    Piece* pieces[2][16];
+    U64 hash_value;
+    U64 keys_position[MAX_COLOUR][MAX_PIECE_TYPE][CELLS];
+    U64 keys_castling[MAX_COLOUR][MAX_CASTLING_OPTIONS];
+    U64 keys_last_moved[CELLS]; // just need a last moved position... allows for any number of pawns.
+    U64 key_mover;
+    Piece* map[CELLS];
+    Piece* pieces[MAX_COLOUR][CELLS];
     Piece* last_moved;
+    int max_pieces[MAX_COLOUR];
+    name promotable_pieces[MAX_PROMOTABLE_PIECES];
     int counter;
     int leaves;
 };
@@ -109,7 +168,7 @@ struct Move {
     square destination;
     square from;
     int evaluation;
-    Piece* castle;
+    name promotion;
 };
 typedef struct Move Move;
 
@@ -155,20 +214,7 @@ struct Scores {
 typedef struct Scores Scores;
 
 
-// bitboard macros
-#define get_bit(bitboard, cell) (bitboard & (1ULL << cell))
-#define set_bit(bitboard, cell) (bitboard |= (1ULL << cell))
-#define pop_bit(bitboard, cell) (get_bit(bitboard, cell) ? (bitboard ^= (1ULL << cell)) : 0)
-#define invert_colour(c) (1 - c)
-#define KING_INDEX(c) (c == black ? 4 : 12)
-#define CASTLE_1(c) (c == black ? 0 : 8)
-#define CASTLE_2(c) (c == black ? 7 : 15)
-#define KNIGHT_1(c) (c == black ? 1 : 9)
-#define KNIGHT_2(c) (c == black ? 6 : 14)
-#define BISHOP_1(c) (c == black ? 2 : 10)
-#define BISHOP_2(c) (c == black ? 5 : 13)
-#define QUEEN_INDEX(c) (c == black ? 3 : 11)
-#define PAWN_INDEX(c, n) (c == black ? (8 + n) : (n))
+
 
 U64 set_multiple_bits(U64 bitboard, int cells[], int length);
 
@@ -252,9 +298,12 @@ void print_square(square s);
 // Move legal logic
 void execute_move(Board* board, Piece* piece, square to);
 Piece* pretend_move(Board* board, Piece* piece, square to);
+// Piece* pretend_move(Board* board, Move* move);
 bool is_check(Board* board, colour c);
 bool is_move_legal(Board* board, Piece* piece, square to);
 void undo_pretend_move(Board* board, Piece* original, Piece* killed, square original_from);
+// void undo_pretend_move(Board* board, Move* move, Piece* killed);
+
 
 // Get all moves
 void get_all_moves_for_piece(Board* board, Piece* piece, Moves* moves);
