@@ -529,6 +529,79 @@ void test_puzzle_win_knight_because_pawn_fork() {
 }
 
 
+
+
+void test_hashing_1() {
+    Board* board = set_board_notation("wpe4 bcf5 ");
+    Moves* moves = get_all_moves_for_colour(board, white);
+
+    U64 hash = board->hash_value;
+    hash_move_piece(board, moves->moves[0], NULL);
+    hash_move_piece(board, moves->moves[0], NULL);
+    assert(board->hash_value == hash);
+
+    Piece* killed = pretend_move(board, moves->moves[1]->piece, moves->moves[1]->destination, moves->moves[1]->promotion);
+    hash = board->hash_value;
+    hash_move_piece(board, moves->moves[1], killed);
+    hash_move_piece(board, moves->moves[1], killed);
+    assert(board->hash_value == hash);
+}
+
+void test_hashing_2() {
+    Board* board = set_board_notation("wkd4 bcb7 bcc8 ");
+    Moves* moves = get_all_moves_for_colour(board, black);
+    U64 hash = board->hash_value;
+
+    Piece* killed = pretend_move(board, moves->moves[2]->piece, moves->moves[2]->destination, moves->moves[2]->promotion);
+    hash_move_piece(board, moves->moves[2], killed);
+
+    hash_move_piece(board, moves->moves[2], killed);
+    undo_pretend_move(board, moves->moves[2]->piece, killed, moves->moves[2]->from, moves->moves[2]->promotion);
+    assert(hash == board->hash_value);
+}
+
+void test_hashing_graph_simulation() {
+    Board* board = set_board_notation("wkd4 bcb7 bcc8 ");
+    Moves* moves = get_all_moves_for_colour(board, black);
+    U64 hash1 = board->hash_value;
+
+    Piece* killed = pretend_move(board, moves->moves[2]->piece, moves->moves[2]->destination, moves->moves[2]->promotion);
+    hash_move_piece(board, moves->moves[2], killed);
+    U64 hash2 = board->hash_value;
+
+
+    Moves* response = get_all_moves_for_colour(board, black);
+
+    Piece* killed_response = pretend_move(board, response->moves[0]->piece, response->moves[0]->destination, response->moves[0]->promotion);
+    hash_move_piece(board, response->moves[0], killed_response);
+
+    hash_move_piece(board, response->moves[0], killed_response);
+    undo_pretend_move(board, response->moves[0]->piece, killed_response, response->moves[0]->from, response->moves[0]->promotion);
+    assert(hash2 == board->hash_value);
+
+    hash_move_piece(board, moves->moves[2], killed);
+    undo_pretend_move(board, moves->moves[2]->piece, killed, moves->moves[2]->from, moves->moves[2]->promotion);
+    assert(hash1 == board->hash_value);
+}
+
+void test_hashing_graph_execution() {
+    Board* board = set_board_notation("wpe7 bhd8 ");
+    print_board_pro(board);
+
+    Grapher* grapher = init_grapher(200, 2, black);
+    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
+
+
+}
+
+void test_hashing() {
+    test_hashing_1();
+    test_hashing_2();
+    test_hashing_graph_simulation();
+}
+
+
+
 void test_queen_moves() {
     Board* board = init_board();
     clear_board(board);
@@ -947,7 +1020,8 @@ void test_pawn_en_passant_1() {
     board->pieces[white][PAWN_INDEX(white, 2)]->cell = c4;
     board->map[c4] = board->pieces[white][PAWN_INDEX(white, 2)];
     set_bit(board->bitboard, c4);
-    board->last_moved = board->pieces[white][PAWN_INDEX(white, 2)];
+    board->last_moved[0] = board->pieces[white][PAWN_INDEX(white, 2)];
+    board->lm_length += 1;
     
     U64 pawn_attack_mask = get_pawn_attack_mask(board, piece);
     U64 test = 0ULL;
@@ -959,18 +1033,18 @@ void test_pawn_en_passant_2() {
     
     Board* board = init_board();
 
-    execute_move(board, board->pieces[white][PAWN_INDEX(white, 1)], b4, none);
-    execute_move(board, board->pieces[black][PAWN_INDEX(black, 0)], a5, none);
-    execute_move(board, board->pieces[white][PAWN_INDEX(white, 1)], b5, none);
-    execute_move(board, board->pieces[black][PAWN_INDEX(black, 2)], c5, none);
+    pretend_move(board, board->pieces[white][PAWN_INDEX(white, 1)], b4, none);
+    pretend_move(board, board->pieces[black][PAWN_INDEX(black, 0)], a5, none);
+    pretend_move(board, board->pieces[white][PAWN_INDEX(white, 1)], b5, none);
+    pretend_move(board, board->pieces[black][PAWN_INDEX(black, 2)], c5, none);
     
     U64 pawn_attack_mask = get_pawn_attack_mask(board, board->pieces[white][PAWN_INDEX(white, 1)]);
     U64 test = 0ULL;
     set_bit(test, c5);
     assert(pawn_attack_mask == test);
 
-    execute_move(board, board->pieces[white][PAWN_INDEX(white, 7)], h4, none);
-    execute_move(board, board->pieces[black][PAWN_INDEX(black, 6)], g5, none);
+    pretend_move(board, board->pieces[white][PAWN_INDEX(white, 7)], h4, none);
+    pretend_move(board, board->pieces[black][PAWN_INDEX(black, 6)], g5, none);
     pawn_attack_mask = get_pawn_attack_mask(board, board->pieces[white][PAWN_INDEX(white, 1)]);
     assert(pawn_attack_mask == 0ULL);
 }
@@ -1119,6 +1193,7 @@ void test_castling_2() {
 void test_promotion_1() {
     Board* board = set_board_notation("wpb7 bcc8 ");
     Moves* moves = get_all_moves_for_colour(board, white);
+    U64 hash = board->hash_value;
     assert(moves->length == 8);
 
     assert(moves->moves[0]->piece->type == pawn);
@@ -1131,6 +1206,7 @@ void test_promotion_1() {
     assert(board->map[b8] == NULL);
 
     Piece* killed = pretend_move(board, moves->moves[0]->piece, moves->moves[0]->destination, moves->moves[0]->promotion);
+    hash_move_piece(board, moves->moves[0], killed);
 
     assert(moves->moves[0]->piece->type == queen);
     assert(moves->moves[0]->piece->value == QUEEN_VALUE);
@@ -1139,8 +1215,10 @@ void test_promotion_1() {
     assert(board->map[b8] == moves->moves[0]->piece);
     assert(board->map[b7] == NULL);
 
+    hash_move_piece(board, moves->moves[0], killed);
     undo_pretend_move(board, moves->moves[0]->piece, killed, moves->moves[0]->from, moves->moves[0]->promotion);
     
+    assert(hash == board->hash_value);
     assert(moves->moves[0]->piece->type == pawn);
     assert(moves->moves[0]->piece->value == PAWN_VALUE);
     assert(moves->moves[0]->piece->move_func == get_pawn_mask);
@@ -1160,6 +1238,7 @@ void test_promotion_1() {
     assert(board->map[b8] == NULL);
 
     killed = pretend_move(board, moves->moves[1]->piece, moves->moves[1]->destination, moves->moves[1]->promotion);
+    hash_move_piece(board, moves->moves[1], killed);
 
     assert(moves->moves[1]->piece->type == castle);
     assert(moves->moves[1]->piece->value == CASTLE_VALUE);
@@ -1168,8 +1247,10 @@ void test_promotion_1() {
     assert(board->map[b8] == moves->moves[1]->piece);
     assert(board->map[b7] == NULL);
 
+    hash_move_piece(board, moves->moves[1], killed);
     undo_pretend_move(board, moves->moves[1]->piece, killed, moves->moves[1]->from, moves->moves[1]->promotion);
     
+    assert(board->hash_value == hash);
     assert(moves->moves[1]->piece->type == pawn);
     assert(moves->moves[1]->piece->value == PAWN_VALUE);
     assert(moves->moves[1]->piece->move_func == get_pawn_mask);
@@ -1191,6 +1272,7 @@ void test_promotion_1() {
     assert(board->map[b8] == NULL);
 
     killed = pretend_move(board, moves->moves[2]->piece, moves->moves[2]->destination, moves->moves[2]->promotion);
+    hash_move_piece(board, moves->moves[2], killed);
 
     assert(moves->moves[2]->piece->type == bishop);
     assert(moves->moves[2]->piece->value == BISHOP_VALUE);
@@ -1199,8 +1281,10 @@ void test_promotion_1() {
     assert(board->map[b8] == moves->moves[2]->piece);
     assert(board->map[b7] == NULL);
 
+    hash_move_piece(board, moves->moves[2], killed);
     undo_pretend_move(board, moves->moves[2]->piece, killed, moves->moves[2]->from, moves->moves[2]->promotion);
     
+    assert(hash == board->hash_value);
     assert(moves->moves[2]->piece->type == pawn);
     assert(moves->moves[2]->piece->value == PAWN_VALUE);
     assert(moves->moves[2]->piece->move_func == get_pawn_mask);
@@ -1221,6 +1305,7 @@ void test_promotion_1() {
     assert(board->map[b8] == NULL);
 
     killed = pretend_move(board, moves->moves[3]->piece, moves->moves[3]->destination, moves->moves[3]->promotion);
+    hash_move_piece(board, moves->moves[3], killed);
 
     assert(moves->moves[3]->piece->type == knight);
     assert(moves->moves[3]->piece->value == KNIGHT_VALUE);
@@ -1229,8 +1314,10 @@ void test_promotion_1() {
     assert(board->map[b8] == moves->moves[3]->piece);
     assert(board->map[b7] == NULL);
 
+    hash_move_piece(board, moves->moves[3], killed);
     undo_pretend_move(board, moves->moves[3]->piece, killed, moves->moves[3]->from, moves->moves[3]->promotion);
     
+    assert(hash == board->hash_value);
     assert(moves->moves[3]->piece->type == pawn);
     assert(moves->moves[3]->piece->value == PAWN_VALUE);
     assert(moves->moves[3]->piece->move_func == get_pawn_mask);
@@ -1248,9 +1335,12 @@ void test_promotion_1() {
     assert(moves->moves[4]->destination == c8);
     assert(board->map[b7] == moves->moves[4]->piece);
     assert(board->map[b8] == NULL);
-    assert(board->map[c8] != NULL);
+    assert(board->map[c8]->type == castle);
+    assert(board->map[c8]->c == black);
+    assert(board->map[c8]->value == CASTLE_VALUE);
 
     killed = pretend_move(board, moves->moves[4]->piece, moves->moves[4]->destination, moves->moves[4]->promotion);
+    hash_move_piece(board, moves->moves[4], killed);
 
     assert(moves->moves[4]->piece->type == queen);
     assert(moves->moves[4]->piece->value == QUEEN_VALUE);
@@ -1260,15 +1350,19 @@ void test_promotion_1() {
     assert(board->map[b7] == NULL);
     assert(board->map[b8] == NULL);
 
+    hash_move_piece(board, moves->moves[4], killed);
     undo_pretend_move(board, moves->moves[4]->piece, killed, moves->moves[4]->from, moves->moves[4]->promotion);
-    
+
+    assert(hash == board->hash_value);
     assert(moves->moves[4]->piece->type == pawn);
     assert(moves->moves[4]->piece->value == PAWN_VALUE);
     assert(moves->moves[4]->piece->move_func == get_pawn_mask);
     assert(moves->moves[4]->piece->cell == b7);
     assert(board->map[b7] == moves->moves[4]->piece);
     assert(board->map[b8] == NULL);
-    assert(board->map[c8] != NULL);
+    assert(board->map[c8]->type == castle);
+    assert(board->map[c8]->c == black);
+    assert(board->map[c8]->value == CASTLE_VALUE);
 
 
 
@@ -1280,9 +1374,12 @@ void test_promotion_1() {
     assert(moves->moves[5]->destination == c8);
     assert(board->map[b7] == moves->moves[5]->piece);
     assert(board->map[b8] == NULL);
-    assert(board->map[c8] != NULL);
+    assert(board->map[c8]->type == castle);
+    assert(board->map[c8]->c == black);
+    assert(board->map[c8]->value == CASTLE_VALUE);
 
     killed = pretend_move(board, moves->moves[5]->piece, moves->moves[5]->destination, moves->moves[5]->promotion);
+    hash_move_piece(board, moves->moves[5], killed);
 
     assert(moves->moves[1]->piece->type == castle);
     assert(moves->moves[1]->piece->value == CASTLE_VALUE);
@@ -1292,15 +1389,19 @@ void test_promotion_1() {
     assert(board->map[b7] == NULL);
     assert(board->map[b8] == NULL);
 
+    hash_move_piece(board, moves->moves[5], killed);
     undo_pretend_move(board, moves->moves[5]->piece, killed, moves->moves[5]->from, moves->moves[5]->promotion);
     
+    assert(hash == board->hash_value);
     assert(moves->moves[5]->piece->type == pawn);
     assert(moves->moves[5]->piece->value == PAWN_VALUE);
     assert(moves->moves[5]->piece->move_func == get_pawn_mask);
     assert(moves->moves[5]->piece->cell == b7);
     assert(board->map[b7] == moves->moves[5]->piece);
     assert(board->map[b8] == NULL);
-    assert(board->map[c8] != NULL);
+    assert(board->map[c8]->type == castle);
+    assert(board->map[c8]->c == black);
+    assert(board->map[c8]->value == CASTLE_VALUE);
 
 
 
@@ -1314,9 +1415,12 @@ void test_promotion_1() {
     assert(moves->moves[6]->destination == c8);
     assert(board->map[b7] == moves->moves[6]->piece);
     assert(board->map[b8] == NULL);
-    assert(board->map[c8] != NULL);
+    assert(board->map[c8]->type == castle);
+    assert(board->map[c8]->c == black);
+    assert(board->map[c8]->value == CASTLE_VALUE);
 
     killed = pretend_move(board, moves->moves[6]->piece, moves->moves[6]->destination, moves->moves[6]->promotion);
+    hash_move_piece(board, moves->moves[6], killed);
 
     assert(moves->moves[6]->piece->type == bishop);
     assert(moves->moves[6]->piece->value == BISHOP_VALUE);
@@ -1326,15 +1430,19 @@ void test_promotion_1() {
     assert(board->map[b7] == NULL);
     assert(board->map[b8] == NULL);
 
+    hash_move_piece(board, moves->moves[6], killed);
     undo_pretend_move(board, moves->moves[6]->piece, killed, moves->moves[6]->from, moves->moves[6]->promotion);
     
+    assert(hash == board->hash_value);
     assert(moves->moves[6]->piece->type == pawn);
     assert(moves->moves[6]->piece->value == PAWN_VALUE);
     assert(moves->moves[6]->piece->move_func == get_pawn_mask);
     assert(moves->moves[6]->piece->cell == b7);
     assert(board->map[b7] == moves->moves[6]->piece);
     assert(board->map[b8] == NULL);
-    assert(board->map[c8] != NULL);
+    assert(board->map[c8]->type == castle);
+    assert(board->map[c8]->c == black);
+    assert(board->map[c8]->value == CASTLE_VALUE);
 
 
 
@@ -1347,9 +1455,12 @@ void test_promotion_1() {
     assert(moves->moves[7]->destination == c8);
     assert(board->map[b7] == moves->moves[7]->piece);
     assert(board->map[b8] == NULL);
-    assert(board->map[c8] != NULL);
+    assert(board->map[c8]->type == castle);
+    assert(board->map[c8]->c == black);
+    assert(board->map[c8]->value == CASTLE_VALUE);
 
     killed = pretend_move(board, moves->moves[7]->piece, moves->moves[7]->destination, moves->moves[7]->promotion);
+    hash_move_piece(board, moves->moves[7], killed);
 
     assert(moves->moves[7]->piece->type == knight);
     assert(moves->moves[7]->piece->value == KNIGHT_VALUE);
@@ -1359,15 +1470,19 @@ void test_promotion_1() {
     assert(board->map[b7] == NULL);
     assert(board->map[b8] == NULL);
 
+    hash_move_piece(board, moves->moves[7], killed);
     undo_pretend_move(board, moves->moves[7]->piece, killed, moves->moves[7]->from, moves->moves[7]->promotion);
     
+    assert(hash == board->hash_value);
     assert(moves->moves[7]->piece->type == pawn);
     assert(moves->moves[7]->piece->value == PAWN_VALUE);
     assert(moves->moves[7]->piece->move_func == get_pawn_mask);
     assert(moves->moves[7]->piece->cell == b7);
     assert(board->map[b7] == moves->moves[7]->piece);
     assert(board->map[b8] == NULL);
-    assert(board->map[c8] != NULL);
+    assert(board->map[c8]->type == castle);
+    assert(board->map[c8]->c == black);
+    assert(board->map[c8]->value == CASTLE_VALUE);
 }
 
 void test_check_3() {
@@ -2386,6 +2501,7 @@ void test() {
     test_legality();
     test_move_selection();
     test_move_logic();
+    test_hashing();
     test_move_logic_mate_in_four();
     test_mate_detection();
 }

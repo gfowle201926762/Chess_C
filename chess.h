@@ -9,7 +9,8 @@
 
 #define CELLS 64
 #define MAX_COLOUR 2
-#define MAX_PIECE_TYPE 6
+#define MAX_PIECE_TYPE 7
+#define MAX_ACTUAL_PIECE_TYPE 6
 #define MAX_CASTLING_OPTIONS 2
 #define HASH_TABLE_SIZE 1000000000
 #define MAX_PROMOTABLE_PIECES 4
@@ -156,9 +157,11 @@ struct Board {
     U64 key_mover;
     Piece* map[CELLS];
     Piece* pieces[MAX_COLOUR][CELLS];
-    Piece* last_moved;
+    Piece* last_moved[MOVES_SIZE];
+    int lm_length;
     int max_pieces[MAX_COLOUR];
     name promotable_pieces[MAX_PROMOTABLE_PIECES];
+    name valid_pieces[MAX_ACTUAL_PIECE_TYPE];
     int counter;
     int leaves;
 };
@@ -304,7 +307,8 @@ bool is_check(Board* board, colour c);
 bool is_move_legal(Board* board, Piece* piece, square to);
 void undo_pretend_move(Board* board, Piece* original, Piece* killed, square original_from, name promotion);
 // void undo_pretend_move(Board* board, Move* move, Piece* killed);
-
+void hash_move_piece(Board* board, Move* move, Piece* killed);
+void hash_change_colour(Board* board);
 
 // Get all moves
 void get_all_moves_for_piece(Board* board, Piece* piece, Moves* moves);

@@ -3,7 +3,9 @@
 int main(void) {
     initialise();
 
+    test_hashing_graph_simulation();
     test();
+
     // test_18_june_2024();
 
     // test_forcing_moves_1();
@@ -283,8 +285,15 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
         name save_type = move->piece->type;
         int save_value = move->piece->value;
         U64 (*save_move_func)(Board*, Piece*) = move->piece->move_func;
-
+        U64 hash = board->hash_value;
+        Piece* last_moved = board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1];
+        int lm = board->lm_length;
+        
         Piece* killed = pretend_move(board, move->piece, move->destination, move->promotion);
+        // board->last_moved = last_moved;
+        hash_move_piece(board, move, killed);
+        // board->last_moved = move->piece;
+
         update_graph(parent, move);
 
         // if (grapher->depth == grapher->max_depth) {
@@ -296,11 +305,21 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
         Scores* scores = create_graph(grapher, parent->children[parent->i-1], board, invert_colour(mover), limit);
         grapher->depth += 1;
 
+        hash_move_piece(board, move, killed);
         undo_pretend_move(board, move->piece, killed, move->from, move->promotion);
 
         assert(move->piece->type == save_type);
         assert(move->piece->value == save_value);
         assert(move->piece->move_func == save_move_func);
+        assert(board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1] == last_moved);
+        assert(lm == board->lm_length);
+        if (hash != board->hash_value) {
+            print_board_pro(board);
+            print_move(move);
+            printf("\n");
+            assert(false);
+        }
+        assert(hash == board->hash_value);
 
         if ((original_mover && scores->eval > limit) || (!original_mover && scores->eval < limit)) {
             limit = scores->eval;
@@ -457,9 +476,19 @@ void execute_move(Board* board, Piece* piece, square to, name promotion) {
         board->map[to]->alive = false;
     }
     board->map[to] = piece;
-    board->last_moved = piece;
+    // board->last_moved = piece;
     execute_castle(board, piece, to, from);
     execute_promotion(piece, promotion);
+}
+
+void add_last_moved(Board* board, Piece* piece) {
+    board->last_moved[board->lm_length] = piece;
+    board->lm_length += 1;
+}
+
+void pop_last_moved(Board* board) {
+    board->last_moved[board->lm_length - 1] = NULL;
+    board->lm_length -= 1;
 }
 
 Piece* pretend_move(Board* board, Piece* piece, square to, name promotion) {
@@ -474,7 +503,8 @@ Piece* pretend_move(Board* board, Piece* piece, square to, name promotion) {
         killed->alive = false;
     }
     board->map[to] = piece;
-    board->last_moved = piece;
+    // board->last_moved = piece;
+    add_last_moved(board, piece);
     execute_castle(board, piece, to, from);
     execute_promotion(piece, promotion);
     piece->no_moves += 1;
@@ -487,6 +517,7 @@ void undo_pretend_move(Board* board, Piece* original, Piece* killed, square orig
         killed->alive = true;
         execute_move(board, killed, killed->cell, none);
     }
+    pop_last_moved(board);
     original->no_moves -= 1;
 }
 
@@ -590,12 +621,14 @@ void put(HashTable* hashtable, U64 hash_value, int eval, int depth) {
 }
 
 void hash_move_piece(Board* board, Move* move, Piece* killed) {
-    board->hash_value ^= board->keys_position[move->piece->c][move->piece->type][move->from];
+    board->hash_value ^= board->keys_position[move->piece->c][move->promotion == none ? move->piece->type : pawn][move->from];
     if (killed) {
         board->hash_value ^= board->keys_position[killed->c][killed->type][move->destination];
     }
-    board->hash_value ^= board->keys_position[move->piece->c][move->piece->type][move->destination];
-    board->hash_value ^= board->keys_last_moved[board->last_moved->cell];
+    board->hash_value ^= board->keys_position[move->piece->c][move->promotion == none ? move->piece->type : move->promotion][move->destination];
+    if (board->lm_length) {
+        board->hash_value ^= board->keys_last_moved[board->last_moved[board->lm_length - 1]->cell];
+    }
     board->hash_value ^= board->keys_last_moved[move->destination];
 }
 
@@ -635,7 +668,11 @@ void init_hash_keys(Board* board) {
 /* -------------------------------- */
 
 void init_hash_value(Board* board) {
-
+    for (int i = 0; i < CELLS; i++) {
+        if (board->map[i]) {
+            board->hash_value ^= board->keys_position[board->map[i]->c][board->map[i]->type][i];
+        }
+    }
 }
 
 Board* init_board(void) {
@@ -648,6 +685,15 @@ Board* init_board(void) {
     board->promotable_pieces[1] = castle;
     board->promotable_pieces[2] = bishop;
     board->promotable_pieces[3] = knight;
+
+    board->valid_pieces[0] = king;
+    board->valid_pieces[1] = queen;
+    board->valid_pieces[2] = castle;
+    board->valid_pieces[3] = bishop;
+    board->valid_pieces[4] = knight;
+    board->valid_pieces[5] = pawn;
+
+
 
     for (int i = 0; i < 32; i++) {
         Piece* piece = calloc(1, sizeof(Piece));
@@ -741,7 +787,8 @@ Board* init_board(void) {
         }
     }
 
-
+    init_hash_keys(board);
+    init_hash_value(board);
     return board;
 }
 
@@ -1010,11 +1057,11 @@ U64 get_pawn_attack_mask(Board* board, Piece* piece) {
         if (cell % 8 > 0 && get_bit(board->bitboard, (cell - 9))) attack_mask |= (1ULL << (cell - 9)); // left
 
         // en passant
-        if (cell % 8 < 7 && get_bit(board->bitboard, (cell - 1)) && board->map[cell-1] &&  board->map[cell-1]->type == pawn && board->map[cell-1]->c == black && board->last_moved == board->map[cell-1] && board->map[cell-1]->alive) {
+        if (cell % 8 < 7 && get_bit(board->bitboard, (cell - 1)) && board->map[cell-1] &&  board->map[cell-1]->type == pawn && board->map[cell-1]->c == black && board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1] == board->map[cell-1] && board->map[cell-1]->alive) {
             attack_mask |= (1ULL << (cell - 1)); // right
         }
         
-        if (cell % 8 > 0 && get_bit(board->bitboard, (cell + 1)) && board->map[cell+1] && board->map[cell+1]->type == pawn && board->map[cell+1]->c == black && board->last_moved == board->map[cell+1] && board->map[cell+1]->alive) {
+        if (cell % 8 > 0 && get_bit(board->bitboard, (cell + 1)) && board->map[cell+1] && board->map[cell+1]->type == pawn && board->map[cell+1]->c == black && board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1] == board->map[cell+1] && board->map[cell+1]->alive) {
             attack_mask |= (1ULL << (cell + 1)); // left
         }
         
@@ -1025,11 +1072,11 @@ U64 get_pawn_attack_mask(Board* board, Piece* piece) {
         if (cell % 8 < 7 && get_bit(board->bitboard, (cell + 9))) attack_mask |= (1ULL << (cell + 9)); // right
 
         // en passant
-        if (cell % 8 > 0 && get_bit(board->bitboard, (cell - 1)) && board->map[cell-1] && board->map[cell-1]->type == pawn && board->map[cell-1]->c == white && board->last_moved == board->map[cell-1] && board->map[cell-1]->alive) {
+        if (cell % 8 > 0 && get_bit(board->bitboard, (cell - 1)) && board->map[cell-1] && board->map[cell-1]->type == pawn && board->map[cell-1]->c == white && board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1] == board->map[cell-1] && board->map[cell-1]->alive) {
             attack_mask |= (1ULL << (cell - 1)); // left
         }
         
-        if (cell % 8 < 7 && get_bit(board->bitboard, (cell + 1)) && board->map[cell+1] && board->map[cell+1]->type == pawn && board->map[cell+1]->c == white && board->last_moved == board->map[cell+1] && board->map[cell+1]->alive) {
+        if (cell % 8 < 7 && get_bit(board->bitboard, (cell + 1)) && board->map[cell+1] && board->map[cell+1]->type == pawn && board->map[cell+1]->c == white && board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1] == board->map[cell+1] && board->map[cell+1]->alive) {
             attack_mask |= (1ULL << (cell + 1)); // right
         }
     }
