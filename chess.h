@@ -106,8 +106,9 @@ enum colour {
 };
 typedef enum colour colour;
 
+// none name is just for promotions so you don't have to pass NULL in
 enum name {
-    king, queen, castle, bishop, knight, pawn
+    none, king, queen, castle, bishop, knight, pawn
 };
 typedef enum name name;
 
@@ -124,7 +125,7 @@ struct Piece {
     name type;
     colour c;
     int value;
-    U64 (*move_func)(struct Board* board, struct Piece*);
+    U64 (*move_func)(struct Board*, struct Piece*);
     int (*index_func)(colour c, int i);
     bool alive;
     int no_moves;
@@ -296,12 +297,12 @@ void print_scores(Scores* scores);
 void print_square(square s);
 
 // Move legal logic
-void execute_move(Board* board, Piece* piece, square to);
-Piece* pretend_move(Board* board, Piece* piece, square to);
+void execute_move(Board* board, Piece* piece, square to, name promotion);
+Piece* pretend_move(Board* board, Piece* piece, square to, name promotion);
 // Piece* pretend_move(Board* board, Move* move);
 bool is_check(Board* board, colour c);
 bool is_move_legal(Board* board, Piece* piece, square to);
-void undo_pretend_move(Board* board, Piece* original, Piece* killed, square original_from);
+void undo_pretend_move(Board* board, Piece* original, Piece* killed, square original_from, name promotion);
 // void undo_pretend_move(Board* board, Move* move, Piece* killed);
 
 

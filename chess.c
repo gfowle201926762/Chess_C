@@ -2,6 +2,7 @@
 
 int main(void) {
     initialise();
+
     test();
     // test_18_june_2024();
 
@@ -70,14 +71,14 @@ void play_game() {
             printf("BLACK WINS\n");
             return;
         }
-        pretend_move(board, moves->moves[0]->piece, moves->moves[0]->destination);
+        pretend_move(board, moves->moves[0]->piece, moves->moves[0]->destination, moves->moves[0]->promotion);
 
         print_board_pro(board);
 
         grapher = init_grapher(8, 4, black);
         scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
         moves = scores->moves;
-        pretend_move(board, moves->moves[0]->piece, moves->moves[0]->destination);
+        pretend_move(board, moves->moves[0]->piece, moves->moves[0]->destination, moves->moves[0]->promotion);
         if (moves->length == 0) {
             printf("WHITE WINS\n");
             return;
@@ -232,9 +233,9 @@ Scores* init_scores(GraphNode* node, int depth) {
 Moves* get_best_moves(Board* board, Moves* moves, colour mover, int max_breadth) {
     for (int i = 0; i < moves->length; i++) {
         Move* move = moves->moves[i];
-        Piece* killed = pretend_move(board, move->piece, move->destination);
+        Piece* killed = pretend_move(board, move->piece, move->destination, move->promotion);
         move->evaluation = evaluate_position(board, mover);
-        undo_pretend_move(board, move->piece, killed, move->from);
+        undo_pretend_move(board, move->piece, killed, move->from, move->promotion);
     }
 
     return get_best_scores(moves, max_breadth);
@@ -278,7 +279,12 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
 
     for (int i = 0; i < best_moves->length; i++) {
         Move* move = best_moves->moves[i];
-        Piece* killed = pretend_move(board, move->piece, move->destination);
+
+        name save_type = move->piece->type;
+        int save_value = move->piece->value;
+        U64 (*save_move_func)(Board*, Piece*) = move->piece->move_func;
+
+        Piece* killed = pretend_move(board, move->piece, move->destination, move->promotion);
         update_graph(parent, move);
 
         // if (grapher->depth == grapher->max_depth) {
@@ -290,7 +296,11 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
         Scores* scores = create_graph(grapher, parent->children[parent->i-1], board, invert_colour(mover), limit);
         grapher->depth += 1;
 
-        undo_pretend_move(board, move->piece, killed, move->from);
+        undo_pretend_move(board, move->piece, killed, move->from, move->promotion);
+
+        assert(move->piece->type == save_type);
+        assert(move->piece->value == save_value);
+        assert(move->piece->move_func == save_move_func);
 
         if ((original_mover && scores->eval > limit) || (!original_mover && scores->eval < limit)) {
             limit = scores->eval;
@@ -316,6 +326,18 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
 /* ------- SEARCH ALL MOVES ------- */
 /* -------------------------------- */
 
+void generate_promotion_moves(Board* board, Moves* moves, Piece* piece, square cell) {
+    for (int i = 0; i < MAX_PROMOTABLE_PIECES; i++) {
+        Move* move = calloc(1, sizeof(Move));
+        move->destination = cell;
+        move->from = piece->cell;
+        move->piece = piece;
+        move->promotion = board->promotable_pieces[i];
+        moves->moves[moves->length] = move;
+        moves->length += 1;
+    }
+}
+
 void get_all_moves_for_piece(Board* board, Piece* piece, Moves* moves) {
 
     // print_piece(piece);
@@ -335,6 +357,12 @@ void get_all_moves_for_piece(Board* board, Piece* piece, Moves* moves) {
                         allowed = false;
                     }
                     if ((i == c1 || i == c8) && (!is_move_legal(board, piece, piece->cell - 1))) {
+                        allowed = false;
+                    }
+                }
+                if (piece->type == pawn) {
+                    if ((piece->c == white && i / 8 == 0) || (piece->c == black && i / 8 == 7)) {
+                        generate_promotion_moves(board, moves, piece, i);
                         allowed = false;
                     }
                 }
@@ -367,34 +395,59 @@ Moves* get_all_moves_for_colour(Board* board, colour c) {
 /* ------- LEGAL MOVE LOGIC ------- */
 /* -------------------------------- */
 
-void check_castle(Board* board, Piece* piece, square to, square from) {
+void execute_castle(Board* board, Piece* piece, square to, square from) {
     // CASTLE
     if (piece->no_moves == 0 && piece->type == king && ((to == g1 && from == e1) || (to == g8 && from == e8))) {
-        execute_move(board, board->pieces[piece->c][CASTLE_2(piece->c)], board->pieces[piece->c][CASTLE_2(piece->c)]->cell - 2);
+        execute_move(board, board->pieces[piece->c][CASTLE_2(piece->c)], board->pieces[piece->c][CASTLE_2(piece->c)]->cell - 2, none);
     }
     else if (piece->no_moves == 0 && piece->type == king && ((to == c1 && from == e1) || (to == c8 && from == e8))) {
-        execute_move(board, board->pieces[piece->c][CASTLE_1(piece->c)], board->pieces[piece->c][CASTLE_1(piece->c)]->cell + 3);
+        execute_move(board, board->pieces[piece->c][CASTLE_1(piece->c)], board->pieces[piece->c][CASTLE_1(piece->c)]->cell + 3, none);
     }
 
     // REVERSE
     else if (piece->type == king && ((to == e1 && from == g1) || (to == e8 && from == g8))) {
-        execute_move(board, board->pieces[piece->c][CASTLE_2(piece->c)], board->pieces[piece->c][CASTLE_2(piece->c)]->cell + 2);
+        execute_move(board, board->pieces[piece->c][CASTLE_2(piece->c)], board->pieces[piece->c][CASTLE_2(piece->c)]->cell + 2, none);
         board->pieces[piece->c][CASTLE_2(piece->c)]->no_moves = 0;
     }
     else if (piece->type == king && ((to == e1 && from == c1) || (to == e8 && from == c8))) {
-        execute_move(board, board->pieces[piece->c][CASTLE_1(piece->c)], board->pieces[piece->c][CASTLE_1(piece->c)]->cell - 3);
+        execute_move(board, board->pieces[piece->c][CASTLE_1(piece->c)], board->pieces[piece->c][CASTLE_1(piece->c)]->cell - 3, none);
         board->pieces[piece->c][CASTLE_1(piece->c)]->no_moves = 0;
     }
 }
 
-void promote(Piece* piece, name promotion) {
-    if (promotion == NULL) {
+void execute_promotion(Piece* piece, name promotion) {
+    if (promotion == none) {
         return;
     }
-
+    piece->type = promotion;
+    switch (promotion)
+    {
+    case queen:
+        piece->value = QUEEN_VALUE;
+        piece->move_func = get_queen_mask;
+        break;
+    case castle:
+        piece->value = CASTLE_VALUE;
+        piece->move_func = get_castle_mask;
+        break;
+    case bishop:
+        piece->value = BISHOP_VALUE;
+        piece->move_func = get_bishop_mask;
+        break;
+    case knight:
+        piece->value = KNIGHT_VALUE;
+        piece->move_func = get_knight_mask;
+        break;
+    case pawn:
+        piece->value = PAWN_VALUE;
+        piece->move_func = get_pawn_mask;
+        break;
+    default:
+        return;
+    }
 }
 
-void execute_move(Board* board, Piece* piece, square to) {
+void execute_move(Board* board, Piece* piece, square to, name promotion) {
     pop_bit(board->bitboard, piece->cell);
     set_bit(board->bitboard, to);
     board->map[piece->cell] = NULL;
@@ -405,11 +458,11 @@ void execute_move(Board* board, Piece* piece, square to) {
     }
     board->map[to] = piece;
     board->last_moved = piece;
-    check_castle(board, piece, to, from);
-    // promote(piece, promotion);
+    execute_castle(board, piece, to, from);
+    execute_promotion(piece, promotion);
 }
 
-Piece* pretend_move(Board* board, Piece* piece, square to) {
+Piece* pretend_move(Board* board, Piece* piece, square to, name promotion) {
     board->counter += 1;    
     pop_bit(board->bitboard, piece->cell);
     set_bit(board->bitboard, to);
@@ -422,16 +475,17 @@ Piece* pretend_move(Board* board, Piece* piece, square to) {
     }
     board->map[to] = piece;
     board->last_moved = piece;
-    check_castle(board, piece, to, from);
+    execute_castle(board, piece, to, from);
+    execute_promotion(piece, promotion);
     piece->no_moves += 1;
     return killed;
 }
 
-void undo_pretend_move(Board* board, Piece* original, Piece* killed, square original_from) {
-    execute_move(board, original, original_from);
+void undo_pretend_move(Board* board, Piece* original, Piece* killed, square original_from, name promotion) {
+    execute_move(board, original, original_from, promotion == none ? none : pawn);
     if (killed) {
         killed->alive = true;
-        execute_move(board, killed, killed->cell);
+        execute_move(board, killed, killed->cell, none);
     }
     original->no_moves -= 1;
 }
@@ -450,7 +504,7 @@ bool is_check(Board* board, colour c) {
 
 bool is_move_legal(Board* board, Piece* piece, square to) {
     square from = piece->cell;
-    Piece* killed = pretend_move(board, piece, to);
+    Piece* killed = pretend_move(board, piece, to, none);
     bool legal = true;
     if (killed && killed->c == piece->c) {
         legal = false;
@@ -458,7 +512,7 @@ bool is_move_legal(Board* board, Piece* piece, square to) {
     else if (is_check(board, piece->c)) {
         legal = false;
     }
-    undo_pretend_move(board, piece, killed, from);
+    undo_pretend_move(board, piece, killed, from, none);
     return legal;
 }
 
@@ -590,13 +644,10 @@ Board* init_board(void) {
     int cells[32] = {a8, b8, c8, d8, e8, f8, g8, h8, a7, b7, c7, d7, e7, f7, g7, h7, a2, b2, c2, d2, e2, f2, g2, h2, a1, b1, c1, d1, e1, f1, g1, h1};
     board->bitboard = set_multiple_bits(board->bitboard, cells, 32);
 
-    for (int c = 0; c < MAX_COLOUR; c++) {
-        for (int type = 0; type < MAX_PIECE_TYPE; type++) {
-            for (int num = 0; num < CELLS; num++) {
-                
-            }
-        }
-    }
+    board->promotable_pieces[0] = queen;
+    board->promotable_pieces[1] = castle;
+    board->promotable_pieces[2] = bishop;
+    board->promotable_pieces[3] = knight;
 
     for (int i = 0; i < 32; i++) {
         Piece* piece = calloc(1, sizeof(Piece));
@@ -1080,16 +1131,9 @@ void print_piece(Piece* piece) {
 }
 
 void print_moves(Moves* moves) {
-    printf("PRINTING MOVES: length %i\n", moves->length);
-    int i = 0;
-    // for (int i = 0; i < moves->length; i++) {
-    while (moves->moves[i]) {
-        char from[3] = {'\0'};
-        char to[3] = {'\0'};
-        square_to_string(moves->moves[i]->from, from);
-        square_to_string(moves->moves[i]->destination, to);
-        printf("[MOVE %i] Colour: %i; Type: %i; From: %s; To: %s; Eval: %i\n", i, moves->moves[i]->piece->c, moves->moves[i]->piece->type, from, to, moves->moves[i]->evaluation);
-        i += 1;
+    for (int i = 0; i < moves->length; i++) {
+        printf("move %i: ", i);
+        print_move(moves->moves[i]);
     }
     printf("\n");
 }
@@ -1111,6 +1155,56 @@ void colour_to_string(colour c, char* string) {
     }
 }
 
+void name_to_string(name n, char* string) {
+    switch (n) {
+        case king:
+            string[0] = 'k';
+            string[1] = 'i';
+            string[2] = 'n';
+            string[3] = 'g';
+            break;
+        case queen:
+            string[0] = 'q';
+            string[1] = 'u';
+            string[2] = 'e';
+            string[3] = 'e';
+            string[4] = 'n';
+            break;
+        case castle:
+            string[0] = 'c';
+            string[1] = 'a';
+            string[2] = 's';
+            string[3] = 't';
+            string[4] = 'l';
+            string[5] = 'e';
+            break;
+        case bishop:
+            string[0] = 'b';
+            string[1] = 'i';
+            string[2] = 's';
+            string[3] = 'h';
+            string[4] = 'o';
+            string[5] = 'p';
+            break;
+        case knight:
+            string[0] = 'k';
+            string[1] = 'n';
+            string[2] = 'i';
+            string[3] = 'g';
+            string[4] = 'h';
+            string[5] = 't';
+            break;
+        case pawn:
+            string[0] = 'p';
+            string[1] = 'a';
+            string[2] = 'w';
+            string[3] = 'n';
+            break;
+        default:
+            break;
+    }
+}
+
 void print_move(Move* move) {
     // printf("PRINTING SINGLE MOVE:\n");
     if (move == NULL) {
@@ -1118,11 +1212,13 @@ void print_move(Move* move) {
     }
     char from[3] = {'\0'};
     char to[3] = {'\0'};
+    char promotion[10] = {'\0'};
     square_to_string(move->from, from);
     square_to_string(move->destination, to);
+    name_to_string(move->promotion, promotion);
     char c[10] = {'\0'};
     colour_to_string(move->piece->c, c);
-    printf("Colour: %s; Piece: %i; From: %s; To: %s; Eval: %i\n", c, move->piece->type, from, to, move->evaluation);
+    printf("Colour: %s; Piece: %i; From: %s; To: %s; Eval: %i; Promotion: %s\n", c, move->piece->type, from, to, move->evaluation, promotion);
 }
 
 void square_to_string(square s, char* string) {
@@ -1191,11 +1287,7 @@ void print_tracer(Tracer* tracer) {
 
 void print_scores(Scores* scores) {
     printf("EVALUATION: %i\n", scores->eval);
-    for (int i = 0; i < scores->moves->length; i++) {
-        printf("move %i: ", i);
-        print_move(scores->moves->moves[i]);
-    }
-    printf("\n");
+    print_moves(scores->moves);
 }
 
 
