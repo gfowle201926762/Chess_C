@@ -8,13 +8,61 @@
 #include <unistd.h>
 
 #define CELLS 64
+#define MAX_COLOUR 2
+#define MAX_PIECE_TYPE 7
+#define MAX_ACTUAL_PIECE_TYPE 6
+#define MAX_CASTLING_OPTIONS 2
+#define HASH_TABLE_SIZE 1000000000
+#define MAX_PROMOTABLE_PIECES 4
+#define MAX_REPETITIONS 3
 #define U64 unsigned long long
 #define MOVES_SIZE 100
-#define MAX_SCORE 100
+#define MAX_SCORE 100000
 #define SAVED_SIZE 100
 #define MAX_BREADTH 10000
+#define MAX_BRANCH 10
 
-int eval_king[64] = {
+#define KING_VALUE 1000
+#define QUEEN_VALUE 900
+#define CASTLE_VALUE 500
+#define BISHOP_VALUE 300
+#define KNIGHT_VALUE 300
+#define PAWN_VALUE 100
+
+int WHITE_KINGS = 1;
+int WHITE_QUEENS = 1;
+int WHITE_CASTLES = 2;
+int WHITE_BISHOPS = 2;
+int WHITE_KNIGHTS = 2;
+int WHITE_PAWNS = 8;
+int BLACK_KINGS = 1;
+int BLACK_QUEENS = 1;
+int BLACK_CASTLES = 2;
+int BLACK_BISHOPS = 2;
+int BLACK_KNIGHTS = 2;
+int BLACK_PAWNS = 8;
+
+// bitboard macros
+#define get_bit(bitboard, cell) (bitboard & (1ULL << cell))
+#define set_bit(bitboard, cell) (bitboard |= (1ULL << cell))
+#define pop_bit(bitboard, cell) (get_bit(bitboard, cell) ? (bitboard ^= (1ULL << cell)) : 0)
+#define invert_colour(c) (1 - c)
+#define KING_INDEX(c) (c == black ? 4 : 12)
+#define CASTLE_1(c) (c == black ? 0 : 8)
+#define CASTLE_2(c) (c == black ? 7 : 15)
+#define KNIGHT_1(c) (c == black ? 1 : 9)
+#define KNIGHT_2(c) (c == black ? 6 : 14)
+#define BISHOP_1(c) (c == black ? 2 : 10)
+#define BISHOP_2(c) (c == black ? 5 : 13)
+#define QUEEN_INDEX(c) (c == black ? 3 : 11)
+#define PAWN_INDEX(c, n) (c == black ? (8 + n) : (n))
+
+/*
+how to flip an array:
+Just invert the row number...
+*/
+
+int KING_EVAL[64] = {
   -25, -25, -25, -25, -25, -25, -25, -25,
   -25, -25, -25, -25, -25, -25, -25, -25,
   -25, -25, -25, -25, -25, -25, -25, -25,
@@ -22,10 +70,10 @@ int eval_king[64] = {
   -25, -25, -25, -25, -25, -25, -25, -25,
   -25, -25, -25, -25, -25, -25, -25, -25,
   -25, -25, -25, -25, -25, -25, -25, -25,
-  10, 15, -15, -15, -15, -15, 15, 10
+  5, 15, 10, -15, -15, -15, 15, 5
 };
 
-int eval_pawn[64] = {
+int PAWN_EVAL[64] = {
   20, 20, 20, 20, 20, 20, 20, 20,
   10, 10, 10, 10, 10, 10, 10, 10,
   0, 0, 0, 0, 0, 0, 0, 0,
@@ -60,10 +108,16 @@ enum colour {
 };
 typedef enum colour colour;
 
+// none name is just for promotions so you don't have to pass NULL in
 enum name {
-    king, queen, castle, bishop, knight, pawn
+    none, king, queen, castle, bishop, knight, pawn
 };
 typedef enum name name;
+
+enum castle_type {
+    king_side, queen_side
+};
+typedef enum castle_type castle_type;
 
 struct Board;
 
@@ -73,7 +127,7 @@ struct Piece {
     name type;
     colour c;
     int value;
-    U64 (*move_func)(struct Board* board, struct Piece*);
+    U64 (*move_func)(struct Board*, struct Piece*);
     int (*index_func)(colour c, int i);
     bool alive;
     int no_moves;
@@ -81,11 +135,36 @@ struct Piece {
 };
 typedef struct Piece Piece;
 
+struct Transposition {
+    U64 hash_value;
+    int eval;
+    int depth;
+};
+typedef struct Transposition Transposition;
+
+struct HashTable {
+    // index is the hashtable's key (hash_value % HASH_TABLE_SIZE)
+    // the value is the U64 hash (and eval) -> check whether actually match
+    Transposition* transpositions[HASH_TABLE_SIZE];
+};
+typedef struct HashTable HashTable;
+
 struct Board {
     U64 bitboard;
-    Piece* map[64];
-    Piece* pieces[2][16];
-    Piece* last_moved;
+    U64 hash_value;
+    U64 keys_position[MAX_COLOUR][MAX_PIECE_TYPE][CELLS];
+    U64 keys_castling[MAX_COLOUR][MAX_CASTLING_OPTIONS];
+    U64 keys_last_moved[CELLS]; // just need a last moved position... allows for any number of pawns.
+    U64 keys_repetitions[MAX_REPETITIONS];
+    U64 key_mover;
+    U64 last_positions[MOVES_SIZE];
+    Piece* map[CELLS];
+    Piece* pieces[MAX_COLOUR][CELLS];
+    Piece* last_moved[MOVES_SIZE];
+    int lm_length;
+    int max_pieces[MAX_COLOUR];
+    name promotable_pieces[MAX_PROMOTABLE_PIECES];
+    name valid_pieces[MAX_ACTUAL_PIECE_TYPE];
     int counter;
     int leaves;
 };
@@ -96,28 +175,24 @@ struct Move {
     square destination;
     square from;
     int evaluation;
-    Piece* castle;
+    name promotion;
 };
 typedef struct Move Move;
 
 struct Moves {
     Move* moves[MOVES_SIZE];
     int length;
-    int max_length;
 };
 typedef struct Moves Moves;
 
 
 struct Tracer {
-    Moves* selection[MOVES_SIZE];
-    Moves* tracer;
     Moves* best;
+
     int best_eval;
     colour original_mover;
     colour mover;
     int depth;
-    int i;
-    int eval;
 };
 typedef struct Tracer Tracer;
 
@@ -139,21 +214,14 @@ struct Grapher {
 };
 typedef struct Grapher Grapher;
 
+struct Scores {
+    Moves* moves;
+    int eval;
+};
+typedef struct Scores Scores;
 
-// bitboard macros
-#define get_bit(bitboard, cell) (bitboard & (1ULL << cell))
-#define set_bit(bitboard, cell) (bitboard |= (1ULL << cell))
-#define pop_bit(bitboard, cell) (get_bit(bitboard, cell) ? (bitboard ^= (1ULL << cell)) : 0)
-#define invert_colour(c) (1 - c)
-#define KING_INDEX(c) (c == black ? 4 : 12)
-#define CASTLE_1(c) (c == black ? 0 : 8)
-#define CASTLE_2(c) (c == black ? 7 : 15)
-#define KNIGHT_1(c) (c == black ? 1 : 9)
-#define KNIGHT_2(c) (c == black ? 6 : 14)
-#define BISHOP_1(c) (c == black ? 2 : 10)
-#define BISHOP_2(c) (c == black ? 5 : 13)
-#define QUEEN_INDEX(c) (c == black ? 3 : 11)
-#define PAWN_INDEX(c, n) (c == black ? (8 + n) : (n))
+
+
 
 U64 set_multiple_bits(U64 bitboard, int cells[], int length);
 
@@ -212,6 +280,9 @@ void assert_evals_match_best_eval(Tracer* tracer);
 // Initialisation
 Board* init_board(void);
 void set_board(Board* board);
+Board* set_board_notation(char* s);
+Scores* init_scores(GraphNode* node, int depth);
+int init_limit(bool original_mover);
 
 // Miscellaneous
 void clear_board(Board* board);
@@ -229,25 +300,31 @@ void print_piece(Piece* piece);
 void print_tracer(Tracer* tracer);
 void colour_to_string(colour c, char* string);
 void piece_to_string(name n, char* string);
+void print_scores(Scores* scores);
+void print_square(square s);
 
 // Move legal logic
-void execute_move(Board* board, Piece* piece, square to);
-Piece* pretend_move(Board* board, Piece* piece, square to);
+void execute_move(Board* board, Piece* piece, square to, name promotion);
+Piece* pretend_move(Board* board, Piece* piece, square to, name promotion);
+// Piece* pretend_move(Board* board, Move* move);
 bool is_check(Board* board, colour c);
 bool is_move_legal(Board* board, Piece* piece, square to);
-void undo_pretend_move(Board* board, Piece* original, Piece* killed, square original_from);
+void undo_pretend_move(Board* board, Piece* original, Piece* killed, square original_from, name promotion);
+// void undo_pretend_move(Board* board, Move* move, Piece* killed);
+void hash_move_piece(Board* board, Move* move, Piece* killed);
+void hash_change_colour(Board* board);
+void hash_castle(Board* board, colour mover, castle_type type);
 
 // Get all moves
 void get_all_moves_for_piece(Board* board, Piece* piece, Moves* moves);
 Moves* get_all_moves_for_colour(Board* board, colour c);
 
 // Evaluate moves
-int update_depth(int depth, int highest);
-void update_base(Grapher* grapher, int highest);
-int create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover);
+int reverse_depth(Grapher* grapher);
+Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover, int prune);
+// int create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover);
 Grapher* init_grapher(int breadth, int depth, colour start_player);
-Moves* dfs(GraphNode* node, Tracer* tracer);
-Tracer* init_tracer(colour mover);
+
 
 void play_game();
 void initialise();
