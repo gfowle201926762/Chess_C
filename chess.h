@@ -14,6 +14,7 @@
 #define MAX_CASTLING_OPTIONS 2
 #define HASH_TABLE_SIZE 1000000000
 #define MAX_PROMOTABLE_PIECES 4
+#define MAX_REPETITIONS 3
 #define U64 unsigned long long
 #define MOVES_SIZE 100
 #define MAX_SCORE 100000
@@ -154,7 +155,9 @@ struct Board {
     U64 keys_position[MAX_COLOUR][MAX_PIECE_TYPE][CELLS];
     U64 keys_castling[MAX_COLOUR][MAX_CASTLING_OPTIONS];
     U64 keys_last_moved[CELLS]; // just need a last moved position... allows for any number of pawns.
+    U64 keys_repetitions[MAX_REPETITIONS];
     U64 key_mover;
+    U64 last_positions[MOVES_SIZE];
     Piece* map[CELLS];
     Piece* pieces[MAX_COLOUR][CELLS];
     Piece* last_moved[MOVES_SIZE];
@@ -309,6 +312,7 @@ void undo_pretend_move(Board* board, Piece* original, Piece* killed, square orig
 // void undo_pretend_move(Board* board, Move* move, Piece* killed);
 void hash_move_piece(Board* board, Move* move, Piece* killed);
 void hash_change_colour(Board* board);
+void hash_castle(Board* board, colour mover, castle_type type);
 
 // Get all moves
 void get_all_moves_for_piece(Board* board, Piece* piece, Moves* moves);

@@ -292,6 +292,14 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
         Piece* killed = pretend_move(board, move->piece, move->destination, move->promotion);
         // board->last_moved = last_moved;
         hash_move_piece(board, move, killed);
+        hash_change_colour(board);
+        if (move->piece->no_moves == 0 && move->piece->type == king && ((move->destination == g1 && move->from == e1) || (move->destination == g8 && move->from == e8))) {
+            hash_castle(board, mover, king_side);
+        }
+        else if (move->piece->no_moves == 0 && move->piece->type == king && ((move->destination == c1 && move->from == e1) || (move->destination == c8 && move->from == e8))) {
+            hash_castle(board, mover, queen_side);
+        }
+
         // board->last_moved = move->piece;
 
         update_graph(parent, move);
@@ -306,7 +314,15 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
         grapher->depth += 1;
 
         hash_move_piece(board, move, killed);
+        hash_change_colour(board);
+        // REVERSE
         undo_pretend_move(board, move->piece, killed, move->from, move->promotion);
+        if (move->piece->no_moves == 0 && move->piece->type == king && ((move->destination == g1 && move->from == e1) || (move->destination == g8 && move->from == e8))) {
+            hash_castle(board, mover, king_side);
+        }
+        else if (move->piece->no_moves == 0 && move->piece->type == king && ((move->destination == c1 && move->from == e1) || (move->destination == c8 && move->from == e8))) {
+            hash_castle(board, mover, queen_side);
+        }
 
         assert(move->piece->type == save_type);
         assert(move->piece->value == save_value);
@@ -658,6 +674,9 @@ void init_hash_keys(Board* board) {
     }
     for (int i = 0; i < CELLS; i++) {
         board->keys_last_moved[i] = rand64();
+    }
+    for (int i = 0; i < MAX_REPETITIONS; i++) {
+        board->keys_repetitions[i] = rand64();
     }
     board->key_mover = rand64();
 }
