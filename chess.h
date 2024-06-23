@@ -47,6 +47,7 @@ int BLACK_PAWNS = 8;
 #define set_bit(bitboard, cell) (bitboard |= (1ULL << cell))
 #define pop_bit(bitboard, cell) (get_bit(bitboard, cell) ? (bitboard ^= (1ULL << cell)) : 0)
 #define invert_colour(c) (1 - c)
+#define invert_castle_side(s) (1 - s)
 #define KING_INDEX(c) (c == black ? 4 : 12)
 #define CASTLE_1(c) (c == black ? 0 : 8)
 #define CASTLE_2(c) (c == black ? 7 : 15)
@@ -151,20 +152,31 @@ typedef struct HashTable HashTable;
 
 struct Board {
     U64 bitboard;
+
     U64 hash_value;
     U64 keys_position[MAX_COLOUR][MAX_PIECE_TYPE][CELLS];
     U64 keys_castling[MAX_COLOUR][MAX_CASTLING_OPTIONS];
     U64 keys_last_moved[CELLS]; // just need a last moved position... allows for any number of pawns.
     U64 keys_repetitions[MAX_REPETITIONS];
     U64 key_mover;
+
+    // bool castling_allowed[MAX_COLOUR][MAX_CASTLING_OPTIONS];
+    square castling_coordinates[MAX_COLOUR][MAX_CASTLING_OPTIONS];
+    square from_castle_coords[MAX_COLOUR][MAX_CASTLING_OPTIONS];
+    square to_castle_coords[MAX_COLOUR][MAX_CASTLING_OPTIONS];
+    Piece* castle_pieces[MAX_COLOUR][MAX_CASTLING_OPTIONS];
+
     U64 last_positions[MOVES_SIZE];
-    Piece* map[CELLS];
-    Piece* pieces[MAX_COLOUR][CELLS];
     Piece* last_moved[MOVES_SIZE];
     int lm_length;
+
+    Piece* map[CELLS];
+    Piece* pieces[MAX_COLOUR][CELLS];
+    
     int max_pieces[MAX_COLOUR];
     name promotable_pieces[MAX_PROMOTABLE_PIECES];
     name valid_pieces[MAX_ACTUAL_PIECE_TYPE];
+
     int counter;
     int leaves;
 };
@@ -176,6 +188,8 @@ struct Move {
     square from;
     int evaluation;
     name promotion;
+    bool castle;
+    castle_type castle_side;
 };
 typedef struct Move Move;
 
@@ -304,16 +318,21 @@ void print_scores(Scores* scores);
 void print_square(square s);
 
 // Move legal logic
-void execute_move(Board* board, Piece* piece, square to, name promotion);
-Piece* pretend_move(Board* board, Piece* piece, square to, name promotion);
-// Piece* pretend_move(Board* board, Move* move);
+// void execute_move(Board* board, Piece* piece, square to, name promotion);
+// Piece* pretend_move(Board* board, Piece* piece, square to, name promotion);
+Piece* pretend_move(Board* board, Move* move);
 bool is_check(Board* board, colour c);
 bool is_move_legal(Board* board, Piece* piece, square to);
-void undo_pretend_move(Board* board, Piece* original, Piece* killed, square original_from, name promotion);
-// void undo_pretend_move(Board* board, Move* move, Piece* killed);
+// void undo_pretend_move(Board* board, Piece* original, Piece* killed, square original_from, name promotion);
+void undo_pretend_move(Board* board, Move* move, Piece* killed);
 void hash_move_piece(Board* board, Move* move, Piece* killed);
 void hash_change_colour(Board* board);
 void hash_castle(Board* board, colour mover, castle_type type);
+bool is_castle_legal(Board* board, Piece* piece, castle_type type);
+Piece* move_single_piece(Board* board, Piece* piece, square to, name promotion);
+void execute_promotion(Piece* piece, name promotion);
+void add_last_moved(Board* board, Piece* piece);
+void pop_last_moved(Board* board);
 
 // Get all moves
 void get_all_moves_for_piece(Board* board, Piece* piece, Moves* moves);

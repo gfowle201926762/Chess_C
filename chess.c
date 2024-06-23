@@ -3,7 +3,8 @@
 int main(void) {
     initialise();
 
-    test_hashing_graph_simulation();
+    // test_pawn_en_passant_3();
+    // test_pawn_en_passant_6();
     test();
 
     // test_18_june_2024();
@@ -73,14 +74,14 @@ void play_game() {
             printf("BLACK WINS\n");
             return;
         }
-        pretend_move(board, moves->moves[0]->piece, moves->moves[0]->destination, moves->moves[0]->promotion);
+        pretend_move(board, moves->moves[0]);
 
         print_board_pro(board);
 
         grapher = init_grapher(8, 4, black);
         scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
         moves = scores->moves;
-        pretend_move(board, moves->moves[0]->piece, moves->moves[0]->destination, moves->moves[0]->promotion);
+        pretend_move(board, moves->moves[0]);
         if (moves->length == 0) {
             printf("WHITE WINS\n");
             return;
@@ -235,9 +236,9 @@ Scores* init_scores(GraphNode* node, int depth) {
 Moves* get_best_moves(Board* board, Moves* moves, colour mover, int max_breadth) {
     for (int i = 0; i < moves->length; i++) {
         Move* move = moves->moves[i];
-        Piece* killed = pretend_move(board, move->piece, move->destination, move->promotion);
+        Piece* killed = pretend_move(board, move);
         move->evaluation = evaluate_position(board, mover);
-        undo_pretend_move(board, move->piece, killed, move->from, move->promotion);
+        undo_pretend_move(board, move, killed);
     }
 
     return get_best_scores(moves, max_breadth);
@@ -288,8 +289,9 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
         U64 hash = board->hash_value;
         Piece* last_moved = board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1];
         int lm = board->lm_length;
+        U64 test_board = board->bitboard;
         
-        Piece* killed = pretend_move(board, move->piece, move->destination, move->promotion);
+        Piece* killed = pretend_move(board, move);
         // board->last_moved = last_moved;
         hash_move_piece(board, move, killed);
         hash_change_colour(board);
@@ -316,7 +318,7 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
         hash_move_piece(board, move, killed);
         hash_change_colour(board);
         // REVERSE
-        undo_pretend_move(board, move->piece, killed, move->from, move->promotion);
+        undo_pretend_move(board, move, killed);
         if (move->piece->no_moves == 0 && move->piece->type == king && ((move->destination == g1 && move->from == e1) || (move->destination == g8 && move->from == e8))) {
             hash_castle(board, mover, king_side);
         }
@@ -324,6 +326,7 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
             hash_castle(board, mover, queen_side);
         }
 
+        assert(test_board == board->bitboard);
         assert(move->piece->type == save_type);
         assert(move->piece->value == save_value);
         assert(move->piece->move_func == save_move_func);
@@ -380,36 +383,74 @@ void get_all_moves_for_piece(Board* board, Piece* piece, Moves* moves) {
     // print_board(mask);
     // printf("\n");
     for (int i = 0; i < CELLS; i++) {
+        U64 saved = board->bitboard;
         if (mask % 2 == 1) {
             // bit found on the bit board
             if (is_move_legal(board, piece, i)) {
-                bool allowed = true;
-                if (piece->no_moves == 0 && piece->type == king) {
-                    if ((i == g1 || i == g8 || i == c1 || i == c8) && is_check(board, piece->c)) {
-                        allowed = false;
-                    }
-                    if ((i == g1 || i == g8) && (!is_move_legal(board, piece, piece->cell + 1))) {
-                        allowed = false;
-                    }
-                    if ((i == c1 || i == c8) && (!is_move_legal(board, piece, piece->cell - 1))) {
-                        allowed = false;
-                    }
+                if(saved != board->bitboard) {
+                    print_piece(piece);
+                    assert(false);
                 }
+                bool allowed = true;
+                bool castle = false;
+                castle_type type = king_side;
+                if (piece->type == king && piece->no_moves == 0) {
+                    if (i == board->castling_coordinates[piece->c][king_side]) {
+                        allowed = is_castle_legal(board, piece, king_side);
+                        type = king_side;
+                        castle = true;
+                    }
+                    else if (i == board->castling_coordinates[piece->c][queen_side]) {
+                        allowed = is_castle_legal(board, piece, queen_side);
+                        type = queen_side;
+                        castle = true;
+                        
+                    }
+                } 
                 if (piece->type == pawn) {
                     if ((piece->c == white && i / 8 == 0) || (piece->c == black && i / 8 == 7)) {
                         generate_promotion_moves(board, moves, piece, i);
                         allowed = false;
                     }
                 }
+                if(saved != board->bitboard) {
+                    print_piece(piece);
+                    assert(false);
+                }
                 if (allowed) {
                     moves->moves[moves->length] = calloc(1, sizeof(Move));
                     moves->moves[moves->length]->piece = piece;
                     moves->moves[moves->length]->destination = i;
                     moves->moves[moves->length]->from = piece->cell;
+                    moves->moves[moves->length]->castle = castle;
+                    moves->moves[moves->length]->castle_side = type;
                     moves->length += 1;
                 }
             }
+            // if(piece->type == pawn) {
+            //     char s[10] = {'\0'};
+            //     char f[10] = {'\0'};
+            //     square_to_string(i, s);
+            //     square_to_string(piece->cell, f);
+            //     printf("moving to %s\n", s);
+            //     printf("moving from %s\n", s);
+            //     print_piece(piece);
+            // }
+            if(saved != board->bitboard) {
+                char s[10] = {'\0'};
+                char f[10] = {'\0'};
+                square_to_string(i, s);
+                square_to_string(piece->cell, f);
+                printf("moving to %s\n", s);
+                printf("moving from %s\n", s);
+                print_piece(piece);
+                print_board(saved);
+                print_board(board->bitboard);
+                print_board_pro(board);
+                assert(false);
+            }
         }
+        
         mask >>= 1;
     }
 }
@@ -430,25 +471,115 @@ Moves* get_all_moves_for_colour(Board* board, colour c) {
 /* ------- LEGAL MOVE LOGIC ------- */
 /* -------------------------------- */
 
-void execute_castle(Board* board, Piece* piece, square to, square from) {
-    // CASTLE
-    if (piece->no_moves == 0 && piece->type == king && ((to == g1 && from == e1) || (to == g8 && from == e8))) {
-        execute_move(board, board->pieces[piece->c][CASTLE_2(piece->c)], board->pieces[piece->c][CASTLE_2(piece->c)]->cell - 2, none);
+bool is_castle_legal(Board* board, Piece* piece, castle_type type) {
+    if (piece->no_moves > 0 || board->castle_pieces[piece->c][type]->no_moves > 0) {
+        return false;
     }
-    else if (piece->no_moves == 0 && piece->type == king && ((to == c1 && from == e1) || (to == c8 && from == e8))) {
-        execute_move(board, board->pieces[piece->c][CASTLE_1(piece->c)], board->pieces[piece->c][CASTLE_1(piece->c)]->cell + 3, none);
+    if (!board->castle_pieces[piece->c][type]->alive) {
+        return false;
+    }
+    if (is_check(board, piece->c)) {
+        return false;
+    }
+    // test every square between castle and king is null
+    int diff = board->from_castle_coords[piece->c][type] - piece->cell;
+    for (int i = 1; i < abs(diff); i++) {
+        if (board->map[type == king_side ? piece->cell + i : piece->cell - i] != NULL) {
+            return false;
+        }
     }
 
-    // REVERSE
-    else if (piece->type == king && ((to == e1 && from == g1) || (to == e8 && from == g8))) {
-        execute_move(board, board->pieces[piece->c][CASTLE_2(piece->c)], board->pieces[piece->c][CASTLE_2(piece->c)]->cell + 2, none);
-        board->pieces[piece->c][CASTLE_2(piece->c)]->no_moves = 0;
+    // test legality of moves up to castling square
+    diff = board->castling_coordinates[piece->c][type] - piece->cell;
+    for (int i = 1; i < abs(diff); i++) {
+        if (!is_move_legal(board, piece, type == king_side ? piece->cell + i : piece->cell - i)) {
+            return false;
+        }
     }
-    else if (piece->type == king && ((to == e1 && from == c1) || (to == e8 && from == c8))) {
-        execute_move(board, board->pieces[piece->c][CASTLE_1(piece->c)], board->pieces[piece->c][CASTLE_1(piece->c)]->cell - 3, none);
-        board->pieces[piece->c][CASTLE_1(piece->c)]->no_moves = 0;
+    // test legality of final castled move
+    square king_original = piece->cell;
+    square castle_original = board->castle_pieces[piece->c][type]->cell;
+    move_single_piece(board, piece, board->castling_coordinates[piece->c][type], none);
+    move_single_piece(board, board->castle_pieces[piece->c][type], type == king_side ? piece->cell - 1 : piece->cell + 1, none);
+    bool allowed = true;
+    if (is_check(board, piece->c)) {
+        allowed = false;
+    }
+    move_single_piece(board, piece, king_original, none);
+    move_single_piece(board, board->castle_pieces[piece->c][type], castle_original, none);
+    return allowed;
+}
+
+
+Piece* move_single_piece(Board* board, Piece* piece, square to, name promotion) {
+    // Literally just move a single piece from A to B.
+    // Return killed (literally just for is_move_legal where it needs to be reversed).
+    // Luckily, that function doesn't handle castling.
+    // Do not care about castling (two pieces move when castling)
+    // Do promote.
+    pop_bit(board->bitboard, piece->cell);
+    set_bit(board->bitboard, to);
+    board->map[piece->cell] = NULL;
+    piece->cell = to;
+    Piece* killed = board->map[to];
+    if (board->map[to]) {
+        board->map[to]->alive = false;
+    }
+    board->map[to] = piece;
+    execute_promotion(piece, promotion);
+    return killed;
+}
+
+Piece* handle_en_passant(Board* board, Move* move) {
+    // must be a pawn which is attacking
+    if (move->piece->type != pawn || move->from % 8 == move->destination % 8) {
+        return NULL;
+    }
+    // must be moving into an empty square -- guaranteed en passant.
+    if (board->map[move->destination] == NULL) {
+        Piece* piece = board->map[move->piece->c == white ? move->destination + 8 : move->destination - 8];
+        piece->alive = false;
+        board->map[move->piece->c == white ? move->destination + 8 : move->destination - 8] = NULL;
+        pop_bit(board->bitboard, (move->piece->c == white ? move->destination + 8 : move->destination - 8));
+        return piece;
+    }
+    return NULL;
+}
+
+Piece* pretend_move(Board* board, Move* move) {
+    // A move has already been generated. It is guaranteed to be legal. Execute the move.
+    // Must handle castling and en passant.
+    add_last_moved(board, move->piece);
+    move->piece->no_moves += 1;
+    if (move->castle) {
+        move_single_piece(board, move->piece, move->destination, none);
+        move_single_piece(board, board->castle_pieces[move->piece->c][move->castle_side], board->to_castle_coords[move->piece->c][move->castle_side], none);
+        return NULL;
+    }
+    Piece* killed = handle_en_passant(board, move);
+    if (killed) {
+        move_single_piece(board, move->piece, move->destination, move->promotion);
+        return killed;
+    }
+    return move_single_piece(board, move->piece, move->destination, move->promotion);
+}
+
+void undo_pretend_move(Board* board, Move* move, Piece* killed) {
+    pop_last_moved(board);
+    move->piece->no_moves -= 1;
+    if (move->castle) {
+        move_single_piece(board, move->piece, move->from, none);
+        move_single_piece(board, board->castle_pieces[move->piece->c][move->castle_side], board->from_castle_coords[move->piece->c][move->castle_side], none);
+        return;
+    }
+    move_single_piece(board, move->piece, move->from, move->promotion == none ? none : pawn);
+    if (killed) {
+        killed->alive = true;
+        set_bit(board->bitboard, killed->cell);
+        board->map[killed->cell] = killed;
     }
 }
+
 
 void execute_promotion(Piece* piece, name promotion) {
     if (promotion == none) {
@@ -482,21 +613,6 @@ void execute_promotion(Piece* piece, name promotion) {
     }
 }
 
-void execute_move(Board* board, Piece* piece, square to, name promotion) {
-    pop_bit(board->bitboard, piece->cell);
-    set_bit(board->bitboard, to);
-    board->map[piece->cell] = NULL;
-    square from = piece->cell;
-    piece->cell = to;
-    if (board->map[to]) {
-        board->map[to]->alive = false;
-    }
-    board->map[to] = piece;
-    // board->last_moved = piece;
-    execute_castle(board, piece, to, from);
-    execute_promotion(piece, promotion);
-}
-
 void add_last_moved(Board* board, Piece* piece) {
     board->last_moved[board->lm_length] = piece;
     board->lm_length += 1;
@@ -505,36 +621,6 @@ void add_last_moved(Board* board, Piece* piece) {
 void pop_last_moved(Board* board) {
     board->last_moved[board->lm_length - 1] = NULL;
     board->lm_length -= 1;
-}
-
-Piece* pretend_move(Board* board, Piece* piece, square to, name promotion) {
-    board->counter += 1;    
-    pop_bit(board->bitboard, piece->cell);
-    set_bit(board->bitboard, to);
-    board->map[piece->cell] = NULL;
-    square from = piece->cell;
-    piece->cell = to;
-    Piece* killed = board->map[to];
-    if (killed) {
-        killed->alive = false;
-    }
-    board->map[to] = piece;
-    // board->last_moved = piece;
-    add_last_moved(board, piece);
-    execute_castle(board, piece, to, from);
-    execute_promotion(piece, promotion);
-    piece->no_moves += 1;
-    return killed;
-}
-
-void undo_pretend_move(Board* board, Piece* original, Piece* killed, square original_from, name promotion) {
-    execute_move(board, original, original_from, promotion == none ? none : pawn);
-    if (killed) {
-        killed->alive = true;
-        execute_move(board, killed, killed->cell, none);
-    }
-    pop_last_moved(board);
-    original->no_moves -= 1;
 }
 
 bool is_check(Board* board, colour c) {
@@ -551,7 +637,7 @@ bool is_check(Board* board, colour c) {
 
 bool is_move_legal(Board* board, Piece* piece, square to) {
     square from = piece->cell;
-    Piece* killed = pretend_move(board, piece, to, none);
+    Piece* killed = move_single_piece(board, piece, to, none);
     bool legal = true;
     if (killed && killed->c == piece->c) {
         legal = false;
@@ -559,7 +645,11 @@ bool is_move_legal(Board* board, Piece* piece, square to) {
     else if (is_check(board, piece->c)) {
         legal = false;
     }
-    undo_pretend_move(board, piece, killed, from, none);
+    move_single_piece(board, piece, from, none);
+    if (killed) {
+        killed->alive = true;
+        move_single_piece(board, killed, to, none);
+    }
     return legal;
 }
 
@@ -713,7 +803,6 @@ Board* init_board(void) {
     board->valid_pieces[5] = pawn;
 
 
-
     for (int i = 0; i < 32; i++) {
         Piece* piece = calloc(1, sizeof(Piece));
         piece->id = i;
@@ -808,6 +897,26 @@ Board* init_board(void) {
 
     init_hash_keys(board);
     init_hash_value(board);
+
+    board->castle_pieces[white][king_side] = board->pieces[white][CASTLE_2(white)];
+    board->castling_coordinates[white][king_side] = g1;
+    board->to_castle_coords[white][king_side] = f1;
+    board->from_castle_coords[white][king_side] = h1;
+
+    board->castle_pieces[white][queen_side] = board->pieces[white][CASTLE_1(white)];
+    board->castling_coordinates[white][queen_side] = c1;
+    board->to_castle_coords[white][queen_side] = d1;
+    board->from_castle_coords[white][queen_side] = a1;
+
+    board->castle_pieces[black][king_side] = board->pieces[black][CASTLE_2(black)];
+    board->castling_coordinates[black][king_side] = g8;
+    board->to_castle_coords[black][king_side] = f8;
+    board->from_castle_coords[black][king_side] = h8;
+
+    board->castle_pieces[black][queen_side] = board->pieces[black][CASTLE_1(black)];
+    board->castling_coordinates[black][queen_side] = c8;
+    board->to_castle_coords[black][queen_side] = d8;
+    board->from_castle_coords[black][queen_side] = a8;
     return board;
 }
 
@@ -1035,29 +1144,34 @@ U64 get_king_mask(Board* board, Piece* piece) {
     if (cell % 8 > 0) set_bit(mask, (cell - 1));
     if (cell % 8 < 7) set_bit(mask, (cell + 1));
 
-    Piece* castle1 = board->pieces[piece->c][CASTLE_1(piece->c)];
-    Piece* castle2 = board->pieces[piece->c][CASTLE_2(piece->c)];
+    if (piece->no_moves == 0 && board->castle_pieces[piece->c][king_side]->alive && board->castle_pieces[piece->c][king_side]->no_moves == 0) {
+        set_bit(mask, board->castling_coordinates[piece->c][king_side]);
+    }
 
-    if (piece->no_moves == 0 && castle1->no_moves == 0 && castle1->alive) {
-        if (piece->c == black && get_bit(board->bitboard, d8) == 0 && get_bit(board->bitboard, c8) == 0 && get_bit(board->bitboard, b8) == 0) {
-            set_bit(mask, c8);
-        }
-        if (piece->c == white && get_bit(board->bitboard, d1) == 0 && get_bit(board->bitboard, c1) == 0 && get_bit(board->bitboard, b1) == 0) {
-            set_bit(mask, c1);
-        }
+    if (piece->no_moves == 0 && board->castle_pieces[piece->c][queen_side]->alive && board->castle_pieces[piece->c][queen_side]->no_moves == 0) {
+        set_bit(mask, board->castling_coordinates[piece->c][queen_side]);
     }
-    // printf("outside\n");
-    // printf("%i, %i, %i", piece->no_moves, castle2->no_moves, castle2->alive);
-    if (piece->no_moves == 0 && castle2->no_moves == 0 && castle2->alive) {
-        // printf("maybe...\n");
-        if (piece->c == black && get_bit(board->bitboard, f8) == 0 && get_bit(board->bitboard, g8) == 0) {
-            set_bit(mask, g8);
-        }
-        if (piece->c == white && get_bit(board->bitboard, f1) == 0 && get_bit(board->bitboard, g1) == 0) {
-            // printf("wow!\n");
-            set_bit(mask, g1);
-        }
-    }
+
+
+    // Piece* castle1 = board->pieces[piece->c][CASTLE_1(piece->c)];
+    // Piece* castle2 = board->pieces[piece->c][CASTLE_2(piece->c)];
+
+    // if (piece->no_moves == 0 && castle1->no_moves == 0 && castle1->alive) {
+    //     if (piece->c == black && get_bit(board->bitboard, d8) == 0 && get_bit(board->bitboard, c8) == 0 && get_bit(board->bitboard, b8) == 0) {
+    //         set_bit(mask, c8);
+    //     }
+    //     if (piece->c == white && get_bit(board->bitboard, d1) == 0 && get_bit(board->bitboard, c1) == 0 && get_bit(board->bitboard, b1) == 0) {
+    //         set_bit(mask, c1);
+    //     }
+    // }
+    // if (piece->no_moves == 0 && castle2->no_moves == 0 && castle2->alive) {
+    //     if (piece->c == black && get_bit(board->bitboard, f8) == 0 && get_bit(board->bitboard, g8) == 0) {
+    //         set_bit(mask, g8);
+    //     }
+    //     if (piece->c == white && get_bit(board->bitboard, f1) == 0 && get_bit(board->bitboard, g1) == 0) {
+    //         set_bit(mask, g1);
+    //     }
+    // }
 
     return mask;
 }
@@ -1076,27 +1190,37 @@ U64 get_pawn_attack_mask(Board* board, Piece* piece) {
         if (cell % 8 > 0 && get_bit(board->bitboard, (cell - 9))) attack_mask |= (1ULL << (cell - 9)); // left
 
         // en passant
-        if (cell % 8 < 7 && get_bit(board->bitboard, (cell - 1)) && board->map[cell-1] &&  board->map[cell-1]->type == pawn && board->map[cell-1]->c == black && board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1] == board->map[cell-1] && board->map[cell-1]->alive) {
-            attack_mask |= (1ULL << (cell - 1)); // right
+        if (cell % 8 > 0 && board->map[cell-1] &&  board->map[cell-1]->type == pawn && board->map[cell-1]->c == black && board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1] == board->map[cell-1] && board->map[cell-1]->alive) {
+            attack_mask |= (1ULL << (cell - 9)); // left
+            // printf("EN PASSANT 1\n");
         }
-        
-        if (cell % 8 > 0 && get_bit(board->bitboard, (cell + 1)) && board->map[cell+1] && board->map[cell+1]->type == pawn && board->map[cell+1]->c == black && board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1] == board->map[cell+1] && board->map[cell+1]->alive) {
-            attack_mask |= (1ULL << (cell + 1)); // left
+        if (cell % 8 < 7 && board->map[cell+1] && board->map[cell+1]->type == pawn && board->map[cell+1]->c == black && board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1] == board->map[cell+1] && board->map[cell+1]->alive) {
+            attack_mask |= (1ULL << (cell - 7)); // right
+            // printf("EN PASSANT 2\n");
         }
-        
 
+        // en passant
+        // if (cell % 8 < 7 && get_bit(board->bitboard, (cell - 1)) && board->map[cell-1] &&  board->map[cell-1]->type == pawn && board->map[cell-1]->c == black && board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1] == board->map[cell-1] && board->map[cell-1]->alive) {
+        //     attack_mask |= (1ULL << (cell - 1)); // right
+        // }
+        
+        // if (cell % 8 > 0 && get_bit(board->bitboard, (cell + 1)) && board->map[cell+1] && board->map[cell+1]->type == pawn && board->map[cell+1]->c == black && board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1] == board->map[cell+1] && board->map[cell+1]->alive) {
+        //     attack_mask |= (1ULL << (cell + 1)); // left
+        // }
     }
     if (piece->c == black && cell / 8 < 7) {
         if (cell % 8 > 0 && get_bit(board->bitboard, (cell + 7))) attack_mask = (1ULL << (cell + 7)); // left
         if (cell % 8 < 7 && get_bit(board->bitboard, (cell + 9))) attack_mask |= (1ULL << (cell + 9)); // right
 
         // en passant
-        if (cell % 8 > 0 && get_bit(board->bitboard, (cell - 1)) && board->map[cell-1] && board->map[cell-1]->type == pawn && board->map[cell-1]->c == white && board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1] == board->map[cell-1] && board->map[cell-1]->alive) {
-            attack_mask |= (1ULL << (cell - 1)); // left
+        if (cell % 8 > 0 && board->map[cell-1] && board->map[cell-1]->type == pawn && board->map[cell-1]->c == white && board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1] == board->map[cell-1] && board->map[cell-1]->alive) {
+            attack_mask |= (1ULL << (cell + 7)); // left
+            // printf("EN PASSANT 3\n");
         }
         
-        if (cell % 8 < 7 && get_bit(board->bitboard, (cell + 1)) && board->map[cell+1] && board->map[cell+1]->type == pawn && board->map[cell+1]->c == white && board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1] == board->map[cell+1] && board->map[cell+1]->alive) {
-            attack_mask |= (1ULL << (cell + 1)); // right
+        if (cell % 8 < 7 && board->map[cell+1] && board->map[cell+1]->type == pawn && board->map[cell+1]->c == white && board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1] == board->map[cell+1] && board->map[cell+1]->alive) {
+            attack_mask |= (1ULL << (cell + 9)); // right
+            // printf("EN PASSANT 4\n");
         }
     }
     return attack_mask;

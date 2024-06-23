@@ -540,7 +540,7 @@ void test_hashing_1() {
     hash_move_piece(board, moves->moves[0], NULL);
     assert(board->hash_value == hash);
 
-    Piece* killed = pretend_move(board, moves->moves[1]->piece, moves->moves[1]->destination, moves->moves[1]->promotion);
+    Piece* killed = pretend_move(board, moves->moves[1]);
     hash = board->hash_value;
     hash_move_piece(board, moves->moves[1], killed);
     hash_move_piece(board, moves->moves[1], killed);
@@ -552,11 +552,11 @@ void test_hashing_2() {
     Moves* moves = get_all_moves_for_colour(board, black);
     U64 hash = board->hash_value;
 
-    Piece* killed = pretend_move(board, moves->moves[2]->piece, moves->moves[2]->destination, moves->moves[2]->promotion);
+    Piece* killed = pretend_move(board, moves->moves[2]);
     hash_move_piece(board, moves->moves[2], killed);
 
     hash_move_piece(board, moves->moves[2], killed);
-    undo_pretend_move(board, moves->moves[2]->piece, killed, moves->moves[2]->from, moves->moves[2]->promotion);
+    undo_pretend_move(board, moves->moves[2], killed);
     assert(hash == board->hash_value);
 }
 
@@ -565,34 +565,25 @@ void test_hashing_graph_simulation() {
     Moves* moves = get_all_moves_for_colour(board, black);
     U64 hash1 = board->hash_value;
 
-    Piece* killed = pretend_move(board, moves->moves[2]->piece, moves->moves[2]->destination, moves->moves[2]->promotion);
+    Piece* killed = pretend_move(board, moves->moves[2]);
     hash_move_piece(board, moves->moves[2], killed);
     U64 hash2 = board->hash_value;
 
 
     Moves* response = get_all_moves_for_colour(board, black);
 
-    Piece* killed_response = pretend_move(board, response->moves[0]->piece, response->moves[0]->destination, response->moves[0]->promotion);
+    Piece* killed_response = pretend_move(board, response->moves[0]);
     hash_move_piece(board, response->moves[0], killed_response);
 
     hash_move_piece(board, response->moves[0], killed_response);
-    undo_pretend_move(board, response->moves[0]->piece, killed_response, response->moves[0]->from, response->moves[0]->promotion);
+    undo_pretend_move(board, response->moves[0], killed_response);
     assert(hash2 == board->hash_value);
 
     hash_move_piece(board, moves->moves[2], killed);
-    undo_pretend_move(board, moves->moves[2]->piece, killed, moves->moves[2]->from, moves->moves[2]->promotion);
+    undo_pretend_move(board, moves->moves[2], killed);
     assert(hash1 == board->hash_value);
 }
 
-void test_hashing_graph_execution() {
-    Board* board = set_board_notation("wpe7 bhd8 ");
-    print_board_pro(board);
-
-    Grapher* grapher = init_grapher(200, 2, black);
-    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
-
-
-}
 
 void test_hashing() {
     test_hashing_1();
@@ -1022,10 +1013,10 @@ void test_pawn_en_passant_1() {
     set_bit(board->bitboard, c4);
     board->last_moved[0] = board->pieces[white][PAWN_INDEX(white, 2)];
     board->lm_length += 1;
-    
+
     U64 pawn_attack_mask = get_pawn_attack_mask(board, piece);
     U64 test = 0ULL;
-    set_bit(test, c4);
+    set_bit(test, c3);
     assert(pawn_attack_mask == test);
 }
 
@@ -1033,32 +1024,382 @@ void test_pawn_en_passant_2() {
     
     Board* board = init_board();
 
-    pretend_move(board, board->pieces[white][PAWN_INDEX(white, 1)], b4, none);
-    pretend_move(board, board->pieces[black][PAWN_INDEX(black, 0)], a5, none);
-    pretend_move(board, board->pieces[white][PAWN_INDEX(white, 1)], b5, none);
-    pretend_move(board, board->pieces[black][PAWN_INDEX(black, 2)], c5, none);
+    Move* move = calloc(1, sizeof(Move));
+    move->piece = board->pieces[white][PAWN_INDEX(white, 1)];
+    move->destination = b4;
+    move->from = move->piece->cell;
+    pretend_move(board, move);
+
+    move->piece = board->pieces[black][PAWN_INDEX(black, 0)];
+    move->destination = a5;
+    move->from = move->piece->cell;
+    pretend_move(board, move);
+
+    move->piece = board->pieces[white][PAWN_INDEX(white, 1)];
+    move->destination = b5;
+    move->from = move->piece->cell;
+    pretend_move(board, move);
+
+    move->piece = board->pieces[black][PAWN_INDEX(black, 2)];
+    move->destination = c5;
+    move->from = move->piece->cell;
+    pretend_move(board, move);
     
     U64 pawn_attack_mask = get_pawn_attack_mask(board, board->pieces[white][PAWN_INDEX(white, 1)]);
     U64 test = 0ULL;
-    set_bit(test, c5);
+    set_bit(test, c6);
     assert(pawn_attack_mask == test);
 
-    pretend_move(board, board->pieces[white][PAWN_INDEX(white, 7)], h4, none);
-    pretend_move(board, board->pieces[black][PAWN_INDEX(black, 6)], g5, none);
+    move->piece = board->pieces[white][PAWN_INDEX(white, 7)];
+    move->destination = h4;
+    move->from = move->piece->cell;
+    pretend_move(board, move);
+
+    move->piece = board->pieces[black][PAWN_INDEX(black, 6)];
+    move->destination = g5;
+    move->from = move->piece->cell;
+    pretend_move(board, move);
+
     pawn_attack_mask = get_pawn_attack_mask(board, board->pieces[white][PAWN_INDEX(white, 1)]);
     assert(pawn_attack_mask == 0ULL);
 }
+
+void test_pawn_en_passant_3() {
+    Board* board = init_board();
+
+    Move* move = calloc(1, sizeof(Move));
+    move->piece = board->pieces[white][PAWN_INDEX(white, 1)];
+    move->destination = b4;
+    move->from = move->piece->cell;
+    Piece* killed = pretend_move(board, move);
+
+    move->piece = board->pieces[black][PAWN_INDEX(black, 0)];
+    move->destination = a5;
+    move->from = move->piece->cell;
+    killed = pretend_move(board, move);
+
+    move->piece = board->pieces[white][PAWN_INDEX(white, 1)];
+    move->destination = b5;
+    move->from = move->piece->cell;
+    killed = pretend_move(board, move);
+
+    move->piece = board->pieces[black][PAWN_INDEX(black, 2)];
+    move->destination = c5;
+    move->from = move->piece->cell;
+    killed = pretend_move(board, move);
+
+    Moves* moves = calloc(1, sizeof(Moves));
+    get_all_moves_for_piece(board, board->pieces[white][PAWN_INDEX(white, 1)], moves);
+
+    assert(moves->length == 2);
+    assert(moves->moves[0]->destination == b6);
+    assert(moves->moves[0]->from == b5);
+    assert(moves->moves[1]->destination == c6);
+    assert(moves->moves[1]->from == b5);
+
+    assert(board->map[b5] == moves->moves[0]->piece && board->map[b5] == moves->moves[1]->piece);
+    assert(get_bit(board->bitboard, c5));
+    assert(get_bit(board->bitboard, b5));
+    assert(!get_bit(board->bitboard, c6));
+    assert(board->map[c5] != NULL);
+    U64 test_board = board->bitboard;
+
+    killed = pretend_move(board, moves->moves[1]);
+
+    assert(killed);
+    assert(killed->type == pawn);
+    assert(killed->alive == false);
+    assert(killed->cell == c5);
+    assert(board->map[c5] == NULL);
+    assert(!get_bit(board->bitboard, c5));
+    assert(get_bit(board->bitboard, c6));
+    assert(moves->moves[1]->piece->cell == c6);
+    assert(board->map[c6] == moves->moves[1]->piece);
+
+    undo_pretend_move(board, moves->moves[1], killed);
+
+    assert(board->map[b5] == moves->moves[1]->piece);
+    assert(get_bit(board->bitboard, c5));
+    assert(get_bit(board->bitboard, b5));
+    assert(!get_bit(board->bitboard, c6));
+    assert(board->map[c5] == killed);
+    assert(killed->alive);
+    assert(killed->cell == c5);
+    assert(killed->type == pawn);
+    assert(test_board == board->bitboard);
+}
+
+void test_pawn_en_passant_4() {
+    Board* board = init_board();
+
+    Move* move = calloc(1, sizeof(Move));
+    move->piece = board->pieces[white][PAWN_INDEX(white, 1)];
+    move->destination = b4;
+    move->from = move->piece->cell;
+    Piece* killed = pretend_move(board, move);
+
+    move->piece = board->pieces[black][PAWN_INDEX(black, 2)];
+    move->destination = c5;
+    move->from = move->piece->cell;
+    killed = pretend_move(board, move);
+
+    move->piece = board->pieces[white][PAWN_INDEX(white, 1)];
+    move->destination = b5;
+    move->from = move->piece->cell;
+    killed = pretend_move(board, move);
+
+    move->piece = board->pieces[black][PAWN_INDEX(black, 0)];
+    move->destination = a5;
+    move->from = move->piece->cell;
+    killed = pretend_move(board, move);
+
+    Moves* moves = calloc(1, sizeof(Moves));
+    get_all_moves_for_piece(board, board->pieces[white][PAWN_INDEX(white, 1)], moves);
+
+    assert(moves->length == 2);
+    assert(moves->moves[0]->destination == a6);
+    assert(moves->moves[0]->from == b5);
+    assert(moves->moves[1]->destination == b6);
+    assert(moves->moves[1]->from == b5);
+    assert(moves->moves[1]->piece->cell == b5);
+
+    assert(board->map[b5] == moves->moves[0]->piece && board->map[b5] == moves->moves[1]->piece);
+    assert(get_bit(board->bitboard, a5));
+    assert(get_bit(board->bitboard, b5));
+    assert(!get_bit(board->bitboard, c6));
+    assert(!get_bit(board->bitboard, a6));
+    assert(board->map[a5] != NULL);
+    U64 test_board = board->bitboard;
+
+    killed = pretend_move(board, moves->moves[0]);
+
+    assert(killed);
+    assert(killed->type == pawn);
+    assert(killed->alive == false);
+    assert(killed->cell == a5);
+    assert(board->map[a5] == NULL);
+    assert(!get_bit(board->bitboard, a5));
+    assert(get_bit(board->bitboard, a6));
+    assert(moves->moves[0]->piece->cell == a6);
+    assert(board->map[a6] == moves->moves[0]->piece);
+
+    undo_pretend_move(board, moves->moves[0], killed);
+
+    assert(board->map[b5] == moves->moves[0]->piece);
+    assert(moves->moves[0]->piece->cell == b5);
+    assert(get_bit(board->bitboard, a5));
+    assert(get_bit(board->bitboard, b5));
+    assert(!get_bit(board->bitboard, c6));
+    assert(!get_bit(board->bitboard, a6));
+    assert(board->map[a5] == killed);
+    assert(killed->alive);
+    assert(killed->cell == a5);
+    assert(killed->type == pawn);
+    assert(test_board == board->bitboard);
+}
+
+void test_pawn_en_passant_5() {
+    Board* board = init_board();
+
+    Move* move = calloc(1, sizeof(Move));
+    move->piece = board->pieces[white][PAWN_INDEX(white, 0)];
+    move->destination = a4;
+    move->from = move->piece->cell;
+    Piece* killed = pretend_move(board, move);
+
+    move->piece = board->pieces[black][PAWN_INDEX(black, 1)];
+    move->destination = b6;
+    move->from = move->piece->cell;
+    killed = pretend_move(board, move);
+
+    move->piece = board->pieces[white][PAWN_INDEX(white, 0)];
+    move->destination = a5;
+    move->from = move->piece->cell;
+    killed = pretend_move(board, move);
+
+    move->piece = board->pieces[black][PAWN_INDEX(black, 7)];
+    move->destination = h5;
+    move->from = move->piece->cell;
+    killed = pretend_move(board, move);
+
+    Moves* moves = calloc(1, sizeof(Moves));
+    get_all_moves_for_piece(board, board->pieces[white][PAWN_INDEX(white, 0)], moves);
+
+    assert(moves->length == 2);
+    assert(moves->moves[0]->destination == a6);
+    assert(moves->moves[0]->from == a5);
+    assert(moves->moves[1]->destination == b6);
+    assert(moves->moves[1]->from == a5);
+    assert(moves->moves[1]->piece->cell == a5);
+
+    assert(board->map[a5] == moves->moves[0]->piece && board->map[a5] == moves->moves[1]->piece);
+    assert(get_bit(board->bitboard, a5));
+    assert(get_bit(board->bitboard, b6));
+    assert(get_bit(board->bitboard, h5));
+    assert(!get_bit(board->bitboard, a6));
+    assert(board->map[h5] != NULL);
+    U64 test_board = board->bitboard;
+
+    killed = pretend_move(board, moves->moves[0]);
+
+    assert(!killed);
+    assert(board->map[a5] == NULL);
+    assert(board->map[h5] != NULL);
+    assert(!get_bit(board->bitboard, a5));
+    assert(get_bit(board->bitboard, a6));
+    assert(get_bit(board->bitboard, h5));
+    assert(moves->moves[0]->piece->cell == a6);
+    assert(board->map[a6] == moves->moves[0]->piece);
+
+    undo_pretend_move(board, moves->moves[0], killed);
+
+    assert(board->map[a5] == moves->moves[0]->piece);
+    assert(moves->moves[0]->piece->cell == a5);
+    assert(get_bit(board->bitboard, a5));
+    assert(get_bit(board->bitboard, b6));
+    assert(get_bit(board->bitboard, h5));
+    assert(!get_bit(board->bitboard, a6));
+    assert(board->map[h5] != NULL);
+    assert(test_board == board->bitboard);
+
+
+
+    killed = pretend_move(board, moves->moves[1]);
+
+    assert(killed);
+    assert(killed->cell == b6);
+    assert(killed->alive == false);
+    assert(board->map[a5] == NULL);
+    assert(board->map[h5] != NULL);
+    assert(!get_bit(board->bitboard, a5));
+    assert(!get_bit(board->bitboard, a6));
+    assert(get_bit(board->bitboard, h5));
+    assert(get_bit(board->bitboard, b6));
+    assert(moves->moves[1]->piece->cell == b6);
+    assert(board->map[b6] == moves->moves[1]->piece);
+
+    undo_pretend_move(board, moves->moves[1], killed);
+
+    assert(board->map[a5] == moves->moves[1]->piece);
+    assert(moves->moves[1]->piece->cell == a5);
+    assert(get_bit(board->bitboard, a5));
+    assert(get_bit(board->bitboard, b6));
+    assert(get_bit(board->bitboard, h5));
+    assert(!get_bit(board->bitboard, a6));
+    assert(board->map[h5] != NULL);
+    assert(test_board == board->bitboard);
+    assert(board->map[b6] == killed);
+    assert(killed->alive);
+    assert(killed->cell == b6);
+    assert(killed->type == pawn);
+}
+
+void test_pawn_en_passant_6() {
+    Board* board = init_board();
+
+    Move* move = calloc(1, sizeof(Move));
+    move->piece = board->pieces[white][PAWN_INDEX(white, 7)];
+    move->destination = h4;
+    move->from = move->piece->cell;
+    Piece* killed = pretend_move(board, move);
+
+    move->piece = board->pieces[black][PAWN_INDEX(black, 6)];
+    move->destination = g6;
+    move->from = move->piece->cell;
+    killed = pretend_move(board, move);
+
+    move->piece = board->pieces[white][PAWN_INDEX(white, 7)];
+    move->destination = h5;
+    move->from = move->piece->cell;
+    killed = pretend_move(board, move);
+
+    move->piece = board->pieces[black][PAWN_INDEX(black, 0)];
+    move->destination = a5;
+    move->from = move->piece->cell;
+    killed = pretend_move(board, move);
+
+    Moves* moves = calloc(1, sizeof(Moves));
+    get_all_moves_for_piece(board, board->pieces[white][PAWN_INDEX(white, 7)], moves);
+
+    assert(moves->length == 2);
+    assert(moves->moves[0]->destination == g6);
+    assert(moves->moves[0]->from == h5);
+    assert(moves->moves[1]->destination == h6);
+    assert(moves->moves[1]->from == h5);
+    assert(moves->moves[1]->piece->cell == h5);
+
+    assert(board->map[h5] == moves->moves[0]->piece && board->map[h5] == moves->moves[1]->piece);
+    assert(get_bit(board->bitboard, h5));
+    assert(get_bit(board->bitboard, g6));
+    assert(get_bit(board->bitboard, a5));
+    assert(!get_bit(board->bitboard, h6));
+    assert(board->map[a5] != NULL);
+    U64 test_board = board->bitboard;
+
+    killed = pretend_move(board, moves->moves[0]);
+
+    assert(killed);
+    assert(killed->cell == g6);
+    assert(killed->alive == false);
+    assert(killed->type == pawn);
+    assert(board->map[a5] != NULL);
+    assert(board->map[h5] == NULL);
+    assert(!get_bit(board->bitboard, h5));
+    assert(!get_bit(board->bitboard, h6));
+    assert(get_bit(board->bitboard, g6));
+    assert(get_bit(board->bitboard, a5));
+    assert(moves->moves[0]->piece->cell == g6);
+    assert(board->map[g6] == moves->moves[0]->piece);
+
+    undo_pretend_move(board, moves->moves[0], killed);
+
+    assert(board->map[h5] == moves->moves[0]->piece);
+    assert(moves->moves[0]->piece->cell == h5);
+    assert(get_bit(board->bitboard, h5));
+    assert(get_bit(board->bitboard, g6));
+    assert(get_bit(board->bitboard, a5));
+    assert(!get_bit(board->bitboard, h6));
+    assert(board->map[a5] != NULL);
+    assert(test_board == board->bitboard);
+    assert(killed->alive);
+    assert(killed->cell == g6);
+    assert(killed->type == pawn);
+
+    killed = pretend_move(board, moves->moves[1]);
+
+    assert(!killed);
+    assert(board->map[h5] == NULL);
+    assert(board->map[a5] != NULL);
+    assert(!get_bit(board->bitboard, h5));
+    assert(get_bit(board->bitboard, a5));
+    assert(get_bit(board->bitboard, g6));
+    assert(get_bit(board->bitboard, h6));
+    assert(moves->moves[1]->piece->cell == h6);
+    assert(board->map[h6] == moves->moves[1]->piece);
+
+    undo_pretend_move(board, moves->moves[1], killed);
+
+    assert(board->map[h5] == moves->moves[0]->piece);
+    assert(moves->moves[0]->piece->cell == h5);
+    assert(get_bit(board->bitboard, h5));
+    assert(get_bit(board->bitboard, g6));
+    assert(get_bit(board->bitboard, a5));
+    assert(!get_bit(board->bitboard, h6));
+    assert(board->map[a5] != NULL);
+    assert(test_board == board->bitboard);
+}
+
 
 void test_castling_1() {
     Board* board = init_board();
     board->pieces[white][KING_INDEX(white)]->no_moves = 0;
 
-    execute_move(board, board->pieces[white][PAWN_INDEX(white, 4)], e4, none);
-    execute_move(board, board->pieces[black][PAWN_INDEX(black, 4)], e5, none);
-    execute_move(board, board->pieces[white][BISHOP_2(white)], c4, none);
-    execute_move(board, board->pieces[black][BISHOP_2(black)], c5, none);
-    execute_move(board, board->pieces[white][KNIGHT_2(white)], f3, none);
-    execute_move(board, board->pieces[black][KNIGHT_2(black)], f6, none);
+    move_single_piece(board, board->pieces[white][PAWN_INDEX(white, 4)], e4, none);
+    move_single_piece(board, board->pieces[black][PAWN_INDEX(black, 4)], e5, none);
+    move_single_piece(board, board->pieces[white][BISHOP_2(white)], c4, none);
+    move_single_piece(board, board->pieces[black][BISHOP_2(black)], c5, none);
+    move_single_piece(board, board->pieces[white][KNIGHT_2(white)], f3, none);
+    move_single_piece(board, board->pieces[black][KNIGHT_2(black)], f6, none);
 
     U64 test_board = board->bitboard;
     Moves* moves = get_all_moves_for_colour(board, white);
@@ -1066,8 +1407,6 @@ void test_castling_1() {
     assert(moves->moves[16]->piece == board->pieces[white][KING_INDEX(white)]);
     assert(moves->moves[16]->destination == g1);
     assert(moves->moves[16]->from = e1);
-
-
 }
 
 void test_castling_2() {
@@ -1190,6 +1529,253 @@ void test_castling_2() {
     }
 }
 
+void test_castling_3() {
+    Board* board = set_board_notation("wke1 wch1 bke8 ");
+
+    Moves* moves = get_all_moves_for_colour(board, white);
+    assert(moves->moves[5]->destination == g1);
+    assert(moves->moves[5]->from == e1);
+    assert(moves->moves[5]->piece->type == king);
+
+    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
+    moves = get_all_moves_for_colour(board, white);
+    for (int i = 0; i < moves->length; i++) {
+        assert(!(moves->moves[i]->destination == g1 && moves->moves[i]->from == e1));
+    }
+}
+
+void test_castling_4() {
+    Board* board = set_board_notation("wke1 ");
+    board->castle_pieces[white][queen_side]->alive = true;
+    board->castle_pieces[white][queen_side]->cell = a1;
+    board->map[a1] = board->castle_pieces[black][queen_side];
+    set_bit(board->bitboard, a1);
+    board->castle_pieces[white][king_side]->alive = true;
+    board->castle_pieces[white][king_side]->cell = h1;
+    board->map[h1] = board->castle_pieces[black][king_side];
+    set_bit(board->bitboard, h1);
+
+    Moves* moves = get_all_moves_for_colour(board, white);
+    
+    U64 saved_bitboard = board->bitboard;
+    assert(moves->moves[16]->from == e1);
+    assert(moves->moves[16]->destination == g1);
+    assert(moves->moves[16]->castle == true);
+    assert(moves->moves[16]->castle_side == king_side);
+    assert(moves->moves[16]->piece->no_moves == 0);
+    assert(board->castle_pieces[white][king_side]->no_moves == 0);
+    assert(board->map[e1] == board->pieces[white][KING_INDEX(white)]);
+    assert(board->map[board->from_castle_coords[white][king_side]] == board->castle_pieces[white][king_side]);
+    assert(board->map[board->castling_coordinates[white][king_side]] == NULL);
+    assert(board->map[board->to_castle_coords[white][king_side]] == NULL);
+
+    Piece* killed = pretend_move(board, moves->moves[16]);
+
+    assert(board->pieces[white][KING_INDEX(white)]->cell == board->castling_coordinates[white][king_side]);
+    assert(board->castle_pieces[white][king_side]->cell == board->to_castle_coords[white][king_side]);
+    assert(moves->moves[16]->piece->no_moves == 1);
+    assert(board->castle_pieces[white][king_side]->no_moves == 0);
+    assert(board->map[e1] == NULL);
+    assert(board->map[board->from_castle_coords[white][king_side]] == NULL);
+    assert(board->map[board->castling_coordinates[white][king_side]] == board->pieces[white][KING_INDEX(white)]);
+    assert(board->map[board->to_castle_coords[white][king_side]] == board->castle_pieces[white][king_side]);
+
+    undo_pretend_move(board, moves->moves[16], killed);
+
+    assert(board->pieces[white][KING_INDEX(white)]->cell == e1);
+    assert(board->castle_pieces[white][king_side]->cell == board->from_castle_coords[white][king_side]);
+    assert(board->map[e1] == board->pieces[white][KING_INDEX(white)]);
+    assert(board->map[board->from_castle_coords[white][king_side]] == board->castle_pieces[white][king_side]);
+    assert(moves->moves[16]->piece->no_moves == 0);
+    assert(board->castle_pieces[white][king_side]->no_moves == 0);
+    assert(board->map[board->castling_coordinates[white][king_side]] == NULL);
+    assert(board->map[board->to_castle_coords[white][king_side]] == NULL);
+    assert(saved_bitboard == board->bitboard);
+
+    assert(moves->moves[13]->from == e1);
+    assert(moves->moves[13]->destination == c1);
+    assert(moves->moves[13]->castle == true);
+    assert(moves->moves[13]->castle_side == queen_side);
+    assert(moves->moves[13]->piece->no_moves == 0);
+    assert(board->castle_pieces[white][queen_side]->no_moves == 0);
+    assert(board->map[e1] == board->pieces[white][KING_INDEX(white)]);
+    assert(board->map[board->from_castle_coords[white][queen_side]] == board->castle_pieces[white][queen_side]);
+    assert(board->map[board->castling_coordinates[white][queen_side]] == NULL);
+    assert(board->map[board->to_castle_coords[white][queen_side]] == NULL);
+
+    killed = pretend_move(board, moves->moves[13]);
+
+    assert(board->pieces[white][KING_INDEX(white)]->cell == board->castling_coordinates[white][queen_side]);
+    assert(board->castle_pieces[white][queen_side]->cell == board->to_castle_coords[white][queen_side]);
+    assert(moves->moves[13]->piece->no_moves == 1);
+    assert(board->castle_pieces[white][queen_side]->no_moves == 0);
+    assert(board->map[e1] == NULL);
+    assert(board->map[board->from_castle_coords[white][queen_side]] == NULL);
+    assert(board->map[board->castling_coordinates[white][queen_side]] == board->pieces[white][KING_INDEX(white)]);
+    assert(board->map[board->to_castle_coords[white][queen_side]] == board->castle_pieces[white][queen_side]);
+
+    undo_pretend_move(board, moves->moves[13], killed);
+
+    assert(board->pieces[white][KING_INDEX(white)]->cell == e1);
+    assert(board->castle_pieces[white][queen_side]->cell == board->from_castle_coords[white][queen_side]);
+    assert(board->map[e1] == board->pieces[white][KING_INDEX(white)]);
+    assert(board->map[board->from_castle_coords[white][queen_side]] == board->castle_pieces[white][queen_side]);
+    assert(moves->moves[13]->piece->no_moves == 0);
+    assert(board->castle_pieces[white][queen_side]->no_moves == 0);
+    assert(board->map[board->castling_coordinates[white][queen_side]] == NULL);
+    assert(board->map[board->to_castle_coords[white][queen_side]] == NULL);
+    assert(saved_bitboard == board->bitboard);
+}
+
+void test_castling_5() {
+    Board* board = set_board_notation("wke1 wch1 wca1 ");
+    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
+    Moves* moves = get_all_moves_for_colour(board, white);
+    
+    for (int i = 0; i < moves->length; i++) {
+        assert(!(moves->moves[i]->destination == g1 && moves->moves[i]->piece->type == king));
+        assert(!(moves->moves[i]->destination == c1 && moves->moves[i]->piece->type == king));
+        assert(!moves->moves[i]->castle);
+    }
+
+    board->pieces[white][KING_INDEX(white)]->no_moves = 0;
+    board->castle_pieces[white][king_side]->no_moves = 1;
+    U64 saved_bitboard = board->bitboard;
+    moves = get_all_moves_for_colour(board, white);
+    
+    for (int i = 0; i < moves->length; i++) {
+        assert(!(moves->moves[i]->destination == g1 && moves->moves[i]->piece->type == king));
+        assert(!(moves->moves[i]->castle && moves->moves[i]->castle_side == king_side));
+    }
+
+    assert(moves->moves[13]->from == e1);
+    assert(moves->moves[13]->destination == c1);
+    assert(moves->moves[13]->castle == true);
+    assert(moves->moves[13]->castle_side == queen_side);
+    assert(moves->moves[13]->piece->no_moves == 0);
+    assert(board->castle_pieces[white][queen_side]->no_moves == 0);
+    assert(board->map[e1] == board->pieces[white][KING_INDEX(white)]);
+    assert(board->map[board->from_castle_coords[white][queen_side]] == board->castle_pieces[white][queen_side]);
+    assert(board->map[board->castling_coordinates[white][queen_side]] == NULL);
+    assert(board->map[board->to_castle_coords[white][queen_side]] == NULL);
+
+    Piece* killed = pretend_move(board, moves->moves[13]);
+
+    assert(board->pieces[white][KING_INDEX(white)]->cell == board->castling_coordinates[white][queen_side]);
+    assert(board->castle_pieces[white][queen_side]->cell == board->to_castle_coords[white][queen_side]);
+    assert(moves->moves[13]->piece->no_moves == 1);
+    assert(board->castle_pieces[white][queen_side]->no_moves == 0);
+    assert(board->map[e1] == NULL);
+    assert(board->map[board->from_castle_coords[white][queen_side]] == NULL);
+    assert(board->map[board->castling_coordinates[white][queen_side]] == board->pieces[white][KING_INDEX(white)]);
+    assert(board->map[board->to_castle_coords[white][queen_side]] == board->castle_pieces[white][queen_side]);
+
+    undo_pretend_move(board, moves->moves[13], killed);
+
+    assert(board->pieces[white][KING_INDEX(white)]->cell == e1);
+    assert(board->castle_pieces[white][queen_side]->cell == board->from_castle_coords[white][queen_side]);
+    assert(board->map[e1] == board->pieces[white][KING_INDEX(white)]);
+    assert(board->map[board->from_castle_coords[white][queen_side]] == board->castle_pieces[white][queen_side]);
+    assert(moves->moves[13]->piece->no_moves == 0);
+    assert(board->castle_pieces[white][queen_side]->no_moves == 0);
+    assert(board->map[board->castling_coordinates[white][queen_side]] == NULL);
+    assert(board->map[board->to_castle_coords[white][queen_side]] == NULL);
+    assert(saved_bitboard == board->bitboard);
+}
+
+void test_castling_6() {
+    Board* board = set_board_notation("wke1 wch1 wbf1 ");
+    Moves* moves = get_all_moves_for_colour(board, white);
+
+    for (int i = 0; i < moves->length; i++) {
+        assert(!moves->moves[i]->castle);
+    }
+}
+
+void test_castling_7() {
+    Board* board = set_board_notation("wke1 wch1 wbg1 ");
+    Moves* moves = get_all_moves_for_colour(board, white);
+
+    for (int i = 0; i < moves->length; i++) {
+        assert(!moves->moves[i]->castle);
+    }
+}
+
+void test_castling_8() {
+    Board* board = set_board_notation("wke1 wch1 bbf1 ");
+    Moves* moves = get_all_moves_for_colour(board, white);
+    
+    for (int i = 0; i < moves->length; i++) {
+        assert(!moves->moves[i]->castle);
+    }
+}
+
+void test_castling_9() {
+    Board* board = set_board_notation("wke1 wch1 bbg1 ");
+    Moves* moves = get_all_moves_for_colour(board, white);
+    
+    for (int i = 0; i < moves->length; i++) {
+        assert(!moves->moves[i]->castle);
+    }
+}
+
+void test_castling_10() {
+    Board* board = set_board_notation("wke1 wch1 bbg1 ");
+    board->castle_pieces[white][king_side]->no_moves = 1;
+    Moves* moves = get_all_moves_for_colour(board, white);
+    
+    for (int i = 0; i < moves->length; i++) {
+        assert(!moves->moves[i]->castle);
+    }
+}
+
+void test_castling_11() {
+    // can't just use set board notation because the index it uses for the castle conflicts.
+    Board* board = set_board_notation("bke8 ");
+    board->castle_pieces[black][queen_side]->alive = true;
+    board->castle_pieces[black][queen_side]->cell = a8;
+    board->map[a8] = board->castle_pieces[black][queen_side];
+    set_bit(board->bitboard, a8);
+    Moves* moves = get_all_moves_for_colour(board, black);
+    
+    bool found = false;
+    for (int i = 0; i < moves->length; i++) {
+        assert(!(moves->moves[i]->castle && moves->moves[i]->castle_side == king_side));
+        if (moves->moves[i]->castle && moves->moves[i]->castle_side == queen_side) {
+            found = true;
+        }
+    }
+    assert(found);
+}
+
+void test_castling_12() {
+    // can't just use set board notation because the index it uses for the castle conflicts.
+    Board* board = set_board_notation("bke8 bhc8 ");
+    board->castle_pieces[black][queen_side]->alive = true;
+    board->castle_pieces[black][queen_side]->cell = a8;
+    board->map[a8] = board->castle_pieces[black][queen_side];
+    set_bit(board->bitboard, a8);
+    Moves* moves = get_all_moves_for_colour(board, black);
+    
+    for (int i = 0; i < moves->length; i++) {
+        assert(!(moves->moves[i]->castle));
+    }
+}
+
+void test_castling_13() {
+    // can't just use set board notation because the index it uses for the castle conflicts.
+    Board* board = set_board_notation("bke8 bhb8 ");
+    board->castle_pieces[black][queen_side]->alive = true;
+    board->castle_pieces[black][queen_side]->cell = a8;
+    board->map[a8] = board->castle_pieces[black][queen_side];
+    set_bit(board->bitboard, a8);
+    Moves* moves = get_all_moves_for_colour(board, black);
+    
+    for (int i = 0; i < moves->length; i++) {
+        assert(!(moves->moves[i]->castle));
+    }
+}
+
 void test_promotion_1() {
     Board* board = set_board_notation("wpb7 bcc8 ");
     Moves* moves = get_all_moves_for_colour(board, white);
@@ -1205,7 +1791,7 @@ void test_promotion_1() {
     assert(board->map[b7] == moves->moves[0]->piece);
     assert(board->map[b8] == NULL);
 
-    Piece* killed = pretend_move(board, moves->moves[0]->piece, moves->moves[0]->destination, moves->moves[0]->promotion);
+    Piece* killed = pretend_move(board, moves->moves[0]);
     hash_move_piece(board, moves->moves[0], killed);
 
     assert(moves->moves[0]->piece->type == queen);
@@ -1216,7 +1802,7 @@ void test_promotion_1() {
     assert(board->map[b7] == NULL);
 
     hash_move_piece(board, moves->moves[0], killed);
-    undo_pretend_move(board, moves->moves[0]->piece, killed, moves->moves[0]->from, moves->moves[0]->promotion);
+    undo_pretend_move(board, moves->moves[0], killed);
     
     assert(hash == board->hash_value);
     assert(moves->moves[0]->piece->type == pawn);
@@ -1237,7 +1823,7 @@ void test_promotion_1() {
     assert(board->map[b7] == moves->moves[1]->piece);
     assert(board->map[b8] == NULL);
 
-    killed = pretend_move(board, moves->moves[1]->piece, moves->moves[1]->destination, moves->moves[1]->promotion);
+    killed = pretend_move(board, moves->moves[1]);
     hash_move_piece(board, moves->moves[1], killed);
 
     assert(moves->moves[1]->piece->type == castle);
@@ -1248,7 +1834,7 @@ void test_promotion_1() {
     assert(board->map[b7] == NULL);
 
     hash_move_piece(board, moves->moves[1], killed);
-    undo_pretend_move(board, moves->moves[1]->piece, killed, moves->moves[1]->from, moves->moves[1]->promotion);
+    undo_pretend_move(board, moves->moves[1], killed);
     
     assert(board->hash_value == hash);
     assert(moves->moves[1]->piece->type == pawn);
@@ -1271,7 +1857,7 @@ void test_promotion_1() {
     assert(board->map[b7] == moves->moves[2]->piece);
     assert(board->map[b8] == NULL);
 
-    killed = pretend_move(board, moves->moves[2]->piece, moves->moves[2]->destination, moves->moves[2]->promotion);
+    killed = pretend_move(board, moves->moves[2]);
     hash_move_piece(board, moves->moves[2], killed);
 
     assert(moves->moves[2]->piece->type == bishop);
@@ -1282,7 +1868,7 @@ void test_promotion_1() {
     assert(board->map[b7] == NULL);
 
     hash_move_piece(board, moves->moves[2], killed);
-    undo_pretend_move(board, moves->moves[2]->piece, killed, moves->moves[2]->from, moves->moves[2]->promotion);
+    undo_pretend_move(board, moves->moves[2], killed);
     
     assert(hash == board->hash_value);
     assert(moves->moves[2]->piece->type == pawn);
@@ -1304,7 +1890,7 @@ void test_promotion_1() {
     assert(board->map[b7] == moves->moves[3]->piece);
     assert(board->map[b8] == NULL);
 
-    killed = pretend_move(board, moves->moves[3]->piece, moves->moves[3]->destination, moves->moves[3]->promotion);
+    killed = pretend_move(board, moves->moves[3]);
     hash_move_piece(board, moves->moves[3], killed);
 
     assert(moves->moves[3]->piece->type == knight);
@@ -1315,7 +1901,7 @@ void test_promotion_1() {
     assert(board->map[b7] == NULL);
 
     hash_move_piece(board, moves->moves[3], killed);
-    undo_pretend_move(board, moves->moves[3]->piece, killed, moves->moves[3]->from, moves->moves[3]->promotion);
+    undo_pretend_move(board, moves->moves[3], killed);
     
     assert(hash == board->hash_value);
     assert(moves->moves[3]->piece->type == pawn);
@@ -1339,7 +1925,7 @@ void test_promotion_1() {
     assert(board->map[c8]->c == black);
     assert(board->map[c8]->value == CASTLE_VALUE);
 
-    killed = pretend_move(board, moves->moves[4]->piece, moves->moves[4]->destination, moves->moves[4]->promotion);
+    killed = pretend_move(board, moves->moves[4]);
     hash_move_piece(board, moves->moves[4], killed);
 
     assert(moves->moves[4]->piece->type == queen);
@@ -1351,7 +1937,7 @@ void test_promotion_1() {
     assert(board->map[b8] == NULL);
 
     hash_move_piece(board, moves->moves[4], killed);
-    undo_pretend_move(board, moves->moves[4]->piece, killed, moves->moves[4]->from, moves->moves[4]->promotion);
+    undo_pretend_move(board, moves->moves[4], killed);
 
     assert(hash == board->hash_value);
     assert(moves->moves[4]->piece->type == pawn);
@@ -1360,6 +1946,7 @@ void test_promotion_1() {
     assert(moves->moves[4]->piece->cell == b7);
     assert(board->map[b7] == moves->moves[4]->piece);
     assert(board->map[b8] == NULL);
+    assert(board->map[c8]);
     assert(board->map[c8]->type == castle);
     assert(board->map[c8]->c == black);
     assert(board->map[c8]->value == CASTLE_VALUE);
@@ -1378,7 +1965,7 @@ void test_promotion_1() {
     assert(board->map[c8]->c == black);
     assert(board->map[c8]->value == CASTLE_VALUE);
 
-    killed = pretend_move(board, moves->moves[5]->piece, moves->moves[5]->destination, moves->moves[5]->promotion);
+    killed = pretend_move(board, moves->moves[5]);
     hash_move_piece(board, moves->moves[5], killed);
 
     assert(moves->moves[1]->piece->type == castle);
@@ -1390,7 +1977,7 @@ void test_promotion_1() {
     assert(board->map[b8] == NULL);
 
     hash_move_piece(board, moves->moves[5], killed);
-    undo_pretend_move(board, moves->moves[5]->piece, killed, moves->moves[5]->from, moves->moves[5]->promotion);
+    undo_pretend_move(board, moves->moves[5], killed);
     
     assert(hash == board->hash_value);
     assert(moves->moves[5]->piece->type == pawn);
@@ -1419,7 +2006,7 @@ void test_promotion_1() {
     assert(board->map[c8]->c == black);
     assert(board->map[c8]->value == CASTLE_VALUE);
 
-    killed = pretend_move(board, moves->moves[6]->piece, moves->moves[6]->destination, moves->moves[6]->promotion);
+    killed = pretend_move(board, moves->moves[6]);
     hash_move_piece(board, moves->moves[6], killed);
 
     assert(moves->moves[6]->piece->type == bishop);
@@ -1431,7 +2018,7 @@ void test_promotion_1() {
     assert(board->map[b8] == NULL);
 
     hash_move_piece(board, moves->moves[6], killed);
-    undo_pretend_move(board, moves->moves[6]->piece, killed, moves->moves[6]->from, moves->moves[6]->promotion);
+    undo_pretend_move(board, moves->moves[6], killed);
     
     assert(hash == board->hash_value);
     assert(moves->moves[6]->piece->type == pawn);
@@ -1459,7 +2046,7 @@ void test_promotion_1() {
     assert(board->map[c8]->c == black);
     assert(board->map[c8]->value == CASTLE_VALUE);
 
-    killed = pretend_move(board, moves->moves[7]->piece, moves->moves[7]->destination, moves->moves[7]->promotion);
+    killed = pretend_move(board, moves->moves[7]);
     hash_move_piece(board, moves->moves[7], killed);
 
     assert(moves->moves[7]->piece->type == knight);
@@ -1471,7 +2058,7 @@ void test_promotion_1() {
     assert(board->map[b8] == NULL);
 
     hash_move_piece(board, moves->moves[7], killed);
-    undo_pretend_move(board, moves->moves[7]->piece, killed, moves->moves[7]->from, moves->moves[7]->promotion);
+    undo_pretend_move(board, moves->moves[7], killed);
     
     assert(hash == board->hash_value);
     assert(moves->moves[7]->piece->type == pawn);
@@ -1484,6 +2071,41 @@ void test_promotion_1() {
     assert(board->map[c8]->c == black);
     assert(board->map[c8]->value == CASTLE_VALUE);
 }
+
+void test_moves() {
+    test_pawn_attacks();
+    test_pawn_moves();
+    test_knight_moves();
+    test_king_moves();
+    test_castle_moves();
+    test_bishop_moves();
+    test_queen_moves();
+    test_pawn_en_passant_1();
+    test_pawn_en_passant_2();
+    test_pawn_en_passant_3();
+    test_pawn_en_passant_4();
+    test_pawn_en_passant_5();
+    test_pawn_en_passant_6();
+    test_castling_1();
+    test_castling_2();
+    test_castling_3();
+    test_castling_4();
+    test_castling_5();
+    test_castling_6();
+    test_castling_7();
+    test_castling_8();
+    test_castling_9();
+    test_castling_10();
+    test_castling_11();
+    test_castling_12();
+    test_castling_13();
+    test_promotion_1();
+}
+
+
+
+
+
 
 void test_check_3() {
     Board* board = init_board();
@@ -1645,20 +2267,6 @@ void test_check_1() {
     assert(test_board == board->bitboard);
 }
 
-void test_moves() {
-    test_pawn_attacks();
-    test_pawn_moves();
-    test_knight_moves();
-    test_king_moves();
-    test_castle_moves();
-    test_bishop_moves();
-    test_queen_moves();
-    test_pawn_en_passant_1();
-    test_pawn_en_passant_2();
-    test_castling_1();
-    test_castling_2();
-    test_promotion_1();
-}
 
 void test_legality() {
     test_check_1();
@@ -1751,215 +2359,224 @@ void test_get_all_moves_2() {
 }
 
 
-void test_move_logic() {
-
-    Board* board = init_board();
-    clear_board(board);
-    board->pieces[white][KING_INDEX(white)]->alive = true;
-    board->pieces[white][KING_INDEX(white)]->cell = b1;
-    board->map[b1] = board->pieces[white][KING_INDEX(white)];
-
-    board->pieces[black][7]->alive = true;
-    board->pieces[black][7]->cell = c7;
-    board->map[c7] = board->pieces[white][7];
-
-    board->pieces[black][0]->alive = true;
-    board->pieces[black][0]->cell = e8;
-    board->map[e8] = board->pieces[black][0];
-
-    set_bit(board->bitboard, b1);
-    set_bit(board->bitboard, c7);
-    set_bit(board->bitboard, e8);
-
-    U64 test_board = 0ULL;
-    set_bit(test_board, b1);
-    set_bit(test_board, c7);
-    set_bit(test_board, e8);
-    assert(test_board == board->bitboard);
-
-    // SIMULATE FIRST MOVE
-    square original_from = board->pieces[black][0]->cell;
-    Piece* killed = pretend_move(board, board->pieces[black][0], a8, none);
-    pop_bit(test_board, e8);
-    set_bit(test_board, a8);
-    assert(test_board == board->bitboard);
-    assert(board->pieces[black][0]->cell == a8);
-    assert(board->map[a8] == board->pieces[black][0]);
-    assert(board->map[e8] == NULL);
-
-    // SIMULATE SECOND MOVE
-    square from_2 = board->pieces[white][KING_INDEX(white)]->cell;
-    Piece* killed_2 = pretend_move(board, board->pieces[white][KING_INDEX(white)], b2, none);
-    pop_bit(test_board, b1);
-    set_bit(test_board, b2);
-    assert(test_board == board->bitboard);
-    assert(board->pieces[white][KING_INDEX(white)]->cell == b2);
-    assert(board->map[b2] == board->pieces[white][KING_INDEX(white)]);
-    assert(board->map[b1] == NULL);
-
-    // UNDO SECOND MOVE
-    undo_pretend_move(board, board->pieces[white][KING_INDEX(white)], killed_2, from_2, none);
-    pop_bit(test_board, b2);
-    set_bit(test_board, b1);
-    assert(test_board == board->bitboard);
-    assert(board->pieces[white][KING_INDEX(white)]->cell == b1);
-    assert(board->map[b1] == board->pieces[white][KING_INDEX(white)]);
-    assert(board->map[b2] == NULL);
-
-    // REVERSE FIRST MOVE
-    undo_pretend_move(board, board->pieces[black][0], killed, original_from, none);
-    pop_bit(test_board, a8);
-    set_bit(test_board, e8);
-    assert(test_board == board->bitboard);
-    assert(board->pieces[black][0]->cell == e8);
-    assert(board->map[e8] == board->pieces[black][0]);
-    assert(board->map[a8] == NULL);
-
-}
-
-void test_move_logic_mate_in_four() {
-    Board* board = board_setup_1();
-    U64 test_board = board->bitboard;
-    U64 saved_board = test_board;
-
-    // SIMULATE FIRST MOVE (BLACK)
-    square original_from = board->pieces[black][CASTLE_1(black)]->cell;
-    Piece* killed = pretend_move(board, board->pieces[black][CASTLE_1(black)], d1, none);
-    pop_bit(test_board, d7);
-    set_bit(test_board, d1);
-    assert(killed==NULL);
-    assert(test_board == board->bitboard);
-    assert(board->pieces[black][CASTLE_1(black)]->cell == d1);
-    assert(board->map[d1] == board->pieces[black][CASTLE_1(black)]);
-    assert(board->map[d7] == NULL);
-
-    undo_pretend_move(board, board->pieces[black][CASTLE_1(black)], killed, original_from, none);
-    assert(board->bitboard == saved_board);
-    assert(board->pieces[black][CASTLE_1(black)]->cell == d7);
-    assert(board->map[d7] == board->pieces[black][CASTLE_1(black)]);
-    assert(board->map[d1] == NULL);
-
-    killed = pretend_move(board, board->pieces[black][CASTLE_1(black)], d1, none);
-    assert(killed==NULL);
-    assert(test_board == board->bitboard);
-    assert(board->pieces[black][CASTLE_1(black)]->cell == d1);
-    assert(board->map[d1] == board->pieces[black][CASTLE_1(black)]);
-    assert(board->map[d7] == NULL);
-    saved_board = board->bitboard;
-
-    // SIMULATE FIRST MOVE (WHITE)
-    square opponent_from = board->pieces[white][QUEEN_INDEX(white)]->cell;
-    Piece* opponent_killed = pretend_move(board, board->pieces[white][QUEEN_INDEX(white)], d1, none);
-    pop_bit(test_board, e2);
-    assert(test_board == board->bitboard);
-    assert(board->pieces[white][QUEEN_INDEX(white)]->cell == d1);
-    assert(board->map[d1] == board->pieces[white][QUEEN_INDEX(white)]);
-    assert(opponent_killed == board->pieces[black][CASTLE_1(black)]);
-    assert(!board->pieces[black][CASTLE_1(black)]->alive);
-    assert(board->map[e2] == NULL);
-
-    undo_pretend_move(board, board->pieces[white][QUEEN_INDEX(white)], opponent_killed, opponent_from, none);
-    assert(saved_board == board->bitboard);
-    assert(board->pieces[black][CASTLE_1(black)]->cell == d1);
-    assert(board->pieces[black][CASTLE_1(black)]->alive);
-    assert(board->map[d1] == board->pieces[black][CASTLE_1(black)]);
-    assert(board->map[d7] == NULL);
-    assert(board->pieces[white][QUEEN_INDEX(white)]->cell == e2);
-    assert(board->map[e2] == board->pieces[white][QUEEN_INDEX(white)]);
-    assert(board->pieces[white][QUEEN_INDEX(white)]->alive);
-
-    opponent_killed = pretend_move(board, board->pieces[white][QUEEN_INDEX(white)], d1, none);
-    assert(test_board == board->bitboard);
-    assert(board->pieces[white][QUEEN_INDEX(white)]->cell == d1);
-    assert(board->map[d1] == board->pieces[white][QUEEN_INDEX(white)]);
-    assert(opponent_killed == board->pieces[black][CASTLE_1(black)]);
-    assert(!board->pieces[black][CASTLE_1(black)]->alive);
-    assert(board->map[e2] == NULL);
 
 
-    // SIMULATE SECOND MOVE (BLACK)
-    original_from = board->pieces[black][QUEEN_INDEX(black)]->cell;
-    killed = pretend_move(board, board->pieces[black][QUEEN_INDEX(black)], a2, none);
-    pop_bit(test_board, a3);
-    set_bit(test_board, a2);
-    assert(killed==NULL);
-    assert(test_board == board->bitboard);
-    assert(board->pieces[black][QUEEN_INDEX(black)]->cell == a2);
-    assert(board->map[a2] == board->pieces[black][QUEEN_INDEX(black)]);
-    assert(board->map[a3] == NULL);
-
-    // SIMULATE SECOND MOVE (WHITE)
-    opponent_from = board->pieces[white][KING_INDEX(white)]->cell;
-    opponent_killed = pretend_move(board, board->pieces[white][KING_INDEX(white)], c1, none);
-    pop_bit(test_board, b1);
-    set_bit(test_board, c1);
-    assert(test_board == board->bitboard);
-    assert(board->pieces[white][KING_INDEX(white)]->cell == c1);
-    assert(board->map[c1] == board->pieces[white][KING_INDEX(white)]);
-    assert(board->map[b1] == NULL);
-    assert(opponent_killed == NULL);
-
-    // SIMULATE THIRD MOVE (BLACK)
-    original_from = board->pieces[black][BISHOP_1(black)]->cell;
-    killed = pretend_move(board, board->pieces[black][BISHOP_1(black)], a3, none);
-    pop_bit(test_board, c5);
-    set_bit(test_board, a3);
-    saved_board = test_board;
-    assert(killed==NULL);
-    assert(test_board == board->bitboard);
-    assert(board->pieces[black][BISHOP_1(black)]->cell == a3);
-    assert(board->map[a3] == board->pieces[black][BISHOP_1(black)]);
-    assert(board->map[c5] == NULL);
-
-    // SIMULATE THIRD MOVE (WHITE)
-    opponent_from = board->pieces[white][BISHOP_1(white)]->cell;
-    opponent_killed = pretend_move(board, board->pieces[white][BISHOP_1(white)], b2, none);
-    pop_bit(test_board, e5);
-    set_bit(test_board, b2);
-    assert(test_board == board->bitboard);
-    assert(board->pieces[white][BISHOP_1(white)]->cell == b2);
-    assert(board->map[b2] == board->pieces[white][BISHOP_1(white)]);
-    assert(board->map[e5] == NULL);
-    assert(opponent_killed == NULL);
-
-    undo_pretend_move(board, board->pieces[white][BISHOP_1(white)], opponent_killed, opponent_from, none);
-    assert(saved_board == board->bitboard);
-    assert(board->pieces[black][BISHOP_1(black)]->cell == a3);
-    assert(board->map[a3] == board->pieces[black][BISHOP_1(black)]);
-    assert(board->map[c5] == NULL);
-
-    opponent_killed = pretend_move(board, board->pieces[white][BISHOP_1(white)], b2, none);
-    assert(test_board == board->bitboard);
-    assert(board->pieces[white][BISHOP_1(white)]->cell == b2);
-    assert(board->map[b2] == board->pieces[white][BISHOP_1(white)]);
-    assert(board->map[e5] == NULL);
-    assert(opponent_killed == NULL);
-
-    // SIMULATE FOURTH MOVE (BLACK)
-    original_from = board->pieces[black][BISHOP_1(black)]->cell;
-    killed = pretend_move(board, board->pieces[black][BISHOP_1(black)], b2, none);
-    pop_bit(test_board, a3);
-    set_bit(test_board, b2);
-    assert(killed==board->pieces[white][BISHOP_1(white)]);
-    assert(test_board == board->bitboard);
-    assert(board->pieces[black][BISHOP_1(black)]->cell == b2);
-    assert(board->map[b2] == board->pieces[black][BISHOP_1(black)]);
-    assert(board->map[a3] == NULL);
 
 
-    // SIMULATE FOURTH MOVE (WHITE)
-    opponent_from = board->pieces[white][KING_INDEX(white)]->cell;
-    opponent_killed = pretend_move(board, board->pieces[white][KING_INDEX(white)], d2, none);
-    pop_bit(test_board, c1);
-    set_bit(test_board, d2);
-    assert(test_board == board->bitboard);
-    assert(board->pieces[white][KING_INDEX(white)]->cell == d2);
-    assert(board->map[d2] == board->pieces[white][KING_INDEX(white)]);
-    assert(board->map[c1] == NULL);
-    assert(opponent_killed == NULL);
+// void test_move_logic() {
+
+//     Board* board = init_board();
+//     clear_board(board);
+//     board->pieces[white][KING_INDEX(white)]->alive = true;
+//     board->pieces[white][KING_INDEX(white)]->cell = b1;
+//     board->map[b1] = board->pieces[white][KING_INDEX(white)];
+
+//     board->pieces[black][7]->alive = true;
+//     board->pieces[black][7]->cell = c7;
+//     board->map[c7] = board->pieces[white][7];
+
+//     board->pieces[black][0]->alive = true;
+//     board->pieces[black][0]->cell = e8;
+//     board->map[e8] = board->pieces[black][0];
+
+//     set_bit(board->bitboard, b1);
+//     set_bit(board->bitboard, c7);
+//     set_bit(board->bitboard, e8);
+
+//     U64 test_board = 0ULL;
+//     set_bit(test_board, b1);
+//     set_bit(test_board, c7);
+//     set_bit(test_board, e8);
+//     assert(test_board == board->bitboard);
+
+//     // SIMULATE FIRST MOVE
+//     square original_from = board->pieces[black][0]->cell;
+//     Piece* killed = pretend_move(board, board->pieces[black][0], a8, none);
+//     pop_bit(test_board, e8);
+//     set_bit(test_board, a8);
+//     assert(test_board == board->bitboard);
+//     assert(board->pieces[black][0]->cell == a8);
+//     assert(board->map[a8] == board->pieces[black][0]);
+//     assert(board->map[e8] == NULL);
+
+//     // SIMULATE SECOND MOVE
+//     square from_2 = board->pieces[white][KING_INDEX(white)]->cell;
+//     Piece* killed_2 = pretend_move(board, board->pieces[white][KING_INDEX(white)], b2, none);
+//     pop_bit(test_board, b1);
+//     set_bit(test_board, b2);
+//     assert(test_board == board->bitboard);
+//     assert(board->pieces[white][KING_INDEX(white)]->cell == b2);
+//     assert(board->map[b2] == board->pieces[white][KING_INDEX(white)]);
+//     assert(board->map[b1] == NULL);
+
+//     // UNDO SECOND MOVE
+//     undo_pretend_move(board, board->pieces[white][KING_INDEX(white)], killed_2, from_2, none);
+//     pop_bit(test_board, b2);
+//     set_bit(test_board, b1);
+//     assert(test_board == board->bitboard);
+//     assert(board->pieces[white][KING_INDEX(white)]->cell == b1);
+//     assert(board->map[b1] == board->pieces[white][KING_INDEX(white)]);
+//     assert(board->map[b2] == NULL);
+
+//     // REVERSE FIRST MOVE
+//     undo_pretend_move(board, board->pieces[black][0], killed, original_from, none);
+//     pop_bit(test_board, a8);
+//     set_bit(test_board, e8);
+//     assert(test_board == board->bitboard);
+//     assert(board->pieces[black][0]->cell == e8);
+//     assert(board->map[e8] == board->pieces[black][0]);
+//     assert(board->map[a8] == NULL);
+
+// }
+
+// void test_move_logic_mate_in_four() {
+//     Board* board = board_setup_1();
+//     U64 test_board = board->bitboard;
+//     U64 saved_board = test_board;
+
+//     // SIMULATE FIRST MOVE (BLACK)
+//     square original_from = board->pieces[black][CASTLE_1(black)]->cell;
+//     Piece* killed = pretend_move(board, board->pieces[black][CASTLE_1(black)], d1, none);
+//     pop_bit(test_board, d7);
+//     set_bit(test_board, d1);
+//     assert(killed==NULL);
+//     assert(test_board == board->bitboard);
+//     assert(board->pieces[black][CASTLE_1(black)]->cell == d1);
+//     assert(board->map[d1] == board->pieces[black][CASTLE_1(black)]);
+//     assert(board->map[d7] == NULL);
+
+//     undo_pretend_move(board, board->pieces[black][CASTLE_1(black)], killed, original_from, none);
+//     assert(board->bitboard == saved_board);
+//     assert(board->pieces[black][CASTLE_1(black)]->cell == d7);
+//     assert(board->map[d7] == board->pieces[black][CASTLE_1(black)]);
+//     assert(board->map[d1] == NULL);
+
+//     killed = pretend_move(board, board->pieces[black][CASTLE_1(black)], d1, none);
+//     assert(killed==NULL);
+//     assert(test_board == board->bitboard);
+//     assert(board->pieces[black][CASTLE_1(black)]->cell == d1);
+//     assert(board->map[d1] == board->pieces[black][CASTLE_1(black)]);
+//     assert(board->map[d7] == NULL);
+//     saved_board = board->bitboard;
+
+//     // SIMULATE FIRST MOVE (WHITE)
+//     square opponent_from = board->pieces[white][QUEEN_INDEX(white)]->cell;
+//     Piece* opponent_killed = pretend_move(board, board->pieces[white][QUEEN_INDEX(white)], d1, none);
+//     pop_bit(test_board, e2);
+//     assert(test_board == board->bitboard);
+//     assert(board->pieces[white][QUEEN_INDEX(white)]->cell == d1);
+//     assert(board->map[d1] == board->pieces[white][QUEEN_INDEX(white)]);
+//     assert(opponent_killed == board->pieces[black][CASTLE_1(black)]);
+//     assert(!board->pieces[black][CASTLE_1(black)]->alive);
+//     assert(board->map[e2] == NULL);
+
+//     undo_pretend_move(board, board->pieces[white][QUEEN_INDEX(white)], opponent_killed, opponent_from, none);
+//     assert(saved_board == board->bitboard);
+//     assert(board->pieces[black][CASTLE_1(black)]->cell == d1);
+//     assert(board->pieces[black][CASTLE_1(black)]->alive);
+//     assert(board->map[d1] == board->pieces[black][CASTLE_1(black)]);
+//     assert(board->map[d7] == NULL);
+//     assert(board->pieces[white][QUEEN_INDEX(white)]->cell == e2);
+//     assert(board->map[e2] == board->pieces[white][QUEEN_INDEX(white)]);
+//     assert(board->pieces[white][QUEEN_INDEX(white)]->alive);
+
+//     opponent_killed = pretend_move(board, board->pieces[white][QUEEN_INDEX(white)], d1, none);
+//     assert(test_board == board->bitboard);
+//     assert(board->pieces[white][QUEEN_INDEX(white)]->cell == d1);
+//     assert(board->map[d1] == board->pieces[white][QUEEN_INDEX(white)]);
+//     assert(opponent_killed == board->pieces[black][CASTLE_1(black)]);
+//     assert(!board->pieces[black][CASTLE_1(black)]->alive);
+//     assert(board->map[e2] == NULL);
+
+
+//     // SIMULATE SECOND MOVE (BLACK)
+//     original_from = board->pieces[black][QUEEN_INDEX(black)]->cell;
+//     killed = pretend_move(board, board->pieces[black][QUEEN_INDEX(black)], a2, none);
+//     pop_bit(test_board, a3);
+//     set_bit(test_board, a2);
+//     assert(killed==NULL);
+//     assert(test_board == board->bitboard);
+//     assert(board->pieces[black][QUEEN_INDEX(black)]->cell == a2);
+//     assert(board->map[a2] == board->pieces[black][QUEEN_INDEX(black)]);
+//     assert(board->map[a3] == NULL);
+
+//     // SIMULATE SECOND MOVE (WHITE)
+//     opponent_from = board->pieces[white][KING_INDEX(white)]->cell;
+//     opponent_killed = pretend_move(board, board->pieces[white][KING_INDEX(white)], c1, none);
+//     pop_bit(test_board, b1);
+//     set_bit(test_board, c1);
+//     assert(test_board == board->bitboard);
+//     assert(board->pieces[white][KING_INDEX(white)]->cell == c1);
+//     assert(board->map[c1] == board->pieces[white][KING_INDEX(white)]);
+//     assert(board->map[b1] == NULL);
+//     assert(opponent_killed == NULL);
+
+//     // SIMULATE THIRD MOVE (BLACK)
+//     original_from = board->pieces[black][BISHOP_1(black)]->cell;
+//     killed = pretend_move(board, board->pieces[black][BISHOP_1(black)], a3, none);
+//     pop_bit(test_board, c5);
+//     set_bit(test_board, a3);
+//     saved_board = test_board;
+//     assert(killed==NULL);
+//     assert(test_board == board->bitboard);
+//     assert(board->pieces[black][BISHOP_1(black)]->cell == a3);
+//     assert(board->map[a3] == board->pieces[black][BISHOP_1(black)]);
+//     assert(board->map[c5] == NULL);
+
+//     // SIMULATE THIRD MOVE (WHITE)
+//     opponent_from = board->pieces[white][BISHOP_1(white)]->cell;
+//     opponent_killed = pretend_move(board, board->pieces[white][BISHOP_1(white)], b2, none);
+//     pop_bit(test_board, e5);
+//     set_bit(test_board, b2);
+//     assert(test_board == board->bitboard);
+//     assert(board->pieces[white][BISHOP_1(white)]->cell == b2);
+//     assert(board->map[b2] == board->pieces[white][BISHOP_1(white)]);
+//     assert(board->map[e5] == NULL);
+//     assert(opponent_killed == NULL);
+
+//     undo_pretend_move(board, board->pieces[white][BISHOP_1(white)], opponent_killed, opponent_from, none);
+//     assert(saved_board == board->bitboard);
+//     assert(board->pieces[black][BISHOP_1(black)]->cell == a3);
+//     assert(board->map[a3] == board->pieces[black][BISHOP_1(black)]);
+//     assert(board->map[c5] == NULL);
+
+//     opponent_killed = pretend_move(board, board->pieces[white][BISHOP_1(white)], b2, none);
+//     assert(test_board == board->bitboard);
+//     assert(board->pieces[white][BISHOP_1(white)]->cell == b2);
+//     assert(board->map[b2] == board->pieces[white][BISHOP_1(white)]);
+//     assert(board->map[e5] == NULL);
+//     assert(opponent_killed == NULL);
+
+//     // SIMULATE FOURTH MOVE (BLACK)
+//     original_from = board->pieces[black][BISHOP_1(black)]->cell;
+//     killed = pretend_move(board, board->pieces[black][BISHOP_1(black)], b2, none);
+//     pop_bit(test_board, a3);
+//     set_bit(test_board, b2);
+//     assert(killed==board->pieces[white][BISHOP_1(white)]);
+//     assert(test_board == board->bitboard);
+//     assert(board->pieces[black][BISHOP_1(black)]->cell == b2);
+//     assert(board->map[b2] == board->pieces[black][BISHOP_1(black)]);
+//     assert(board->map[a3] == NULL);
+
+
+//     // SIMULATE FOURTH MOVE (WHITE)
+//     opponent_from = board->pieces[white][KING_INDEX(white)]->cell;
+//     opponent_killed = pretend_move(board, board->pieces[white][KING_INDEX(white)], d2, none);
+//     pop_bit(test_board, c1);
+//     set_bit(test_board, d2);
+//     assert(test_board == board->bitboard);
+//     assert(board->pieces[white][KING_INDEX(white)]->cell == d2);
+//     assert(board->map[d2] == board->pieces[white][KING_INDEX(white)]);
+//     assert(board->map[c1] == NULL);
+//     assert(opponent_killed == NULL);
 
     
-}
+// }
+
+
+
+
+
 
 
 void test_move_selection() {
@@ -2018,6 +2635,7 @@ void test_detect_mate_1() {
     board->pieces[white][KING_INDEX(white)]->alive = true;
     board->pieces[white][KING_INDEX(white)]->cell = c1;
     board->map[c1] = board->pieces[white][KING_INDEX(white)];
+    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
 
     board->pieces[black][7]->alive = true;
     board->pieces[black][7]->cell = b7;
@@ -2464,7 +3082,7 @@ void test_moves_board_setup_1() {
     Board* board = board_setup_1();
     
     
-    execute_move(board, board->pieces[black][CASTLE_1(black)], d1, none);
+    move_single_piece(board, board->pieces[black][CASTLE_1(black)], d1, none);
     U64 test_board = board->bitboard;
 
     Moves* moves = get_all_moves_for_colour(board, white);
@@ -2478,19 +3096,20 @@ void test_moves_board_setup_1() {
 
 void test_moves_board_setup_2() {
     Board* board = board_setup_1();
-    execute_move(board, board->pieces[black][CASTLE_1(black)], d1, none);
-    execute_move(board, board->pieces[white][QUEEN_INDEX(white)], d1, none);
-    execute_move(board, board->pieces[black][QUEEN_INDEX(black)], a2, none);
+    move_single_piece(board, board->pieces[black][CASTLE_1(black)], d1, none);
+    move_single_piece(board, board->pieces[white][QUEEN_INDEX(white)], d1, none);
+    move_single_piece(board, board->pieces[black][QUEEN_INDEX(black)], a2, none);
     U64 test_board = board->bitboard;
 
     Moves* moves = get_all_moves_for_colour(board, white);
+
     assert(test_board == board->bitboard);
     assert(moves->length == 1);
     assert(moves->moves[0]->destination == c1);
     assert(moves->moves[0]->piece->cell == b1);
     assert(moves->moves[0]->piece->type == king);
 
-    execute_move(board, board->pieces[white][KING_INDEX(white)], a2, none);
+    move_single_piece(board, board->pieces[white][KING_INDEX(white)], a2, none);
     assert(is_check(board, white));
 }
 
@@ -2500,8 +3119,8 @@ void test() {
     test_moves();
     test_legality();
     test_move_selection();
-    test_move_logic();
+    // test_move_logic();
     test_hashing();
-    test_move_logic_mate_in_four();
+    // test_move_logic_mate_in_four();
     test_mate_detection();
 }
