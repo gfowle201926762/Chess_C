@@ -3,8 +3,6 @@
 int main(void) {
     initialise();
 
-    // test_pawn_en_passant_3();
-    // test_pawn_en_passant_6();
     test();
 
     // test_18_june_2024();

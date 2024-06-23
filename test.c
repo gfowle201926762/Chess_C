@@ -2082,6 +2082,294 @@ void test_pawn_en_passant_legality_5() {
     assert(moves_2->moves[1]->from == d5);
 }
 
+void test_castling_execution_white_short() {
+    Board* board = init_board();
+    clear_board(board);
+    board->castle_pieces[white][king_side]->alive = true;
+    board->pieces[white][KING_INDEX(white)]->alive = true;
+    move_single_piece(board, board->castle_pieces[white][king_side], board->castle_pieces[white][king_side]->cell, none);
+    move_single_piece(board, board->pieces[white][KING_INDEX(white)], board->pieces[white][KING_INDEX(white)]->cell, none);
+
+    Moves* moves = get_all_moves_for_colour(board, white);
+
+    bool found = false;
+    for (int i = 0; i < moves->length; i++) {
+        assert(!(moves->moves[i]->castle && moves->moves[i]->castle_side == queen_side));
+        if (moves->moves[i]->castle && moves->moves[i]->castle_side == king_side) {
+            found = true;
+        }
+    }
+    assert(found);
+
+    assert(moves->moves[5]->destination == g1);
+    assert(moves->moves[5]->from == e1);
+    assert(moves->moves[5]->piece->type == king);
+    assert(moves->moves[5]->castle == true);
+    assert(moves->moves[5]->castle_side == king_side);
+
+    assert(!get_bit(board->bitboard, g1));
+    assert(!get_bit(board->bitboard, f1));
+    assert(get_bit(board->bitboard, e1));
+    assert(get_bit(board->bitboard, h1));
+    assert(board->map[g1] == NULL);
+    assert(board->map[f1] == NULL);
+    assert(board->map[e1] == moves->moves[5]->piece);
+    assert(moves->moves[5]->piece->cell == e1);
+    assert(board->map[h1] == board->castle_pieces[white][king_side]);
+    assert(board->castle_pieces[white][king_side]->cell == h1);
+    assert(moves->moves[5]->piece->no_moves == 0);
+    U64 test_board = board->bitboard;
+
+    Piece* killed = pretend_move(board, moves->moves[5]);
+
+    assert(!killed);
+    assert(get_bit(board->bitboard, g1));
+    assert(get_bit(board->bitboard, f1));
+    assert(!get_bit(board->bitboard, e1));
+    assert(!get_bit(board->bitboard, h1));
+    assert(board->map[e1] == NULL);
+    assert(board->map[h1] == NULL);
+    assert(board->map[g1] == moves->moves[5]->piece);
+    assert(moves->moves[5]->piece->cell == g1);
+    assert(board->map[f1] == board->castle_pieces[white][king_side]);
+    assert(board->castle_pieces[white][king_side]->cell == f1);
+    assert(moves->moves[5]->piece->no_moves == 1);
+
+    undo_pretend_move(board, moves->moves[5], killed);
+
+    assert(!get_bit(board->bitboard, g1));
+    assert(!get_bit(board->bitboard, f1));
+    assert(get_bit(board->bitboard, e1));
+    assert(get_bit(board->bitboard, h1));
+    assert(test_board == board->bitboard);
+    assert(board->map[g1] == NULL);
+    assert(board->map[f1] == NULL);
+    assert(board->map[e1] == moves->moves[5]->piece);
+    assert(moves->moves[5]->piece->cell == e1);
+    assert(board->map[h1] == board->castle_pieces[white][king_side]);
+    assert(board->castle_pieces[white][king_side]->cell == h1);
+    assert(moves->moves[5]->piece->no_moves == 0);
+}
+
+void test_castling_execution_white_long() {
+    Board* board = init_board();
+    clear_board(board);
+    board->castle_pieces[white][queen_side]->alive = true;
+    board->pieces[white][KING_INDEX(white)]->alive = true;
+    move_single_piece(board, board->castle_pieces[white][queen_side], board->castle_pieces[white][queen_side]->cell, none);
+    move_single_piece(board, board->pieces[white][KING_INDEX(white)], board->pieces[white][KING_INDEX(white)]->cell, none);
+
+    Moves* moves = get_all_moves_for_colour(board, white);
+
+    bool found = false;
+    for (int i = 0; i < moves->length; i++) {
+        assert(!(moves->moves[i]->castle && moves->moves[i]->castle_side == king_side));
+        if (moves->moves[i]->castle && moves->moves[i]->castle_side == queen_side) {
+            found = true;
+        }
+    }
+    assert(found);
+
+    assert(moves->moves[13]->destination == c1);
+    assert(moves->moves[13]->from == e1);
+    assert(moves->moves[13]->piece->type == king);
+    assert(moves->moves[13]->castle == true);
+    assert(moves->moves[13]->castle_side == queen_side);
+
+    assert(!get_bit(board->bitboard, d1));
+    assert(!get_bit(board->bitboard, c1));
+    assert(!get_bit(board->bitboard, b1));
+    assert(get_bit(board->bitboard, e1));
+    assert(get_bit(board->bitboard, a1));
+    assert(board->map[d1] == NULL);
+    assert(board->map[c1] == NULL);
+    assert(board->map[b1] == NULL);
+    assert(board->map[e1] == moves->moves[13]->piece);
+    assert(moves->moves[13]->piece->cell == e1);
+    assert(board->map[a1] == board->castle_pieces[white][queen_side]);
+    assert(board->castle_pieces[white][queen_side]->cell == a1);
+    assert(moves->moves[13]->piece->no_moves == 0);
+    U64 test_board = board->bitboard;
+
+    Piece* killed = pretend_move(board, moves->moves[13]);
+
+    assert(!killed);
+    assert(get_bit(board->bitboard, d1));
+    assert(get_bit(board->bitboard, c1));
+    assert(!get_bit(board->bitboard, e1));
+    assert(!get_bit(board->bitboard, a1));
+    assert(!get_bit(board->bitboard, b1));
+    assert(board->map[e1] == NULL);
+    assert(board->map[a1] == NULL);
+    assert(board->map[b1] == NULL);
+    assert(board->map[c1] == moves->moves[13]->piece);
+    assert(moves->moves[13]->piece->cell == c1);
+    assert(board->map[d1] == board->castle_pieces[white][queen_side]);
+    assert(board->castle_pieces[white][queen_side]->cell == d1);
+    assert(moves->moves[13]->piece->no_moves == 1);
+
+    undo_pretend_move(board, moves->moves[13], killed);
+
+    assert(!get_bit(board->bitboard, d1));
+    assert(!get_bit(board->bitboard, c1));
+    assert(!get_bit(board->bitboard, b1));
+    assert(get_bit(board->bitboard, e1));
+    assert(get_bit(board->bitboard, a1));
+    assert(board->map[d1] == NULL);
+    assert(board->map[c1] == NULL);
+    assert(board->map[b1] == NULL);
+    assert(board->map[e1] == moves->moves[13]->piece);
+    assert(moves->moves[13]->piece->cell == e1);
+    assert(board->map[a1] == board->castle_pieces[white][queen_side]);
+    assert(board->castle_pieces[white][queen_side]->cell == a1);
+    assert(moves->moves[13]->piece->no_moves == 0);
+    assert(test_board == board->bitboard);
+}
+
+void test_castling_execution_black_short() {
+    Board* board = init_board();
+    clear_board(board);
+    board->castle_pieces[black][king_side]->alive = true;
+    board->pieces[black][KING_INDEX(black)]->alive = true;
+    move_single_piece(board, board->castle_pieces[black][king_side], board->castle_pieces[black][king_side]->cell, none);
+    move_single_piece(board, board->pieces[black][KING_INDEX(black)], board->pieces[black][KING_INDEX(black)]->cell, none);
+
+    Moves* moves = get_all_moves_for_colour(board, black);
+
+    bool found = false;
+    for (int i = 0; i < moves->length; i++) {
+        assert(!(moves->moves[i]->castle && moves->moves[i]->castle_side == queen_side));
+        if (moves->moves[i]->castle && moves->moves[i]->castle_side == king_side) {
+            found = true;
+        }
+    }
+    assert(found);
+
+    assert(moves->moves[2]->destination == g8);
+    assert(moves->moves[2]->from == e8);
+    assert(moves->moves[2]->piece->type == king);
+    assert(moves->moves[2]->castle == true);
+    assert(moves->moves[2]->castle_side == king_side);
+
+    assert(!get_bit(board->bitboard, g8));
+    assert(!get_bit(board->bitboard, f8));
+    assert(get_bit(board->bitboard, e8));
+    assert(get_bit(board->bitboard, h8));
+    assert(board->map[g8] == NULL);
+    assert(board->map[f8] == NULL);
+    assert(board->map[e8] == moves->moves[2]->piece);
+    assert(moves->moves[2]->piece->cell == e8);
+    assert(board->map[h8] == board->castle_pieces[black][king_side]);
+    assert(board->castle_pieces[black][king_side]->cell == h8);
+    assert(moves->moves[2]->piece->no_moves == 0);
+    U64 test_board = board->bitboard;
+
+    Piece* killed = pretend_move(board, moves->moves[2]);
+
+    assert(!killed);
+    assert(get_bit(board->bitboard, g8));
+    assert(get_bit(board->bitboard, f8));
+    assert(!get_bit(board->bitboard, e8));
+    assert(!get_bit(board->bitboard, h8));
+    assert(board->map[e8] == NULL);
+    assert(board->map[h8] == NULL);
+    assert(board->map[g8] == moves->moves[2]->piece);
+    assert(moves->moves[2]->piece->cell == g8);
+    assert(board->map[f8] == board->castle_pieces[black][king_side]);
+    assert(board->castle_pieces[black][king_side]->cell == f8);
+    assert(moves->moves[2]->piece->no_moves == 1);
+
+    undo_pretend_move(board, moves->moves[2], killed);
+
+    assert(!get_bit(board->bitboard, g8));
+    assert(!get_bit(board->bitboard, f8));
+    assert(get_bit(board->bitboard, e8));
+    assert(get_bit(board->bitboard, h8));
+    assert(test_board == board->bitboard);
+    assert(board->map[g8] == NULL);
+    assert(board->map[f8] == NULL);
+    assert(board->map[e8] == moves->moves[2]->piece);
+    assert(moves->moves[2]->piece->cell == e8);
+    assert(board->map[h8] == board->castle_pieces[black][king_side]);
+    assert(board->castle_pieces[black][king_side]->cell == h8);
+    assert(moves->moves[2]->piece->no_moves == 0);
+}
+
+void test_castling_execution_black_long() {
+    Board* board = init_board();
+    clear_board(board);
+    board->castle_pieces[black][queen_side]->alive = true;
+    board->pieces[black][KING_INDEX(black)]->alive = true;
+    move_single_piece(board, board->castle_pieces[black][queen_side], board->castle_pieces[black][queen_side]->cell, none);
+    move_single_piece(board, board->pieces[black][KING_INDEX(black)], board->pieces[black][KING_INDEX(black)]->cell, none);
+
+    Moves* moves = get_all_moves_for_colour(board, black);
+
+    bool found = false;
+    for (int i = 0; i < moves->length; i++) {
+        assert(!(moves->moves[i]->castle && moves->moves[i]->castle_side == king_side));
+        if (moves->moves[i]->castle && moves->moves[i]->castle_side == queen_side) {
+            found = true;
+        }
+    }
+    assert(found);
+
+    assert(moves->moves[10]->destination == c8);
+    assert(moves->moves[10]->from == e8);
+    assert(moves->moves[10]->piece->type == king);
+    assert(moves->moves[10]->castle == true);
+    assert(moves->moves[10]->castle_side == queen_side);
+
+    assert(!get_bit(board->bitboard, d8));
+    assert(!get_bit(board->bitboard, c8));
+    assert(!get_bit(board->bitboard, b8));
+    assert(get_bit(board->bitboard, e8));
+    assert(get_bit(board->bitboard, a8));
+    assert(board->map[d8] == NULL);
+    assert(board->map[c8] == NULL);
+    assert(board->map[b8] == NULL);
+    assert(board->map[e8] == moves->moves[10]->piece);
+    assert(moves->moves[10]->piece->cell == e8);
+    assert(board->map[a8] == board->castle_pieces[black][queen_side]);
+    assert(board->castle_pieces[black][queen_side]->cell == a8);
+    assert(moves->moves[10]->piece->no_moves == 0);
+    U64 test_board = board->bitboard;
+
+    Piece* killed = pretend_move(board, moves->moves[10]);
+
+    assert(!killed);
+    assert(get_bit(board->bitboard, d8));
+    assert(get_bit(board->bitboard, c8));
+    assert(!get_bit(board->bitboard, e8));
+    assert(!get_bit(board->bitboard, a8));
+    assert(!get_bit(board->bitboard, b8));
+    assert(board->map[e8] == NULL);
+    assert(board->map[a8] == NULL);
+    assert(board->map[b8] == NULL);
+    assert(board->map[c8] == moves->moves[10]->piece);
+    assert(moves->moves[10]->piece->cell == c8);
+    assert(board->map[d8] == board->castle_pieces[black][queen_side]);
+    assert(board->castle_pieces[black][queen_side]->cell == d8);
+    assert(moves->moves[10]->piece->no_moves == 1);
+
+    undo_pretend_move(board, moves->moves[10], killed);
+
+    assert(!get_bit(board->bitboard, d8));
+    assert(!get_bit(board->bitboard, c8));
+    assert(!get_bit(board->bitboard, b8));
+    assert(get_bit(board->bitboard, e8));
+    assert(get_bit(board->bitboard, a8));
+    assert(board->map[d8] == NULL);
+    assert(board->map[c8] == NULL);
+    assert(board->map[b8] == NULL);
+    assert(board->map[e8] == moves->moves[10]->piece);
+    assert(moves->moves[10]->piece->cell == e8);
+    assert(board->map[a8] == board->castle_pieces[black][queen_side]);
+    assert(board->castle_pieces[black][queen_side]->cell == a8);
+    assert(moves->moves[10]->piece->no_moves == 0);
+    assert(test_board == board->bitboard);
+}
+
 void test_castling_1() {
     Board* board = init_board();
     board->pieces[white][KING_INDEX(white)]->no_moves = 0;
@@ -2787,6 +3075,10 @@ void test_moves() {
     test_pawn_en_passant_legality_3();
     test_pawn_en_passant_legality_4();
     test_pawn_en_passant_legality_5();
+    test_castling_execution_white_short();
+    test_castling_execution_white_long();
+    test_castling_execution_black_short();
+    test_castling_execution_black_long();
     test_castling_1();
     test_castling_2();
     test_castling_3();
