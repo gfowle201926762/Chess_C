@@ -290,39 +290,16 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
         U64 test_board = board->bitboard;
         
         Piece* killed = pretend_move(board, move);
-        // board->last_moved = last_moved;
         hash_move_piece(board, move, killed);
-        hash_change_colour(board);
-        if (move->piece->no_moves == 0 && move->piece->type == king && ((move->destination == g1 && move->from == e1) || (move->destination == g8 && move->from == e8))) {
-            hash_castle(board, mover, king_side);
-        }
-        else if (move->piece->no_moves == 0 && move->piece->type == king && ((move->destination == c1 && move->from == e1) || (move->destination == c8 && move->from == e8))) {
-            hash_castle(board, mover, queen_side);
-        }
-
-        // board->last_moved = move->piece;
-
         update_graph(parent, move);
-
-        // if (grapher->depth == grapher->max_depth) {
-        //     // printf("\ndepth: %i\n", grapher->depth);
-        //     print_move(move);
-        // }
 
         grapher->depth -= 1;
         Scores* scores = create_graph(grapher, parent->children[parent->i-1], board, invert_colour(mover), limit);
         grapher->depth += 1;
 
-        hash_move_piece(board, move, killed);
-        hash_change_colour(board);
         // REVERSE
+        hash_move_piece(board, move, killed);
         undo_pretend_move(board, move, killed);
-        if (move->piece->no_moves == 0 && move->piece->type == king && ((move->destination == g1 && move->from == e1) || (move->destination == g8 && move->from == e8))) {
-            hash_castle(board, mover, king_side);
-        }
-        else if (move->piece->no_moves == 0 && move->piece->type == king && ((move->destination == c1 && move->from == e1) || (move->destination == c8 && move->from == e8))) {
-            hash_castle(board, mover, queen_side);
-        }
 
         assert(test_board == board->bitboard);
         assert(move->piece->type == save_type);
@@ -346,7 +323,6 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
             free_scores(scores);
         }
         if (prune != MAX_SCORE && prune != -MAX_SCORE && ((original_mover && scores->eval > prune) || (!original_mover && scores->eval < prune))) {
-            // printf("prune: %i, scores->eval: %i, original_mover? %i\n", prune, scores->eval, original_mover);
             break;
         }
     }
@@ -739,24 +715,35 @@ void put(HashTable* hashtable, U64 hash_value, int eval, int depth) {
 }
 
 void hash_move_piece(Board* board, Move* move, Piece* killed) {
+    // hashing moving piece out
     board->hash_value ^= board->keys_position[move->piece->c][move->promotion == none ? move->piece->type : pawn][move->from];
     if (killed) {
-        board->hash_value ^= board->keys_position[killed->c][killed->type][move->destination];
+        // hashing killed piece out. Must be killed->cell, not move->destination, because of en passant.
+        board->hash_value ^= board->keys_position[killed->c][killed->type][killed->cell];
     }
+    // hashing moving piece in
     board->hash_value ^= board->keys_position[move->piece->c][move->promotion == none ? move->piece->type : move->promotion][move->destination];
     if (board->lm_length) {
+        // if previous moved piece, hashing it's position out (for en passant)
         board->hash_value ^= board->keys_last_moved[board->last_moved[board->lm_length - 1]->destination];
     }
+    // hashing in position of this last move (for en passant)
     board->hash_value ^= board->keys_last_moved[move->destination];
-}
 
-void hash_change_colour(Board* board) {
+    // keep track of castling rights... must be at the point of losing the rights.
+    // either king just moved or castle just moved, AND that move made the no_moves increment to 1.
+    // hash function is made after pretend_move and before undo_pretend_move
+    if ((move->piece == board->pieces[move->piece->c][KING_INDEX(move->piece->c)] && board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 1 && board->castle_pieces[move->piece->c][king_side]->no_moves == 0) || (board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 0 && move->piece == board->castle_pieces[move->piece->c][king_side] && board->castle_pieces[move->piece->c][king_side]->no_moves == 1)) {
+        board->hash_value ^= board->keys_castling[move->piece->c][king_side];
+    }
+    if ((move->piece == board->pieces[move->piece->c][KING_INDEX(move->piece->c)] && board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 1 && board->castle_pieces[move->piece->c][queen_side]->no_moves == 0) || (board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 0 && move->piece == board->castle_pieces[move->piece->c][queen_side] && board->castle_pieces[move->piece->c][queen_side]->no_moves == 1)) {
+        board->hash_value ^= board->keys_castling[move->piece->c][queen_side];
+    }
+
+    // hashing a change of colour
     board->hash_value ^= board->key_mover;
 }
 
-void hash_castle(Board* board, colour mover, castle_type type) {
-    board->hash_value ^= board->keys_castling[mover][type];
-}
 
 U64 rand64() {
     return rand() ^ ((U64)rand() << 15) ^ ((U64)rand() << 30) ^

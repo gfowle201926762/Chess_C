@@ -328,8 +328,6 @@ bool is_move_legal(Board* board, Piece* piece, square to);
 // void undo_pretend_move(Board* board, Piece* original, Piece* killed, square original_from, name promotion);
 void undo_pretend_move(Board* board, Move* move, Piece* killed);
 void hash_move_piece(Board* board, Move* move, Piece* killed);
-void hash_change_colour(Board* board);
-void hash_castle(Board* board, colour mover, castle_type type);
 bool is_castle_legal(Board* board, Piece* piece, castle_type type);
 Piece* move_single_piece(Board* board, Piece* piece, square to, name promotion);
 void execute_promotion(Piece* piece, name promotion);
