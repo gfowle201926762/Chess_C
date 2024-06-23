@@ -150,6 +150,8 @@ struct HashTable {
 };
 typedef struct HashTable HashTable;
 
+struct Move;
+
 struct Board {
     U64 bitboard;
 
@@ -167,7 +169,7 @@ struct Board {
     Piece* castle_pieces[MAX_COLOUR][MAX_CASTLING_OPTIONS];
 
     U64 last_positions[MOVES_SIZE];
-    Piece* last_moved[MOVES_SIZE];
+    struct Move* last_moved[MOVES_SIZE];
     int lm_length;
 
     Piece* map[CELLS];
@@ -331,7 +333,7 @@ void hash_castle(Board* board, colour mover, castle_type type);
 bool is_castle_legal(Board* board, Piece* piece, castle_type type);
 Piece* move_single_piece(Board* board, Piece* piece, square to, name promotion);
 void execute_promotion(Piece* piece, name promotion);
-void add_last_moved(Board* board, Piece* piece);
+void add_last_moved(Board* board, Move* move);
 void pop_last_moved(Board* board);
 
 // Get all moves

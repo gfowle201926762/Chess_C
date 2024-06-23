@@ -287,7 +287,7 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
         int save_value = move->piece->value;
         U64 (*save_move_func)(Board*, Piece*) = move->piece->move_func;
         U64 hash = board->hash_value;
-        Piece* last_moved = board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1];
+        Move* last_moved = board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1];
         int lm = board->lm_length;
         U64 test_board = board->bitboard;
         
@@ -516,6 +516,7 @@ Piece* move_single_piece(Board* board, Piece* piece, square to, name promotion) 
     // Return killed (literally just for is_move_legal where it needs to be reversed).
     // Luckily, that function doesn't handle castling.
     // Do not care about castling (two pieces move when castling)
+    // Do not care about en passant (this is handled in the wrapper function move_single_piece_with_en_passant)
     // Do promote.
     pop_bit(board->bitboard, piece->cell);
     set_bit(board->bitboard, to);
@@ -530,38 +531,42 @@ Piece* move_single_piece(Board* board, Piece* piece, square to, name promotion) 
     return killed;
 }
 
-Piece* handle_en_passant(Board* board, Move* move) {
+Piece* handle_en_passant(Board* board, Piece* piece, square to, name promotion) {
     // must be a pawn which is attacking
-    if (move->piece->type != pawn || move->from % 8 == move->destination % 8) {
+    if (piece->type != pawn || piece->cell % 8 == to % 8) {
         return NULL;
     }
     // must be moving into an empty square -- guaranteed en passant.
-    if (board->map[move->destination] == NULL) {
-        Piece* piece = board->map[move->piece->c == white ? move->destination + 8 : move->destination - 8];
-        piece->alive = false;
-        board->map[move->piece->c == white ? move->destination + 8 : move->destination - 8] = NULL;
-        pop_bit(board->bitboard, (move->piece->c == white ? move->destination + 8 : move->destination - 8));
-        return piece;
+    if (board->map[to] == NULL) {
+        Piece* killed = board->map[piece->c == white ? to + 8 : to - 8];
+        killed->alive = false;
+        board->map[piece->c == white ? to + 8 : to - 8] = NULL;
+        pop_bit(board->bitboard, (piece->c == white ? to + 8 : to - 8));
+        return killed;
     }
     return NULL;
+}
+
+Piece* move_single_piece_with_en_passant(Board* board, Piece* piece, square to, name promotion) {
+    Piece* killed = handle_en_passant(board, piece, to, promotion);
+    if (killed) {
+        move_single_piece(board, piece, to, promotion);
+        return killed;
+    }
+    return move_single_piece(board, piece, to, promotion);
 }
 
 Piece* pretend_move(Board* board, Move* move) {
     // A move has already been generated. It is guaranteed to be legal. Execute the move.
     // Must handle castling and en passant.
-    add_last_moved(board, move->piece);
+    add_last_moved(board, move);
     move->piece->no_moves += 1;
     if (move->castle) {
         move_single_piece(board, move->piece, move->destination, none);
         move_single_piece(board, board->castle_pieces[move->piece->c][move->castle_side], board->to_castle_coords[move->piece->c][move->castle_side], none);
         return NULL;
     }
-    Piece* killed = handle_en_passant(board, move);
-    if (killed) {
-        move_single_piece(board, move->piece, move->destination, move->promotion);
-        return killed;
-    }
-    return move_single_piece(board, move->piece, move->destination, move->promotion);
+    return move_single_piece_with_en_passant(board, move->piece, move->destination, move->promotion);
 }
 
 void undo_pretend_move(Board* board, Move* move, Piece* killed) {
@@ -613,8 +618,8 @@ void execute_promotion(Piece* piece, name promotion) {
     }
 }
 
-void add_last_moved(Board* board, Piece* piece) {
-    board->last_moved[board->lm_length] = piece;
+void add_last_moved(Board* board, Move* move) {
+    board->last_moved[board->lm_length] = move;
     board->lm_length += 1;
 }
 
@@ -636,8 +641,13 @@ bool is_check(Board* board, colour c) {
 }
 
 bool is_move_legal(Board* board, Piece* piece, square to) {
+
+    Move* last_moved = board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1];
+    int lm = board->lm_length;
+    U64 test_board = board->bitboard;
+
     square from = piece->cell;
-    Piece* killed = move_single_piece(board, piece, to, none);
+    Piece* killed = move_single_piece_with_en_passant(board, piece, to, none);
     bool legal = true;
     if (killed && killed->c == piece->c) {
         legal = false;
@@ -648,8 +658,12 @@ bool is_move_legal(Board* board, Piece* piece, square to) {
     move_single_piece(board, piece, from, none);
     if (killed) {
         killed->alive = true;
-        move_single_piece(board, killed, to, none);
+        set_bit(board->bitboard, killed->cell);
+        board->map[killed->cell] = killed;
     }
+    assert(test_board == board->bitboard);
+    assert(lm == board->lm_length);
+    assert(last_moved == board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1]);
     return legal;
 }
 
@@ -733,7 +747,7 @@ void hash_move_piece(Board* board, Move* move, Piece* killed) {
     }
     board->hash_value ^= board->keys_position[move->piece->c][move->promotion == none ? move->piece->type : move->promotion][move->destination];
     if (board->lm_length) {
-        board->hash_value ^= board->keys_last_moved[board->last_moved[board->lm_length - 1]->cell];
+        board->hash_value ^= board->keys_last_moved[board->last_moved[board->lm_length - 1]->destination];
     }
     board->hash_value ^= board->keys_last_moved[move->destination];
 }
@@ -1185,42 +1199,29 @@ U64 get_pawn_mask(Board* board, Piece* piece) {
 U64 get_pawn_attack_mask(Board* board, Piece* piece) {
     U64 attack_mask = 0ULL;
     int cell = piece->cell;
+    Move* last_move = board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1];
     if (piece->c == white && cell / 8 > 0) {
         if (cell % 8 < 7 && get_bit(board->bitboard, (cell - 7))) attack_mask = (1ULL << (cell - 7)); // right
         if (cell % 8 > 0 && get_bit(board->bitboard, (cell - 9))) attack_mask |= (1ULL << (cell - 9)); // left
 
         // en passant
-        if (cell % 8 > 0 && board->map[cell-1] &&  board->map[cell-1]->type == pawn && board->map[cell-1]->c == black && board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1] == board->map[cell-1] && board->map[cell-1]->alive) {
+        if (cell % 8 > 0 && board->map[cell-1] && board->map[cell-1]->type == pawn && board->map[cell-1]->c == black && last_move->piece == board->map[cell-1] && last_move->from / 8 == 1  && board->map[cell-1]->alive) {
             attack_mask |= (1ULL << (cell - 9)); // left
-            // printf("EN PASSANT 1\n");
         }
-        if (cell % 8 < 7 && board->map[cell+1] && board->map[cell+1]->type == pawn && board->map[cell+1]->c == black && board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1] == board->map[cell+1] && board->map[cell+1]->alive) {
+        if (cell % 8 < 7 && board->map[cell+1] && board->map[cell+1]->type == pawn && board->map[cell+1]->c == black && last_move->piece == board->map[cell+1] && last_move->from / 8 == 1 && board->map[cell+1]->alive) {
             attack_mask |= (1ULL << (cell - 7)); // right
-            // printf("EN PASSANT 2\n");
         }
-
-        // en passant
-        // if (cell % 8 < 7 && get_bit(board->bitboard, (cell - 1)) && board->map[cell-1] &&  board->map[cell-1]->type == pawn && board->map[cell-1]->c == black && board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1] == board->map[cell-1] && board->map[cell-1]->alive) {
-        //     attack_mask |= (1ULL << (cell - 1)); // right
-        // }
-        
-        // if (cell % 8 > 0 && get_bit(board->bitboard, (cell + 1)) && board->map[cell+1] && board->map[cell+1]->type == pawn && board->map[cell+1]->c == black && board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1] == board->map[cell+1] && board->map[cell+1]->alive) {
-        //     attack_mask |= (1ULL << (cell + 1)); // left
-        // }
     }
     if (piece->c == black && cell / 8 < 7) {
         if (cell % 8 > 0 && get_bit(board->bitboard, (cell + 7))) attack_mask = (1ULL << (cell + 7)); // left
         if (cell % 8 < 7 && get_bit(board->bitboard, (cell + 9))) attack_mask |= (1ULL << (cell + 9)); // right
 
         // en passant
-        if (cell % 8 > 0 && board->map[cell-1] && board->map[cell-1]->type == pawn && board->map[cell-1]->c == white && board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1] == board->map[cell-1] && board->map[cell-1]->alive) {
+        if (cell % 8 > 0 && board->map[cell-1] && board->map[cell-1]->type == pawn && board->map[cell-1]->c == white && last_move->piece == board->map[cell-1] && last_move->from / 8 == 6 && board->map[cell-1]->alive) {
             attack_mask |= (1ULL << (cell + 7)); // left
-            // printf("EN PASSANT 3\n");
         }
-        
-        if (cell % 8 < 7 && board->map[cell+1] && board->map[cell+1]->type == pawn && board->map[cell+1]->c == white && board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1] == board->map[cell+1] && board->map[cell+1]->alive) {
+        if (cell % 8 < 7 && board->map[cell+1] && board->map[cell+1]->type == pawn && board->map[cell+1]->c == white && last_move->piece == board->map[cell+1] && last_move->from / 8 == 6 && board->map[cell+1]->alive) {
             attack_mask |= (1ULL << (cell + 9)); // right
-            // printf("EN PASSANT 4\n");
         }
     }
     return attack_mask;
