@@ -584,11 +584,116 @@ void test_hashing_graph_simulation() {
     assert(hash1 == board->hash_value);
 }
 
+void test_hashing_en_passant() {
+    Board* board = init_board();
+
+    Moves* moves = get_all_moves_for_colour(board, white);
+    assert(moves->moves[0]->destination == a4);
+    assert(moves->moves[0]->from == a2);
+    assert(moves->moves[0]->piece->type == pawn);
+    U64 hash_start = board->hash_value;
+
+    Piece* killed = pretend_move(board, moves->moves[0]);
+    hash_and_save(board, moves->moves[0], killed);
+    assert(moves->moves[0]->piece->cell == a4);
+    assert(board->map[a4] == moves->moves[0]->piece);
+
+    U64 hash_advance_two = board->hash_value;
+    U64 bitboard_advance_two = board->bitboard;
+
+    undo_hash(board, moves->moves[0], killed);
+    undo_pretend_move(board, moves->moves[0], killed);
+    
+    assert(board->hash_value == hash_start);
+
+
+    assert(moves->moves[1]->destination == a3);
+    assert(moves->moves[1]->from == a2);
+    assert(moves->moves[1]->piece->type == pawn);
+
+    killed = pretend_move(board, moves->moves[1]);
+    hash_and_save(board, moves->moves[1], killed);
+
+    // switch colour back instead of moving a black piece
+    board->hash_value ^= board->key_mover;
+
+    Moves* moves_2 = get_all_moves_for_colour(board, white);
+    assert(moves_2->moves[0]->destination == a4);
+    assert(moves_2->moves[0]->from == a3);
+    assert(moves_2->moves[0]->piece->type == pawn);
+
+    killed = pretend_move(board, moves_2->moves[0]);
+    hash_and_save(board, moves_2->moves[0], killed);
+    assert(moves_2->moves[0]->piece->cell == a4);
+    assert(board->map[a4] == moves_2->moves[0]->piece);
+
+    // should be different -- first one had en passant rights, now they're foresaken.
+    assert(board->hash_value != hash_advance_two);
+    assert(bitboard_advance_two == board->bitboard);
+    
+
+}
+
+void test_hashing_different_move_order() {
+    Board* board = init_board();
+    Moves* moves = get_all_moves_for_colour(board, white);
+    assert(moves->moves[1]->destination == a3);
+    assert(moves->moves[1]->from == a2);
+    assert(moves->moves[1]->piece->type == pawn);
+    U64 hash_start = board->hash_value;
+    U64 bitboard_start = board->bitboard;
+
+    Piece* killed = pretend_move(board, moves->moves[1]);
+    hash_and_save(board, moves->moves[1], killed);
+    assert(board->map[a3] == moves->moves[1]->piece);
+
+    Moves* moves_black = get_all_moves_for_colour(board, black);
+    Piece* killed_black = pretend_move(board, moves_black->moves[0]);
+    hash_and_save(board, moves_black->moves[0], killed_black);
+    
+    Moves* moves_white_2 = get_all_moves_for_colour(board, white);
+    Piece* killed_white_2 = pretend_move(board, moves_white_2->moves[2]);
+    hash_and_save(board, moves_white_2->moves[2], killed_white_2);
+    assert(board->map[b3] == moves_white_2->moves[2]->piece);
+
+    U64 final_hash = board->hash_value;
+    U64 final_bitboard = board->bitboard;
+
+    undo_hash(board, moves_white_2->moves[2], killed_white_2);
+    undo_pretend_move(board, moves_white_2->moves[2], killed_white_2);
+    
+    undo_hash(board, moves_black->moves[0], killed_black);
+    undo_pretend_move(board, moves_black->moves[0], killed_black);
+
+    undo_hash(board, moves->moves[1], killed);
+    undo_pretend_move(board, moves->moves[1], killed);
+
+    assert(board->hash_value == hash_start);
+    assert(board->bitboard == bitboard_start);
+
+    killed = pretend_move(board, moves->moves[3]);
+    hash_and_save(board, moves->moves[3], killed);
+    assert(board->map[b3] == moves->moves[3]->piece);
+
+    killed_black = pretend_move(board, moves_black->moves[0]);
+    hash_and_save(board, moves_black->moves[0], killed_black);
+
+    moves_white_2 = get_all_moves_for_colour(board, white);
+    killed_white_2 = pretend_move(board, moves_white_2->moves[1]);
+    hash_and_save(board, moves_white_2->moves[1], killed_white_2);
+    assert(board->map[a3] == moves_white_2->moves[1]->piece);
+
+    assert(board->bitboard == final_bitboard);
+    assert(board->hash_value == final_hash);
+}
+
 
 void test_hashing() {
     test_hashing_1();
     test_hashing_2();
     test_hashing_graph_simulation();
+    test_hashing_en_passant();
+    test_hashing_different_move_order();
 }
 
 

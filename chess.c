@@ -5,18 +5,6 @@ int main(void) {
 
     test();
 
-    // test_18_june_2024();
-
-    // test_forcing_moves_1();
-    // test_dont_be_stupid();
-    // test_forcing_moves_2();
-    // test_forcing_moves_3();
-    // test_puzzle_fork();
-    // test_puzzle_win_queen();
-    // test_forcing_moves();
-    
-    // play_game();
-
     return 0;
 }
 
@@ -290,7 +278,7 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
         U64 test_board = board->bitboard;
         
         Piece* killed = pretend_move(board, move);
-        hash_move_piece(board, move, killed);
+        hash_and_save(board, move, killed);
         update_graph(parent, move);
 
         grapher->depth -= 1;
@@ -298,7 +286,7 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
         grapher->depth += 1;
 
         // REVERSE
-        hash_move_piece(board, move, killed);
+        undo_hash(board, move, killed);
         undo_pretend_move(board, move, killed);
 
         assert(test_board == board->bitboard);
@@ -714,6 +702,16 @@ void put(HashTable* hashtable, U64 hash_value, int eval, int depth) {
     hashtable->transpositions[index]->depth = depth;
 }
 
+void hash_and_save(Board* board, Move* move, Piece* killed) {
+    hash_move_piece(board, move, killed);
+    // lm_length already been incremented in add last moved in pretend move.
+    board->last_positions[board->lm_length - 1] = board->hash_value;
+}
+
+void undo_hash(Board* board, Move* move, Piece* killed) {
+    hash_move_piece(board, move, killed);
+}
+
 void hash_move_piece(Board* board, Move* move, Piece* killed) {
     // hashing moving piece out
     board->hash_value ^= board->keys_position[move->piece->c][move->promotion == none ? move->piece->type : pawn][move->from];
@@ -723,13 +721,12 @@ void hash_move_piece(Board* board, Move* move, Piece* killed) {
     }
     // hashing moving piece in
     board->hash_value ^= board->keys_position[move->piece->c][move->promotion == none ? move->piece->type : move->promotion][move->destination];
-    if (board->lm_length) {
-        // if previous moved piece, hashing it's position out (for en passant)
-        board->hash_value ^= board->keys_last_moved[board->last_moved[board->lm_length - 1]->destination];
-    }
-    // hashing in position of this last move (for en passant)
-    board->hash_value ^= board->keys_last_moved[move->destination];
 
+    // hashing in position of last move destination if pawn and moved 2 squares (for en passant)
+    if (move->piece->type == pawn && (int)move->from - move->destination == 16) {
+        board->hash_value ^= board->keys_last_moved[move->destination];
+    }
+    
     // keep track of castling rights... must be at the point of losing the rights.
     // either king just moved or castle just moved, AND that move made the no_moves increment to 1.
     // hash function is made after pretend_move and before undo_pretend_move

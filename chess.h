@@ -333,6 +333,8 @@ Piece* move_single_piece(Board* board, Piece* piece, square to, name promotion);
 void execute_promotion(Piece* piece, name promotion);
 void add_last_moved(Board* board, Move* move);
 void pop_last_moved(Board* board);
+void hash_and_save(Board* board, Move* move, Piece* killed);
+void undo_hash(Board* board, Move* move, Piece* killed);
 
 // Get all moves
 void get_all_moves_for_piece(Board* board, Piece* piece, Moves* moves);
