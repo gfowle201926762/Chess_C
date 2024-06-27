@@ -2,8 +2,8 @@
 
 int main(void) {
     initialise();
-
-    test();
+    test_evaluation_branching();
+    // test_16_june_2024_partial();
 
     return 0;
 }
@@ -222,9 +222,12 @@ Scores* init_scores(GraphNode* node, int depth) {
 Moves* get_best_moves(Board* board, Moves* moves, colour mover, int max_breadth) {
     for (int i = 0; i < moves->length; i++) {
         Move* move = moves->moves[i];
+        Board* copy = copy_board(board);
         Piece* killed = pretend_move(board, move);
         move->evaluation = evaluate_position(board, mover);
         undo_pretend_move(board, move, killed);
+        assert(compare_boards(board, copy, "get_best_moves"));
+        free_copy_board(copy);
     }
 
     return get_best_scores(moves, max_breadth);
@@ -269,13 +272,12 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
     for (int i = 0; i < best_moves->length; i++) {
         Move* move = best_moves->moves[i];
 
-        name save_type = move->piece->type;
-        int save_value = move->piece->value;
-        U64 (*save_move_func)(Board*, Piece*) = move->piece->move_func;
-        U64 hash = board->hash_value;
-        Move* last_moved = board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1];
-        int lm = board->lm_length;
-        U64 test_board = board->bitboard;
+        Board* copy = copy_board(board);
+
+        // if (move->destination == h8 && move->from == e8 && move->piece->type == castle) {
+            // printf("depth: %i\n", grapher->depth);
+            // print_board_pro(board);
+        // }
         
         Piece* killed = pretend_move(board, move);
         hash_and_save(board, move, killed);
@@ -289,19 +291,8 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
         undo_hash(board, move, killed);
         undo_pretend_move(board, move, killed);
 
-        assert(test_board == board->bitboard);
-        assert(move->piece->type == save_type);
-        assert(move->piece->value == save_value);
-        assert(move->piece->move_func == save_move_func);
-        assert(board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1] == last_moved);
-        assert(lm == board->lm_length);
-        if (hash != board->hash_value) {
-            print_board_pro(board);
-            print_move(move);
-            printf("\n");
-            assert(false);
-        }
-        assert(hash == board->hash_value);
+        assert(compare_boards(board, copy, "create_graph"));
+        free_copy_board(copy);
 
         if ((original_mover && scores->eval > limit) || (!original_mover && scores->eval < limit)) {
             limit = scores->eval;
@@ -341,6 +332,7 @@ void generate_promotion_moves(Board* board, Moves* moves, Piece* piece, square c
 void get_all_moves_for_piece(Board* board, Piece* piece, Moves* moves) {
 
     // print_piece(piece);
+    square saved_from = piece->cell;
     U64 mask = piece->move_func(board, piece);
     // print_board(mask);
     // printf("\n");
@@ -376,7 +368,18 @@ void get_all_moves_for_piece(Board* board, Piece* piece, Moves* moves) {
                     }
                 }
                 if(saved != board->bitboard) {
+                    char s[10] = {'\0'};
+                    char f[10] = {'\0'};
+                    char fr[10] = {'\0'};
+                    square_to_string(saved_from, fr);
+                    square_to_string(i, s);
+                    square_to_string(piece->cell, f);
+                    printf("moving to %s\n", s);
+                    printf("moving from %s\n", s);
+                    printf("moving from fr: %s\n", fr);
+                    printf("castle status: %i\n", castle);
                     print_piece(piece);
+                    print_board_pro(board);
                     assert(false);
                 }
                 if (allowed) {
@@ -604,9 +607,7 @@ bool is_check(Board* board, colour c) {
 
 bool is_move_legal(Board* board, Piece* piece, square to) {
 
-    Move* last_moved = board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1];
-    int lm = board->lm_length;
-    U64 test_board = board->bitboard;
+    Board* copy = copy_board(board);
 
     square from = piece->cell;
     Piece* killed = move_single_piece_with_en_passant(board, piece, to, none);
@@ -623,9 +624,8 @@ bool is_move_legal(Board* board, Piece* piece, square to) {
         set_bit(board->bitboard, killed->cell);
         board->map[killed->cell] = killed;
     }
-    assert(test_board == board->bitboard);
-    assert(lm == board->lm_length);
-    assert(last_moved == board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1]);
+    assert(compare_boards(board, copy, "is_move_legal"));
+    free_copy_board(copy);
     return legal;
 }
 
@@ -658,9 +658,9 @@ int knight_index(colour c, int i) {
 
 int castle_index(colour c, int i) {
     if (i == 1) {
-        return CASTLE_1(c);
+        return CASTLE_2(c);
     }
-    return CASTLE_2(c);
+    return CASTLE_1(c);
 }
 
 int pawn_index(colour c, int i) {
@@ -894,22 +894,22 @@ Board* init_board(void) {
     init_hash_keys(board);
     init_hash_value(board);
 
-    board->castle_pieces[white][king_side] = board->pieces[white][CASTLE_2(white)];
+    board->castle_pieces[white][king_side] = board->pieces[white][CASTLE_1(white)];
     board->castling_coordinates[white][king_side] = g1;
     board->to_castle_coords[white][king_side] = f1;
     board->from_castle_coords[white][king_side] = h1;
 
-    board->castle_pieces[white][queen_side] = board->pieces[white][CASTLE_1(white)];
+    board->castle_pieces[white][queen_side] = board->pieces[white][CASTLE_2(white)];
     board->castling_coordinates[white][queen_side] = c1;
     board->to_castle_coords[white][queen_side] = d1;
     board->from_castle_coords[white][queen_side] = a1;
 
-    board->castle_pieces[black][king_side] = board->pieces[black][CASTLE_2(black)];
+    board->castle_pieces[black][king_side] = board->pieces[black][CASTLE_1(black)];
     board->castling_coordinates[black][king_side] = g8;
     board->to_castle_coords[black][king_side] = f8;
     board->from_castle_coords[black][king_side] = h8;
 
-    board->castle_pieces[black][queen_side] = board->pieces[black][CASTLE_1(black)];
+    board->castle_pieces[black][queen_side] = board->pieces[black][CASTLE_2(black)];
     board->castling_coordinates[black][queen_side] = c8;
     board->to_castle_coords[black][queen_side] = d8;
     board->from_castle_coords[black][queen_side] = a8;
@@ -1032,6 +1032,12 @@ Board* set_board_notation(char* s) {
         inner += 1;
     }
     set_board(board);
+    if (board->pieces[white][KING_INDEX(white)]->cell != e1) {
+        board->pieces[white][KING_INDEX(white)]->no_moves += 1;
+    }
+    if (board->pieces[black][KING_INDEX(black)]->cell != e8) {
+        board->pieces[black][KING_INDEX(black)]->no_moves += 1;
+    }
     return board;
 }
 
@@ -1148,27 +1154,6 @@ U64 get_king_mask(Board* board, Piece* piece) {
         set_bit(mask, board->castling_coordinates[piece->c][queen_side]);
     }
 
-
-    // Piece* castle1 = board->pieces[piece->c][CASTLE_1(piece->c)];
-    // Piece* castle2 = board->pieces[piece->c][CASTLE_2(piece->c)];
-
-    // if (piece->no_moves == 0 && castle1->no_moves == 0 && castle1->alive) {
-    //     if (piece->c == black && get_bit(board->bitboard, d8) == 0 && get_bit(board->bitboard, c8) == 0 && get_bit(board->bitboard, b8) == 0) {
-    //         set_bit(mask, c8);
-    //     }
-    //     if (piece->c == white && get_bit(board->bitboard, d1) == 0 && get_bit(board->bitboard, c1) == 0 && get_bit(board->bitboard, b1) == 0) {
-    //         set_bit(mask, c1);
-    //     }
-    // }
-    // if (piece->no_moves == 0 && castle2->no_moves == 0 && castle2->alive) {
-    //     if (piece->c == black && get_bit(board->bitboard, f8) == 0 && get_bit(board->bitboard, g8) == 0) {
-    //         set_bit(mask, g8);
-    //     }
-    //     if (piece->c == white && get_bit(board->bitboard, f1) == 0 && get_bit(board->bitboard, g1) == 0) {
-    //         set_bit(mask, g1);
-    //     }
-    // }
-
     return mask;
 }
 
@@ -1199,10 +1184,10 @@ U64 get_pawn_attack_mask(Board* board, Piece* piece) {
         if (cell % 8 < 7 && get_bit(board->bitboard, (cell + 9))) attack_mask |= (1ULL << (cell + 9)); // right
 
         // en passant
-        if (cell % 8 > 0 && board->map[cell-1] && board->map[cell-1]->type == pawn && board->map[cell-1]->c == white && last_move->piece == board->map[cell-1] && last_move->from / 8 == 6 && board->map[cell-1]->alive) {
+        if (cell % 8 > 0 && board->map[cell-1] && board->map[cell-1]->type == pawn && board->map[cell-1]->c == white && last_move && last_move->piece == board->map[cell-1] && last_move->from / 8 == 6 && board->map[cell-1]->alive) {
             attack_mask |= (1ULL << (cell + 7)); // left
         }
-        if (cell % 8 < 7 && board->map[cell+1] && board->map[cell+1]->type == pawn && board->map[cell+1]->c == white && last_move->piece == board->map[cell+1] && last_move->from / 8 == 6 && board->map[cell+1]->alive) {
+        if (cell % 8 < 7 && board->map[cell+1] && board->map[cell+1]->type == pawn && board->map[cell+1]->c == white && last_move && last_move->piece == board->map[cell+1] && last_move->from / 8 == 6 && board->map[cell+1]->alive) {
             attack_mask |= (1ULL << (cell + 9)); // right
         }
     }
@@ -1295,12 +1280,51 @@ void print_pieces(Board* board) {
 void print_piece(Piece* piece) {
     if (piece) {
         char string[3] = {'\0'};
+        char col[10] = {'\0'};
+        char type[10] = {'\0'};
+        piece_to_string(piece->type, type);
         square_to_string(piece->cell, string);
-        printf("Colour: %i, Type: %i, Alive: %i, square: %s, moved: %i\n", piece->c, piece->type, piece->alive, string, piece->no_moves);
+        colour_to_string(piece->c, col);
+        printf("Colour: %s, Type: %s, Alive: %i, square: %s, moved: %i\n", col, type, piece->alive, string, piece->no_moves);
     }
     else {
         printf("EMPTY\n");
     }
+}
+
+void append_piece_to_string(Piece* piece, char* string) {
+    if (!piece) {
+        return;
+    }
+    char square[3] = {'\0'};
+    char col[10] = {'\0'};
+    char type[10] = {'\0'};
+    piece_to_string(piece->type, type);
+    square_to_string(piece->cell, square);
+    colour_to_string(piece->c, col);
+
+    char whole[100] = {'\0'};
+    strcat(whole, "Colour: ");
+    strcat(whole, col);
+    strcat(whole, ", Type: ");
+    strcat(whole, type);
+    strcat(whole, ", Alive: ");
+    if (piece->alive) {
+        strcat(whole, "true");
+    }
+    else {
+        strcat(whole, "false");
+    }
+    strcat(whole, ", Square: ");
+    strcat(whole, square);
+
+    char moves[6] = {'\0'};
+    sprintf(moves, "%i", piece->no_moves);
+    strcat(whole, ", # Moves: ");
+    strcat(whole, moves);
+    strcat(whole, "\n");
+    strcat(string, whole);
+    // printf("Colour: %s, Type: %s, Alive: %i, square: %s, moved: %i\n", col, type, piece->alive, square, piece->no_moves);
 }
 
 void print_moves(Moves* moves) {
@@ -1488,80 +1512,191 @@ void clear_board(Board* board) {
 }
 
 Board* copy_board(Board* board) {
-    Board* copy = init_board();
+    Board* copy = calloc(1, sizeof(Board));
     copy->bitboard = board->bitboard;
+    copy->hash_value = board->hash_value;
+    copy->lm_length = board->lm_length;
+    copy->last_moved[copy->lm_length == 0 ? 0 : copy->lm_length - 1] = board->last_moved[board->lm_length == 0 ? 0 : board->lm_length - 1];
     for (int i = 0; i < 2; i++){
         for (int j = 0; j < 16; j++) {
             // printf("i: %i, j: %i, alive: %i\n", i, j, board->pieces[i][j]->alive);
+            Piece* piece = calloc(1, sizeof(Piece));
+            copy->pieces[i][j] = piece;
             copy->pieces[i][j]->alive = board->pieces[i][j]->alive;
             copy->pieces[i][j]->cell = board->pieces[i][j]->cell;
             copy->pieces[i][j]->type = board->pieces[i][j]->type;
             copy->pieces[i][j]->c = board->pieces[i][j]->c;
             copy->pieces[i][j]->value = board->pieces[i][j]->value;
-               
+            copy->pieces[i][j]->no_moves = board->pieces[i][j]->no_moves;
+            copy->pieces[i][j]->move_func = board->pieces[i][j]->move_func;
         }
     }
     for (int i = 0; i < 64; i++) {
         copy->map[i] = NULL;
         if (board->map[i]) {
-            int id = board->map[i]->id;
-            copy->map[i] = copy->pieces[1-(id / 16)][id % 16];
+            copy->map[i] = copy->pieces[invert_colour(board->map[i]->id / 16)][board->map[i]->id % 16];
         }
+        
     }
     return copy;
 }
 
-bool compare_boards(Board* board1, Board* board2) {
+bool compare_boards(Board* board1, Board* board2, char* location) {
+    bool same = true;
+    char msg[10000] = {'\0'};
     if (board1->bitboard != board2->bitboard) {
-        return false;
+        strcat(msg, "DIFFERENCE DETECTED: bitboards\n");
+        same = false;
+    }
+    if (board1->hash_value != board2->hash_value) {
+        strcat(msg, "DIFFERENCE DETECTED: hash_value\n");
+        same = false;
+    }
+    if (board1->lm_length != board2->lm_length) {
+        strcat(msg, "DIFFERENCE DETECTED: lm_length\n");
+        same = false;
+    }
+    if (board1->last_moved[board1->lm_length == 0 ? 0 : board1->lm_length - 1] != board2->last_moved[board2->lm_length == 0 ? 0 : board2->lm_length - 1]) {
+        strcat(msg, "DIFFERENCE DETECTED: last_moved\n");
+        same = false;
     }
     for (int i = 0; i < 2; i++){
         for (int j = 0; j < 16; j++) {
+            bool piece_same = true;
             if (board1->pieces[i][j]->alive != board2->pieces[i][j]->alive) {
-                assert(false);
+                strcat(msg, "DIFFERENCE DETECTED PIECES: piece->alive\n");
+                piece_same = false;
             }
             if (board1->pieces[i][j]->cell != board2->pieces[i][j]->cell) {
-                assert(false);
+                strcat(msg, "DIFFERENCE DETECTED PIECES: piece->cell\n");
+                piece_same = false;
             }
             if (board1->pieces[i][j]->type != board2->pieces[i][j]->type) {
-                assert(false);
+                strcat(msg, "DIFFERENCE DETECTED PIECES: piece->type\n");
+                piece_same = false;
             }
             if (board1->pieces[i][j]->c != board2->pieces[i][j]->c) {
-                assert(false);
+                strcat(msg, "DIFFERENCE DETECTED PIECES: piece->c\n");
+                piece_same = false;
             }
             if (board1->pieces[i][j]->value != board2->pieces[i][j]->value) {
-                assert(false);
+                strcat(msg, "DIFFERENCE DETECTED PIECES: piece->value\n");
+                piece_same = false;
+            }
+            if (board1->pieces[i][j]->no_moves != board2->pieces[i][j]->no_moves) {
+                strcat(msg, "DIFFERENCE DETECTED PIECES: piece->no_moves\n");
+                piece_same = false;
+            }
+            if (board1->pieces[i][j]->move_func != board2->pieces[i][j]->move_func) {
+                strcat(msg, "DIFFERENCE DETECTED PIECES: piece->move_func\n");
+                piece_same = false;
+            }
+            if (!piece_same) {
+                append_piece_to_string(board1->pieces[i][j], msg);
+                append_piece_to_string(board2->pieces[i][j], msg);
+                same = false;
             }
         }
     }
     for (int i = 0; i < 64; i++) {
-        if (board1->map[i] && board2->map[i]) {
+        bool map_same = true;
+        if ((board1->map[i] && !board2->map[i]) || (!board1->map[i] && board2->map[i])) {
+            strcat(msg, "DIFFERENCE DETECTED MAP: null vs non-null value\n");
+            same = false;
+            map_same = false;
+        }
+        else if (board1->map[i] && board2->map[i]) {
+            bool piece_same = true;
             if (board1->map[i]->alive != board2->map[i]->alive) {
-                char string[3] = {'\0'};
-                square_to_string(i, string);
-                printf("square: %s, board alive: %i, copied board alive: %i\n", string, board1->map[i]->alive, board2->map[i]->alive);
-                assert(false);
+                strcat(msg, "DIFFERENCE DETECTED MAP: piece->move_func\n");
+                piece_same = false;
             }
             if (board1->map[i]->cell != board2->map[i]->cell) {
-                assert(false);
+                strcat(msg, "DIFFERENCE DETECTED MAP: piece->cell\n");
+                piece_same = false;
             }
             if (board1->map[i]->type != board2->map[i]->type) {
-                assert(false);
+                strcat(msg, "DIFFERENCE DETECTED MAP: piece->type\n");
+                piece_same = false;
             }
             if (board1->map[i]->c != board2->map[i]->c) {
-                assert(false);
+                strcat(msg, "DIFFERENCE DETECTED MAP: piece->c\n");
+                piece_same = false;
             }
             if (board1->map[i]->value != board2->map[i]->value) {
-                assert(false);
+                strcat(msg, "DIFFERENCE DETECTED MAP: piece->value\n");
+                piece_same = false;
+            }
+            if (board1->map[i]->no_moves != board2->map[i]->no_moves) {
+                strcat(msg, "DIFFERENCE DETECTED MAP: piece->no_moves\n");
+                piece_same = false;
+            }
+            if (board1->map[i]->move_func != board2->map[i]->move_func) {
+                strcat(msg, "DIFFERENCE DETECTED MAP: piece->move_func\n");
+                piece_same = false;
+            }
+            if (!piece_same) {
+                append_piece_to_string(board1->map[i], msg);
+                append_piece_to_string(board2->map[i], msg);
+                same = false;
+                map_same = false;
             }
         }
-        if (board1->map[i] == NULL && board2->map[i] != NULL) {
-            assert(false);
-        }
-        if (board2->map[i] == NULL && board1->map[i] != NULL) {
-            assert(false);
+        if (!map_same) {
+            char sq[3] = {'\0'};
+            square_to_string(i, sq);
+            strcat(msg, "DIFFERENCE DETECTED MAP: at square ");
+            strcat(msg, sq);
+            strcat(msg, "\n");
+            same = false;
         }
     }
-    return true;
+    if (!same) {
+        printf("FAILURE AT %s\n%s\n", location, msg);
+        printf("BOARD 1:\n");
+        print_board_pro(board1);
+        printf("BOARD 2:\n");
+        print_board_pro(board2);
+    }
+    return same;
+}
+
+void free_piece(Piece* piece) {
+    free(piece);
+}
+
+void free_move(Move* move) {
+    free_piece(move->piece);
+    free(move);
+}
+
+void free_copy_board(Board* board) {
+    for (int i = 0; i < MAX_COLOUR; i++) {
+        for (int j = 0; j < CELLS; j++) {
+            if (board->pieces[i][j]) {
+                free_piece(board->pieces[i][j]);
+            }
+        }
+    }
+
+    // DO NOT free moves -> they are not deep copied to the board copy
+
+    free(board);
+}
+
+void free_board(Board* board) {
+    for (int i = 0; i < MAX_COLOUR; i++) {
+        for (int j = 0; j < CELLS; j++) {
+            if (board->pieces[i][j]) {
+                free_piece(board->pieces[i][j]);
+            }
+        }
+    }
+    // all pieces in the Move* last_moved list will already be freed.
+    // Therefore, just free the Move and not the contained Piece.
+    for (int i = 0; i < board->lm_length; i++) {
+        free(board->last_moved[i]);
+    }
+    free(board);
 }
 

@@ -10,22 +10,37 @@ void output_results() {
 }
 
 
-// void test_evaluation_branching(int breadth) {
-//     test_forcing_moves(breadth);
-//     test_forcing_moves_1(breadth);
-//     test_forcing_moves_2(breadth);
-//     test_forcing_moves_3(breadth);
-//     test_puzzle_fork(breadth);
-//     test_puzzle_win_queen(breadth);
-//     test_17_june_2024(breadth);
-//     test_16_june_2024_partial(breadth);
-//     test_16_june_2024(breadth);
-//     test_15_june_2024(breadth);
-//     test_detect_mate_1(breadth);
-//     test_detect_mate_2(breadth);
-//     test_mate_in_four(breadth);
-//     test_mate_in_four_2(breadth);
-// }
+void test_evaluation_branching() {
+    test_moves();
+    printf("test_forcing_moves\n");
+    test_forcing_moves();
+    printf("test_forcing_moves_1\n");
+    test_forcing_moves_1();
+    printf("test_forcing_moves_2\n");
+    test_forcing_moves_2();
+    printf("test_forcing_moves_3\n");
+    test_forcing_moves_3();
+    printf("test_puzzle_fork\n");
+    test_puzzle_fork();
+    printf("test_puzzle_win_queen\n");
+    test_puzzle_win_queen();
+    printf("test_17_june_2024\n");
+    test_17_june_2024();
+    printf("test_16_june_2024_partial\n");
+    test_16_june_2024_partial();
+    printf("test_16_june_2024\n");
+    test_16_june_2024();
+    printf("test_15_june_2024\n");
+    test_15_june_2024();
+    printf("test_detect_mate_1\n");
+    test_detect_mate_1();
+    printf("test_detect_mate_2\n");
+    test_detect_mate_2();
+    printf("test_mate_in_four\n");
+    test_mate_in_four();
+    printf("test_mate_in_four_2\n");
+    test_mate_in_four_2();
+}
 
 
 void test_forcing_moves_1() {
@@ -118,7 +133,8 @@ void test_puzzle_fork() {
 
 void test_puzzle_win_queen() {
     Board* board = set_board_notation("wkg1 wqg3 wba4 wbc1 whb1 whd5 wph2 wpg2 wpd2 wpc3 wpb2 wpa2 wca1 bkd8 bqh4 bcf8 bca8 bhc6 bhg4 bph7 bpg7 bpe4 bpd6 bpc7 bpb7 bpa6 ");
-    // print_board_pro(board);
+    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
+    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(6, 4, black);
 
@@ -226,13 +242,12 @@ void test_18_june_2024() {
 
 void test_17_june_2024() {
     Board* board = set_board_notation("wpa3 wpb4 wpc3 wpg4 whd4 wbe2 wch8 wkg2 bkc8 bce8 bhe6 bhc7 bpa7 bpb6 bpc6 bpf6 bpg5 ");
-    // print_board_pro(board);
+    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
+    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(8, 4, white);
     Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
     assert(test_board == board->bitboard);
-
-    // print_scores(scores);
 
     assert(scores->moves->moves[0]->from == h8);
     assert(scores->moves->moves[0]->destination == e8);
@@ -252,7 +267,6 @@ void test_17_june_2024() {
 
 void test_16_june_2024() {
     Board* board = set_board_notation("wpb5 wpb2 wpc2 wpf2 wph2 wkc1 wqc3 whd3 wbg3 wcg1 bpa4 bpe6 bpf7 bpg7 bph7 bkg8 bqd5 bbe4 bca8 bcf8 ");
-    // print_board_pro(board);
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(9, 6, white);
@@ -320,7 +334,6 @@ void test_16_june_2024() {
 
 void test_16_june_2024_partial() {
     Board* board = set_board_notation("wpb5 wpb2 wpc2 wpf2 wph2 wkc1 whf4 wbg7 wcg1 bpa4 bpe6 bpf7 bph7 bkh4 bqd5 bbe4 bca8 bcf8 ");
-    // print_board_pro(board);
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(9, 3, white);
@@ -2501,9 +2514,9 @@ void test_castling_2() {
     board->map[e1] = board->pieces[white][KING_INDEX(white)];
     set_bit(board->bitboard, e1);
 
-    board->pieces[white][CASTLE_1(white)]->alive = true;
-    board->pieces[white][CASTLE_1(white)]->cell = a1;
-    board->map[a1] = board->pieces[white][CASTLE_1(white)];
+    board->castle_pieces[white][queen_side]->alive = true;
+    board->castle_pieces[white][queen_side]->cell = a1;
+    board->map[a1] = board->castle_pieces[white][queen_side];
     set_bit(board->bitboard, a1);
 
     board->pieces[black][PAWN_INDEX(black, 1)]->alive = true;
@@ -2521,9 +2534,9 @@ void test_castling_2() {
 
 
 
-    board->pieces[black][CASTLE_1(black)]->alive = true;
-    board->pieces[black][CASTLE_1(black)]->cell = c8;
-    board->map[c8] = board->pieces[black][CASTLE_1(black)];
+    board->castle_pieces[black][queen_side]->alive = true;
+    board->castle_pieces[black][queen_side]->cell = c8;
+    board->map[c8] = board->castle_pieces[black][queen_side];
     set_bit(board->bitboard, c8);
 
     test_board = board->bitboard;
@@ -2535,8 +2548,8 @@ void test_castling_2() {
         }
     }
 
-    board->pieces[black][CASTLE_1(black)]->cell = d8;
-    board->map[d8] = board->pieces[black][CASTLE_1(black)];
+    board->castle_pieces[black][queen_side]->cell = d8;
+    board->map[d8] = board->castle_pieces[black][queen_side];
     set_bit(board->bitboard, d8);
     pop_bit(board->bitboard, c8);
 
@@ -2552,8 +2565,8 @@ void test_castling_2() {
     }
 
 
-    board->pieces[black][CASTLE_1(black)]->cell = h1;
-    board->map[h1] = board->pieces[black][CASTLE_1(black)];
+    board->castle_pieces[black][queen_side]->cell = h1;
+    board->map[h1] = board->castle_pieces[black][queen_side];
     set_bit(board->bitboard, h1);
     pop_bit(board->bitboard, d8);
 
@@ -2568,7 +2581,7 @@ void test_castling_2() {
         }
     }
 
-    board->pieces[black][CASTLE_1(black)]->alive = false;
+    board->castle_pieces[black][queen_side]->alive = false;
     board->pieces[black][BISHOP_1(black)]->alive = true;
     board->pieces[black][BISHOP_1(black)]->cell = f4;
     board->map[f4] = board->pieces[black][BISHOP_1(black)];
@@ -2633,11 +2646,11 @@ void test_castling_4() {
     Board* board = set_board_notation("wke1 ");
     board->castle_pieces[white][queen_side]->alive = true;
     board->castle_pieces[white][queen_side]->cell = a1;
-    board->map[a1] = board->castle_pieces[black][queen_side];
+    board->map[a1] = board->castle_pieces[white][queen_side];
     set_bit(board->bitboard, a1);
     board->castle_pieces[white][king_side]->alive = true;
     board->castle_pieces[white][king_side]->cell = h1;
-    board->map[h1] = board->castle_pieces[black][king_side];
+    board->map[h1] = board->castle_pieces[white][king_side];
     set_bit(board->bitboard, h1);
 
     Moves* moves = get_all_moves_for_colour(board, white);
@@ -3158,45 +3171,85 @@ void test_promotion_1() {
 }
 
 void test_moves() {
+    printf("test_pawn_attacks\n");
     test_pawn_attacks();
+    printf("test_pawn_moves\n");
     test_pawn_moves();
+    printf("test_knight_moves\n");
     test_knight_moves();
+    printf("test_king_moves\n");
     test_king_moves();
+    printf("test_castle_moves\n");
     test_castle_moves();
+    printf("test_bishop_moves\n");
     test_bishop_moves();
+    printf("test_queen_moves\n");
     test_queen_moves();
+    printf("test_pawn_en_passant_1\n");
     test_pawn_en_passant_1();
+    printf("test_pawn_en_passant_2\n");
     test_pawn_en_passant_2();
+    printf("test_pawn_en_passant_3\n");
     test_pawn_en_passant_3();
+    printf("test_pawn_en_passant_4\n");
     test_pawn_en_passant_4();
+    printf("test_pawn_en_passant_5\n");
     test_pawn_en_passant_5();
+    printf("test_pawn_en_passant_6\n");
     test_pawn_en_passant_6();
+    printf("test_pawn_en_passant_7\n");
     test_pawn_en_passant_7();
+    printf("test_pawn_en_passant_8\n");
     test_pawn_en_passant_8();
+    printf("test_pawn_en_passant_9\n");
     test_pawn_en_passant_9();
+    printf("test_pawn_en_passant_10\n");
     test_pawn_en_passant_10();
+    printf("test_pawn_en_passant_legality_1\n");
     test_pawn_en_passant_legality_1();
+    printf("test_pawn_en_passant_legality_2\n");
     test_pawn_en_passant_legality_2();
+    printf("test_pawn_en_passant_legality_3\n");
     test_pawn_en_passant_legality_3();
+    printf("test_pawn_en_passant_legality_4\n");
     test_pawn_en_passant_legality_4();
+    printf("test_pawn_en_passant_legality_5\n");
     test_pawn_en_passant_legality_5();
+    printf("test_castling_execution_white_short\n");
     test_castling_execution_white_short();
+    printf("test_castling_execution_white_long\n");
     test_castling_execution_white_long();
+    printf("test_castling_execution_black_short\n");
     test_castling_execution_black_short();
+    printf("test_castling_execution_black_long\n");
     test_castling_execution_black_long();
+    printf("test_castling_1\n");
     test_castling_1();
+    printf("test_castling_2\n");
     test_castling_2();
+    printf("test_castling_3\n");
     test_castling_3();
+    printf("test_castling_4\n");
     test_castling_4();
+    printf("test_castling_5\n");
     test_castling_5();
+    printf("test_castling_6\n");
     test_castling_6();
+    printf("test_castling_7\n");
     test_castling_7();
+    printf("test_castling_8\n");
     test_castling_8();
+    printf("test_castling_9\n");
     test_castling_9();
+    printf("test_castling_10\n");
     test_castling_10();
+    printf("test_castling_11\n");
     test_castling_11();
+    printf("test_castling_12\n");
     test_castling_12();
+    printf("test_castling_13\n");
     test_castling_13();
+    printf("test_promotion_1\n");
     test_promotion_1();
 }
 
@@ -3928,9 +3981,13 @@ void test_mate_in_four_2() {
 }
 
 void test_mate_detection() {
+    printf("test_detect_mate_1\n");
     test_detect_mate_1();
+    printf("test_detect_mate_2\n");
     test_detect_mate_2();
+    printf("test_mate_in_four\n");
     test_mate_in_four();
+    printf("test_mate_in_four_2\n");
     test_mate_in_four_2();
 }
 
@@ -4255,7 +4312,18 @@ void test_moves_board_setup_2() {
 
 
 
+void test_copy() {
+    Board* board = set_board_notation("wke1, wpf4, bph8, bbb2 ");
+    Board* copy = copy_board(board);
+    assert(compare_boards(board, copy, "should_NOT_fail_test_copy"));
+
+    copy->map[e1]->no_moves += 1;
+    assert(!compare_boards(board, copy, "SHOULD_FAIL_test_copy"));
+}
+
+
 void test() {
+    test_copy();
     test_moves();
     test_legality();
     test_move_selection();

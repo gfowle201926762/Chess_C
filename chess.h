@@ -6,6 +6,7 @@
 #include <wchar.h>
 #include <locale.h>
 #include <unistd.h>
+#include <string.h>
 
 #define CELLS 64
 #define MAX_COLOUR 2
@@ -49,8 +50,8 @@ int BLACK_PAWNS = 8;
 #define invert_colour(c) (1 - c)
 #define invert_castle_side(s) (1 - s)
 #define KING_INDEX(c) (c == black ? 4 : 12)
-#define CASTLE_1(c) (c == black ? 0 : 8)
-#define CASTLE_2(c) (c == black ? 7 : 15)
+#define CASTLE_2(c) (c == black ? 0 : 8)
+#define CASTLE_1(c) (c == black ? 7 : 15)
 #define KNIGHT_1(c) (c == black ? 1 : 9)
 #define KNIGHT_2(c) (c == black ? 6 : 14)
 #define BISHOP_1(c) (c == black ? 2 : 10)
@@ -274,7 +275,7 @@ void test_move_logic();
 void test_move_logic_mate_in_four();
 void test_moves_board_setup_1();
 void test_moves_board_setup_2();
-bool compare_boards(Board* board1, Board* board2);
+bool compare_boards(Board* board1, Board* board2, char* location);
 Board* copy_board(Board* board);
 Board* board_setup_m4_2();
 void test_mate_detection();
@@ -292,6 +293,11 @@ void test_forcing_moves_1();
 void test_forcing_moves_2();
 void test_forcing_moves_3();
 void assert_evals_match_best_eval(Tracer* tracer);
+void test_17_june_2024();
+void test_16_june_2024_partial();
+void test_16_june_2024();
+void test_15_june_2024();
+void test_evaluation_branching();
 
 // Initialisation
 Board* init_board(void);
@@ -349,3 +355,4 @@ Grapher* init_grapher(int breadth, int depth, colour start_player);
 
 void play_game();
 void initialise();
+void free_copy_board(Board* board);
