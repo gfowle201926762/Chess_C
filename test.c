@@ -4106,6 +4106,7 @@ Board* board_setup_m4_2() {
     board->pieces[white][KING_INDEX(white)]->alive = true;
     board->pieces[white][KING_INDEX(white)]->cell = g1;
     board->map[g1] = board->pieces[white][KING_INDEX(white)];
+    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
 
     board->pieces[white][CASTLE_1(white)]->alive = true;
     board->pieces[white][CASTLE_1(white)]->cell = e1;

@@ -2,8 +2,9 @@
 
 int main(void) {
     initialise();
-    test_evaluation_branching();
-    // test_16_june_2024_partial();
+    // test_evaluation_branching();
+    test();
+    test_mate_in_four_2();
 
     return 0;
 }
