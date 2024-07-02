@@ -2,9 +2,9 @@
 
 int main(void) {
     initialise();
-    // test_evaluation_branching();
-    test();
-    test_mate_in_four_2();
+
+    test_15_june_2024_partial();
+    // test();
 
     return 0;
 }
@@ -223,12 +223,12 @@ Scores* init_scores(GraphNode* node, int depth) {
 Moves* get_best_moves(Board* board, Moves* moves, colour mover, int max_breadth) {
     for (int i = 0; i < moves->length; i++) {
         Move* move = moves->moves[i];
-        Board* copy = copy_board(board);
+        // Board* copy = copy_board(board);
         Piece* killed = pretend_move(board, move);
         move->evaluation = evaluate_position(board, mover);
         undo_pretend_move(board, move, killed);
-        assert(compare_boards(board, copy, "get_best_moves"));
-        free_copy_board(copy);
+        // assert(compare_boards(board, copy, "get_best_moves"));
+        // free_copy_board(copy);
     }
 
     return get_best_scores(moves, max_breadth);
@@ -272,28 +272,30 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
 
     for (int i = 0; i < best_moves->length; i++) {
         Move* move = best_moves->moves[i];
-
-        Board* copy = copy_board(board);
-
-        // if (move->destination == h8 && move->from == e8 && move->piece->type == castle) {
-            // printf("depth: %i\n", grapher->depth);
-            // print_board_pro(board);
-        // }
+        // Board* copy = copy_board(board);
         
         Piece* killed = pretend_move(board, move);
         hash_and_save(board, move, killed);
         update_graph(parent, move);
 
-        grapher->depth -= 1;
-        Scores* scores = create_graph(grapher, parent->children[parent->i-1], board, invert_colour(mover), limit);
-        grapher->depth += 1;
-
+        Scores* scores;
+        if (!draw_by_repetition(board)) {
+            
+            grapher->depth -= 1;
+            scores = create_graph(grapher, parent->children[parent->i-1], board, invert_colour(mover), limit);
+            grapher->depth += 1;
+        }
+        else {
+            parent->children[parent->i-1]->move->evaluation = 0;
+            scores = init_scores(parent->children[parent->i-1], reverse_depth(grapher));
+        }
         // REVERSE
         undo_hash(board, move, killed);
         undo_pretend_move(board, move, killed);
+    
 
-        assert(compare_boards(board, copy, "create_graph"));
-        free_copy_board(copy);
+        // assert(compare_boards(board, copy, "create_graph"));
+        // free_copy_board(copy);
 
         if ((original_mover && scores->eval > limit) || (!original_mover && scores->eval < limit)) {
             limit = scores->eval;
@@ -437,6 +439,28 @@ Moves* get_all_moves_for_colour(Board* board, colour c) {
 /* ------- LEGAL MOVE LOGIC ------- */
 /* -------------------------------- */
 
+// have a hashtable instead of looking through a list.
+
+// bool draw_by_repetition(Board* board) {
+//     if (get(board->last_positions, board->hash_value)->repetition == DRAW_REPITIONS) {
+//         return true;
+//     }
+//     return false;
+// }
+
+bool draw_by_repetition(Board* board) {
+    int count = 0;
+    for (int i = 0; i < board->lm_length; i++) {
+        if (board->last_positions[i] == board->hash_repeats) {
+            count += 1;
+            if (count == DRAW_REPITIONS) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 bool is_castle_legal(Board* board, Piece* piece, castle_type type) {
     if (piece->no_moves > 0 || board->castle_pieces[piece->c][type]->no_moves > 0) {
         return false;
@@ -475,7 +499,6 @@ bool is_castle_legal(Board* board, Piece* piece, castle_type type) {
     move_single_piece(board, board->castle_pieces[piece->c][type], castle_original, none);
     return allowed;
 }
-
 
 Piece* move_single_piece(Board* board, Piece* piece, square to, name promotion) {
     // Literally just move a single piece from A to B.
@@ -608,7 +631,7 @@ bool is_check(Board* board, colour c) {
 
 bool is_move_legal(Board* board, Piece* piece, square to) {
 
-    Board* copy = copy_board(board);
+    // Board* copy = copy_board(board);
 
     square from = piece->cell;
     Piece* killed = move_single_piece_with_en_passant(board, piece, to, none);
@@ -625,8 +648,8 @@ bool is_move_legal(Board* board, Piece* piece, square to) {
         set_bit(board->bitboard, killed->cell);
         board->map[killed->cell] = killed;
     }
-    assert(compare_boards(board, copy, "is_move_legal"));
-    free_copy_board(copy);
+    // assert(compare_boards(board, copy, "is_move_legal"));
+    // free_copy_board(copy);
     return legal;
 }
 
@@ -684,8 +707,12 @@ int (*get_index_func(name n))(colour c, int i) {
 // Not so easy to implement with history dependent information...
 // Or perhaps even easier than you thought?
 
-Transposition* get(HashTable* hashtable, U64 hash_value) {
-    return hashtable->transpositions[hash_value % HASH_TABLE_SIZE];
+// Transposition* get(HashTable* hashtable, U64 hash_value) {
+//     return hashtable->transpositions[hash_value % HASH_TABLE_SIZE];
+// }
+
+Transposition* get(Transposition* transpositions[HASH_TABLE_SIZE], U64 hash_value) {
+    return transpositions[hash_value % HASH_TABLE_SIZE];
 }
 
 void put(HashTable* hashtable, U64 hash_value, int eval, int depth) {
@@ -703,25 +730,46 @@ void put(HashTable* hashtable, U64 hash_value, int eval, int depth) {
     hashtable->transpositions[index]->depth = depth;
 }
 
+// pretend move -> update board hash value -> 
+
+// void put_last_positions(Board* board) {
+//     int index = board->hash_value % HASH_TABLE_SIZE;
+//     if (board->last_positions[index] && board->last_positions[index]->hash_value == board->hash_value) {
+//         // repetition found
+//         board->last_positions[index]->repetition += 1;
+//         return;
+//     }
+//     if (board->last_positions[index]) {
+//         // clashing index, no repetitions
+//         fprintf(stderr, "CLASHING LAST POSITION\n");
+//         return;
+//     }
+//     board->last_positions[index]
+// }
+
 void hash_and_save(Board* board, Move* move, Piece* killed) {
     hash_move_piece(board, move, killed);
     // lm_length already been incremented in add last moved in pretend move.
-    board->last_positions[board->lm_length - 1] = board->hash_value;
+    board->last_positions[board->lm_length - 1] = board->hash_repeats;
 }
 
 void undo_hash(Board* board, Move* move, Piece* killed) {
     hash_move_piece(board, move, killed);
 }
 
+// need two of these functions -> draw by repetition doesn't care about castling rights (ask chess.com)
 void hash_move_piece(Board* board, Move* move, Piece* killed) {
     // hashing moving piece out
     board->hash_value ^= board->keys_position[move->piece->c][move->promotion == none ? move->piece->type : pawn][move->from];
+    board->hash_repeats ^= board->keys_position[move->piece->c][move->promotion == none ? move->piece->type : pawn][move->from];
     if (killed) {
         // hashing killed piece out. Must be killed->cell, not move->destination, because of en passant.
         board->hash_value ^= board->keys_position[killed->c][killed->type][killed->cell];
+        board->hash_repeats ^= board->keys_position[killed->c][killed->type][killed->cell];
     }
     // hashing moving piece in
     board->hash_value ^= board->keys_position[move->piece->c][move->promotion == none ? move->piece->type : move->promotion][move->destination];
+    board->hash_repeats ^= board->keys_position[move->piece->c][move->promotion == none ? move->piece->type : move->promotion][move->destination];
 
     // hashing in position of last move destination if pawn and moved 2 squares (for en passant)
     if (move->piece->type == pawn && (int)move->from - move->destination == 16) {
@@ -779,6 +827,7 @@ void init_hash_value(Board* board) {
             board->hash_value ^= board->keys_position[board->map[i]->c][board->map[i]->type][i];
         }
     }
+    board->hash_repeats = board->hash_value;
 }
 
 Board* init_board(void) {
@@ -928,14 +977,6 @@ Grapher* init_grapher(int breadth, int depth, colour start_player) {
     return grapher;
 }
 
-Tracer* init_tracer(colour mover) {
-    Tracer* tracer = calloc(1, sizeof(Tracer));
-    Moves* best = calloc(1, sizeof(Moves));
-    tracer->best = best;
-    tracer->original_mover = mover;
-    tracer->mover = mover;
-    return tracer;
-}
 
 void set_board(Board* board) {
     for (int i = 0; i < 32; i++) {
@@ -1478,10 +1519,6 @@ void piece_to_string(name n, char* string) {
     }
 }
 
-void print_tracer(Tracer* tracer) {
-    printf("EVALUATION: %i\n", tracer->best_eval);
-    print_moves(tracer->best);
-}
 
 void print_scores(Scores* scores) {
     printf("EVALUATION: %i\n", scores->eval);

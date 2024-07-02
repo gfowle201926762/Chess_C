@@ -9,37 +9,37 @@ void output_results() {
 
 }
 
+void test_wrapper(void (*test_func)(void), char* func_name) {
+    clock_t start, end;
+    double elapsed_time;
+
+    start = clock();
+    test_func();
+    end = clock();
+
+    printf("%f seconds: %s\n", ((double)(end - start) / CLOCKS_PER_SEC), func_name);
+}
+
 
 void test_evaluation_branching() {
-    test_moves();
-    printf("test_forcing_moves\n");
-    test_forcing_moves();
-    printf("test_forcing_moves_1\n");
-    test_forcing_moves_1();
-    printf("test_forcing_moves_2\n");
-    test_forcing_moves_2();
-    printf("test_forcing_moves_3\n");
-    test_forcing_moves_3();
-    printf("test_puzzle_fork\n");
-    test_puzzle_fork();
-    printf("test_puzzle_win_queen\n");
-    test_puzzle_win_queen();
-    printf("test_17_june_2024\n");
-    test_17_june_2024();
-    printf("test_16_june_2024_partial\n");
-    test_16_june_2024_partial();
-    printf("test_16_june_2024\n");
-    test_16_june_2024();
-    printf("test_15_june_2024\n");
-    test_15_june_2024();
-    printf("test_detect_mate_1\n");
-    test_detect_mate_1();
-    printf("test_detect_mate_2\n");
-    test_detect_mate_2();
-    printf("test_mate_in_four\n");
-    test_mate_in_four();
-    printf("test_mate_in_four_2\n");
-    test_mate_in_four_2();
+
+    
+    test_wrapper(test_moves, "test_moves");
+    test_wrapper(test_forcing_moves, "test_forcing_moves");
+    test_wrapper(test_forcing_moves_1, "test_forcing_moves_1");
+    test_wrapper(test_forcing_moves_2, "test_forcing_moves_2");
+    test_wrapper(test_forcing_moves_3, "test_forcing_moves_3");
+    test_wrapper(test_puzzle_fork, "test_puzzle_fork");
+    test_wrapper(test_puzzle_win_queen, "test_puzzle_win_queen");
+    test_wrapper(test_17_june_2024, "test_17_june_2024");
+    test_wrapper(test_16_june_2024_partial, "test_16_june_2024_partial");
+    // test_wrapper(test_16_june_2024, "test_16_june_2024");
+    test_wrapper(test_15_june_2024, "test_15_june_2024");
+    test_wrapper(test_detect_mate_1, "test_detect_mate_1");
+    test_wrapper(test_detect_mate_2, "test_detect_mate_2");
+    test_wrapper(test_mate_in_four, "test_mate_in_four");
+    test_wrapper(test_mate_in_four_2, "test_mate_in_four_2");
+    test_wrapper(test_draw_by_repetition_best_line, "test_draw_by_repetition_best_line");
 }
 
 
@@ -360,17 +360,37 @@ void test_16_june_2024_partial() {
 }
 
 void test_15_june_2024() {
+    // free parking
     // Difficult for heuristic function to see this first move... (knight h7 to f8)
     Board* board = set_board_notation("wkc1 wpb2 wpc2 wpd4 wpf2 wpg5 wbd2 wbd3 whh7 wqh3 wch1 bpa3 bpa5 bpc6 bpe6 bpf7 bpg6 bhd5 bhd7 bcb8 bce8 bqd8 bkg8 bbe7 ");
+    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
+    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
     print_board_pro(board);
 
     U64 test_board = board->bitboard;
-    Grapher* grapher = init_grapher(5, 3, white);
+    Grapher* grapher = init_grapher(200, 4, white);
     Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
     assert(test_board == board->bitboard);
 
     print_scores(scores);
 }
+
+void test_15_june_2024_partial() {
+    // free parking
+    // Difficult for heuristic function to see this first move... (knight h7 to f8)
+    Board* board = set_board_notation("wkc1 wpb2 wpc2 wpd4 wpf2 wpg5 wbd2 wbd3 whf8 wqh3 wch1 bpa3 bpa5 bpc6 bpe6 bpf7 bpg6 bhd5 bhd7 bcb8 bce8 bqd8 bkg8 bbf6 ");
+    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
+    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
+    print_board_pro(board);
+
+    U64 test_board = board->bitboard;
+    Grapher* grapher = init_grapher(500, 4, white);
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    assert(test_board == board->bitboard);
+
+    print_scores(scores);
+}
+
 
 void test_14_june_2024() {
     Board* board = set_board_notation("wce1 wpa2 wpb3 wpf2 wpg2 wph3 wbb2 whd4 wkg1 bkc8 bqa5 bbg8 bpc7 bpf6 bpg7 bph6 ");
@@ -507,14 +527,14 @@ void test_puzzle_trap_bishop() {
     Board* board = set_board_notation("wkd2 wca1 wch1 whf3 whg3 wbd3 wpa2 wpb2 wpe4 wpf2 wpg2 wph4 bkg8 bcf8 bca8 bhb4 bhe7 bbg6 bpa6 bpb5 bpd4 bpf7 bpg7 bph7 ");
     board->pieces[white][KING_INDEX(white)]->no_moves += 1;
     board->pieces[black][KING_INDEX(black)]->no_moves += 1;
-    print_board_pro(board);
+    // print_board_pro(board);
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(200, 2, white);
     Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
     assert(test_board == board->bitboard);
 
-    print_scores(scores);
+    // print_scores(scores);
 
     assert(scores->moves->moves[0]->from == h4);
     assert(scores->moves->moves[0]->destination == h5);
@@ -542,6 +562,144 @@ void test_puzzle_win_knight_because_pawn_fork() {
 }
 
 
+
+void test_draw_by_repetition_1() {
+    Board* board = init_board();
+    assert(!draw_by_repetition(board));
+
+    U64 hash_original = board->hash_value;
+
+    // 1: white knight b1 -> a3
+    Moves* moves = get_all_moves_for_colour(board, white);
+    assert(moves->moves[16]->from == b1);
+    assert(moves->moves[16]->destination == a3);
+    Piece* killed = pretend_move(board, moves->moves[16]);
+    hash_and_save(board, moves->moves[16], killed);
+    assert(!draw_by_repetition(board));
+    assert(board->lm_length == 1);
+    assert(hash_original != board->hash_value);
+
+    // 1: black knight b8 -> a6
+    moves = get_all_moves_for_colour(board, black);
+    assert(moves->moves[0]->from == b8);
+    assert(moves->moves[0]->destination == a6);
+    killed = pretend_move(board, moves->moves[0]);
+    hash_and_save(board, moves->moves[0], killed);
+    assert(!draw_by_repetition(board));
+    assert(hash_original != board->hash_value);
+
+    // 1: white knight a3 -> b1
+    moves = get_all_moves_for_colour(board, white);
+    assert(moves->moves[17]->from == a3);
+    assert(moves->moves[17]->destination == b1);
+    killed = pretend_move(board, moves->moves[17]);
+    hash_and_save(board, moves->moves[17], killed);
+    assert(!draw_by_repetition(board));
+    assert(hash_original != board->hash_value);
+
+    // 1: black knight a6 -> b8
+    moves = get_all_moves_for_colour(board, black);
+    assert(moves->moves[1]->from == a6);
+    assert(moves->moves[1]->destination == b8);
+    killed = pretend_move(board, moves->moves[1]);
+    hash_and_save(board, moves->moves[1], killed);
+    assert(!draw_by_repetition(board));
+    assert(hash_original == board->hash_value);
+
+
+    // 2: white knight b1 -> a3
+    moves = get_all_moves_for_colour(board, white);
+    assert(moves->moves[16]->from == b1);
+    assert(moves->moves[16]->destination == a3);
+    killed = pretend_move(board, moves->moves[16]);
+    hash_and_save(board, moves->moves[16], killed);
+    assert(!draw_by_repetition(board));
+    assert(hash_original != board->hash_value);
+
+    // 2: black knight b8 -> a6
+    moves = get_all_moves_for_colour(board, black);
+    assert(moves->moves[0]->from == b8);
+    assert(moves->moves[0]->destination == a6);
+    killed = pretend_move(board, moves->moves[0]);
+    hash_and_save(board, moves->moves[0], killed);
+    assert(!draw_by_repetition(board));
+    assert(hash_original != board->hash_value);
+
+    // 2: white knight a3 -> b1
+    moves = get_all_moves_for_colour(board, white);
+    assert(moves->moves[17]->from == a3);
+    assert(moves->moves[17]->destination == b1);
+    killed = pretend_move(board, moves->moves[17]);
+    hash_and_save(board, moves->moves[17], killed);
+    assert(!draw_by_repetition(board));
+    assert(hash_original != board->hash_value);
+
+    // 2: black knight a6 -> b8
+    moves = get_all_moves_for_colour(board, black);
+    assert(moves->moves[1]->from == a6);
+    assert(moves->moves[1]->destination == b8);
+    killed = pretend_move(board, moves->moves[1]);
+    hash_and_save(board, moves->moves[1], killed);
+    assert(board->lm_length == 8);
+    assert(!draw_by_repetition(board));
+    assert(hash_original == board->hash_value);
+
+
+
+    // 3: white knight b1 -> a3
+    // should be on this move (if reptition starts from start)
+    moves = get_all_moves_for_colour(board, white);
+    assert(moves->moves[16]->from == b1);
+    assert(moves->moves[16]->destination == a3);
+    killed = pretend_move(board, moves->moves[16]);
+    hash_and_save(board, moves->moves[16], killed);
+    assert(draw_by_repetition(board));
+    assert(hash_original != board->hash_value);
+
+    // 3: black knight b8 -> a6
+    moves = get_all_moves_for_colour(board, black);
+    assert(moves->moves[0]->from == b8);
+    assert(moves->moves[0]->destination == a6);
+    killed = pretend_move(board, moves->moves[0]);
+    hash_and_save(board, moves->moves[0], killed);
+    assert(draw_by_repetition(board));
+    assert(hash_original != board->hash_value);
+
+    // 3: white knight a3 -> b1
+    moves = get_all_moves_for_colour(board, white);
+    assert(moves->moves[17]->from == a3);
+    assert(moves->moves[17]->destination == b1);
+    killed = pretend_move(board, moves->moves[17]);
+    hash_and_save(board, moves->moves[17], killed);
+    assert(draw_by_repetition(board));
+    assert(hash_original != board->hash_value);
+
+    // 3: black knight a6 -> b8
+    moves = get_all_moves_for_colour(board, black);
+    assert(moves->moves[1]->from == a6);
+    assert(moves->moves[1]->destination == b8);
+    killed = pretend_move(board, moves->moves[1]);
+    hash_and_save(board, moves->moves[1], killed);
+    assert(hash_original == board->hash_value);
+    assert(draw_by_repetition(board));
+
+}
+
+void test_draw_by_repetition_best_line() {
+    Board* board = set_board_notation("wka1 wqf2 bcb8 bcc7 bkh1 bpg2 bpd6 ");
+    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
+    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
+
+    // how the fuck can black not see mate with b=5?
+    Grapher* grapher = init_grapher(6, 5, white);
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+
+    assert(scores->eval == 0);
+    assert(scores->moves->length >= 6);
+    assert((scores->moves->moves[0]->destination == h4 || scores->moves->moves[0]->destination == e1) && scores->moves->moves[0]->piece->type == queen);
+    assert((scores->moves->moves[2]->destination == h4 || scores->moves->moves[2]->destination == e1) && scores->moves->moves[2]->piece->type == queen);
+    assert((scores->moves->moves[4]->destination == h4 || scores->moves->moves[4]->destination == e1) && scores->moves->moves[4]->piece->type == queen);
+}
 
 
 void test_hashing_1() {

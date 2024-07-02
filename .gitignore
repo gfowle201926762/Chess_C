@@ -1,5 +1,5 @@
 __pycache__/
 *.dSYM/
-
+.vscode/
 output.txt
 *.out

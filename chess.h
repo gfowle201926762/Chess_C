@@ -7,6 +7,7 @@
 #include <locale.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>
 
 #define CELLS 64
 #define MAX_COLOUR 2
@@ -22,6 +23,7 @@
 #define SAVED_SIZE 100
 #define MAX_BREADTH 10000
 #define MAX_BRANCH 10
+#define DRAW_REPITIONS 3
 
 #define KING_VALUE 1000
 #define QUEEN_VALUE 900
@@ -141,6 +143,7 @@ struct Transposition {
     U64 hash_value;
     int eval;
     int depth;
+    int repetition;
 };
 typedef struct Transposition Transposition;
 
@@ -157,11 +160,15 @@ struct Board {
     U64 bitboard;
 
     U64 hash_value;
+    U64 hash_repeats;
     U64 keys_position[MAX_COLOUR][MAX_PIECE_TYPE][CELLS];
     U64 keys_castling[MAX_COLOUR][MAX_CASTLING_OPTIONS];
     U64 keys_last_moved[CELLS]; // just need a last moved position... allows for any number of pawns.
     U64 keys_repetitions[MAX_REPETITIONS];
     U64 key_mover;
+
+    Transposition* transpositions[HASH_TABLE_SIZE];
+    // Transposition* last_positions[HASH_TABLE_SIZE];
 
     // bool castling_allowed[MAX_COLOUR][MAX_CASTLING_OPTIONS];
     square castling_coordinates[MAX_COLOUR][MAX_CASTLING_OPTIONS];
@@ -202,16 +209,6 @@ struct Moves {
 };
 typedef struct Moves Moves;
 
-
-struct Tracer {
-    Moves* best;
-
-    int best_eval;
-    colour original_mover;
-    colour mover;
-    int depth;
-};
-typedef struct Tracer Tracer;
 
 struct GraphNode {
     struct GraphNode* children[MOVES_SIZE];
@@ -292,12 +289,14 @@ void test_puzzle_fork();
 void test_forcing_moves_1();
 void test_forcing_moves_2();
 void test_forcing_moves_3();
-void assert_evals_match_best_eval(Tracer* tracer);
 void test_17_june_2024();
 void test_16_june_2024_partial();
 void test_16_june_2024();
 void test_15_june_2024();
 void test_evaluation_branching();
+void test_draw_by_repetition_1();
+void test_draw_by_repetition_best_line();
+void test_15_june_2024_partial();
 
 // Initialisation
 Board* init_board(void);
@@ -319,7 +318,6 @@ void print_moves(Moves* moves);
 void square_to_string(square s, char* string);
 void print_move(Move* move);
 void print_piece(Piece* piece);
-void print_tracer(Tracer* tracer);
 void colour_to_string(colour c, char* string);
 void piece_to_string(name n, char* string);
 void print_scores(Scores* scores);
@@ -341,6 +339,7 @@ void add_last_moved(Board* board, Move* move);
 void pop_last_moved(Board* board);
 void hash_and_save(Board* board, Move* move, Piece* killed);
 void undo_hash(Board* board, Move* move, Piece* killed);
+bool draw_by_repetition(Board* board);
 
 // Get all moves
 void get_all_moves_for_piece(Board* board, Piece* piece, Moves* moves);
