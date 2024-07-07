@@ -3,7 +3,10 @@
 int main(void) {
     initialise();
 
-    test_15_june_2024_partial();
+    test_evaluation_branching();
+
+    // test_wrapper(test_forcing_moves_3, "test_forcing_moves_3");
+    // test_wrapper(test_mate_in_four_2, "test_mate_in_four_2");
     // test();
 
     return 0;
@@ -275,20 +278,37 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
         // Board* copy = copy_board(board);
         
         Piece* killed = pretend_move(board, move);
-        hash_and_save(board, move, killed);
+        Transposition* t = hash_and_save(board, move, killed, grapher->depth);
+        
         update_graph(parent, move);
 
         Scores* scores;
-        if (!draw_by_repetition(board)) {
-            
+        if (!t && !draw_by_repetition(board)) {
             grapher->depth -= 1;
             scores = create_graph(grapher, parent->children[parent->i-1], board, invert_colour(mover), limit);
             grapher->depth += 1;
         }
         else {
-            parent->children[parent->i-1]->move->evaluation = 0;
+            parent->children[parent->i-1]->move->evaluation = (t == NULL ? 0 : t->eval);
             scores = init_scores(parent->children[parent->i-1], reverse_depth(grapher));
         }
+        // if (t) {
+        //     if (t->eval != scores->eval) {
+        //         printf("DIFFERENCE DETECTED\n\ntransposition: eval: %i, depth: %i; calculated: eval: %i, depth: %i\n", t->eval, t->depth, scores->eval, grapher->depth);
+        //         print_move(move);
+        //         print_scores(scores);
+        //         printf("ACTUAL BOARD\n");
+        //         print_board_pro(board);
+        //         printf("TRANSPOSITION BOARD\n");
+        //         print_board_pro(t->board);
+        //         compare_boards(board, t->board, "transposition");
+        //         assert(false);
+        //     }
+        //     else {
+        //         printf("MATHCING EVALS:\ntransposition: eval: %i, depth: %i; calculated: eval: %i, depth: %i\n", t->eval, t->depth, scores->eval, grapher->depth);
+
+        //     }
+        // }
         // REVERSE
         undo_hash(board, move, killed);
         undo_pretend_move(board, move, killed);
@@ -311,6 +331,7 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
     if (parent->move != NULL) {
         best_scores->moves->moves[reverse_depth(grapher) - 1] = parent->move;
     }
+    put(board, board->hash_value, best_scores->eval, grapher->depth);
     return best_scores;
 }
 
@@ -438,15 +459,6 @@ Moves* get_all_moves_for_colour(Board* board, colour c) {
 /* -------------------------------- */
 /* ------- LEGAL MOVE LOGIC ------- */
 /* -------------------------------- */
-
-// have a hashtable instead of looking through a list.
-
-// bool draw_by_repetition(Board* board) {
-//     if (get(board->last_positions, board->hash_value)->repetition == DRAW_REPITIONS) {
-//         return true;
-//     }
-//     return false;
-// }
 
 bool draw_by_repetition(Board* board) {
     int count = 0;
@@ -704,53 +716,40 @@ int (*get_index_func(name n))(colour c, int i) {
 /* ----------- HASHING ----------- */
 /* ------------------------------- */
 
-// Not so easy to implement with history dependent information...
-// Or perhaps even easier than you thought?
 
-// Transposition* get(HashTable* hashtable, U64 hash_value) {
-//     return hashtable->transpositions[hash_value % HASH_TABLE_SIZE];
-// }
 
-Transposition* get(Transposition* transpositions[HASH_TABLE_SIZE], U64 hash_value) {
-    return transpositions[hash_value % HASH_TABLE_SIZE];
+Transposition* get(Board* board, U64 hash_value, int depth) {
+    if (board->transpositions[hash_value % HASH_TABLE_SIZE] && board->transpositions[hash_value % HASH_TABLE_SIZE]->hash_value == hash_value && board->transpositions[hash_value % HASH_TABLE_SIZE]->depth >= depth) {
+        return board->transpositions[hash_value % HASH_TABLE_SIZE];
+    }
+    return NULL;
 }
 
-void put(HashTable* hashtable, U64 hash_value, int eval, int depth) {
+void put(Board* board, U64 hash_value, int eval, int depth) {
     int index = hash_value % HASH_TABLE_SIZE;
-    if (hashtable->transpositions[index] && hashtable->transpositions[index]->depth < depth) {
+    if (board->transpositions[index] && board->transpositions[index]->depth < depth) {
         // keep (assuming a shallower depth is more valuable)
+        // printf("REPLACE\n");
         return;
     }
-    if (hashtable->transpositions[index] == NULL) {
+    if (board->transpositions[index] == NULL) {
         Transposition* transposition = calloc(1, sizeof(Transposition));
-        hashtable->transpositions[index] = transposition;
+        board->transpositions[index] = transposition;
     }
-    hashtable->transpositions[index]->hash_value = hash_value;
-    hashtable->transpositions[index]->eval = eval;
-    hashtable->transpositions[index]->depth = depth;
+    board->transpositions[index]->hash_value = hash_value;
+    board->transpositions[index]->eval = eval;
+    board->transpositions[index]->depth = depth;
+    // board->transpositions[index]->board = copy_board(board);
 }
 
-// pretend move -> update board hash value -> 
-
-// void put_last_positions(Board* board) {
-//     int index = board->hash_value % HASH_TABLE_SIZE;
-//     if (board->last_positions[index] && board->last_positions[index]->hash_value == board->hash_value) {
-//         // repetition found
-//         board->last_positions[index]->repetition += 1;
-//         return;
-//     }
-//     if (board->last_positions[index]) {
-//         // clashing index, no repetitions
-//         fprintf(stderr, "CLASHING LAST POSITION\n");
-//         return;
-//     }
-//     board->last_positions[index]
-// }
-
-void hash_and_save(Board* board, Move* move, Piece* killed) {
+Transposition* hash_and_save(Board* board, Move* move, Piece* killed, int depth) {
     hash_move_piece(board, move, killed);
     // lm_length already been incremented in add last moved in pretend move.
     board->last_positions[board->lm_length - 1] = board->hash_repeats;
+
+    return get(board, board->hash_value, depth);
+    // put(board, board->hash_value, move->evaluation, depth);
+    // return t;
 }
 
 void undo_hash(Board* board, Move* move, Piece* killed) {
@@ -1214,10 +1213,10 @@ U64 get_pawn_attack_mask(Board* board, Piece* piece) {
         if (cell % 8 > 0 && get_bit(board->bitboard, (cell - 9))) attack_mask |= (1ULL << (cell - 9)); // left
 
         // en passant
-        if (cell % 8 > 0 && board->map[cell-1] && board->map[cell-1]->type == pawn && board->map[cell-1]->c == black && last_move->piece == board->map[cell-1] && last_move->from / 8 == 1  && board->map[cell-1]->alive) {
+        if (cell % 8 > 0 && board->map[cell-1] && board->map[cell-1]->type == pawn && board->map[cell-1]->c == black && last_move && last_move->piece == board->map[cell-1] && last_move->from / 8 == 1  && board->map[cell-1]->alive) {
             attack_mask |= (1ULL << (cell - 9)); // left
         }
-        if (cell % 8 < 7 && board->map[cell+1] && board->map[cell+1]->type == pawn && board->map[cell+1]->c == black && last_move->piece == board->map[cell+1] && last_move->from / 8 == 1 && board->map[cell+1]->alive) {
+        if (cell % 8 < 7 && board->map[cell+1] && board->map[cell+1]->type == pawn && board->map[cell+1]->c == black && last_move && last_move->piece == board->map[cell+1] && last_move->from / 8 == 1 && board->map[cell+1]->alive) {
             attack_mask |= (1ULL << (cell - 7)); // right
         }
     }
@@ -1567,6 +1566,7 @@ Board* copy_board(Board* board) {
             copy->pieces[i][j]->value = board->pieces[i][j]->value;
             copy->pieces[i][j]->no_moves = board->pieces[i][j]->no_moves;
             copy->pieces[i][j]->move_func = board->pieces[i][j]->move_func;
+            copy->pieces[i][j]->character = board->pieces[i][j]->character;
         }
     }
     for (int i = 0; i < 64; i++) {

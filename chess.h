@@ -139,11 +139,14 @@ struct Piece {
 };
 typedef struct Piece Piece;
 
+struct Board;
+
 struct Transposition {
     U64 hash_value;
     int eval;
     int depth;
     int repetition;
+    struct Board* board;
 };
 typedef struct Transposition Transposition;
 
@@ -297,6 +300,9 @@ void test_evaluation_branching();
 void test_draw_by_repetition_1();
 void test_draw_by_repetition_best_line();
 void test_15_june_2024_partial();
+void test_15_june_2024_partial();
+void test_15_june_2024_end();
+void test_wrapper(void (*test_func)(void), char* func_name);
 
 // Initialisation
 Board* init_board(void);
@@ -337,9 +343,11 @@ Piece* move_single_piece(Board* board, Piece* piece, square to, name promotion);
 void execute_promotion(Piece* piece, name promotion);
 void add_last_moved(Board* board, Move* move);
 void pop_last_moved(Board* board);
-void hash_and_save(Board* board, Move* move, Piece* killed);
+Transposition* hash_and_save(Board* board, Move* move, Piece* killed, int depth);
 void undo_hash(Board* board, Move* move, Piece* killed);
 bool draw_by_repetition(Board* board);
+void put(Board* board, U64 hash_value, int eval, int depth);
+Transposition* get(Board* board, U64 hash_value, int depth);
 
 // Get all moves
 void get_all_moves_for_piece(Board* board, Piece* piece, Moves* moves);
