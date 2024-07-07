@@ -727,9 +727,8 @@ Transposition* get(Board* board, U64 hash_value, int depth) {
 
 void put(Board* board, U64 hash_value, int eval, int depth) {
     int index = hash_value % HASH_TABLE_SIZE;
-    if (board->transpositions[index] && board->transpositions[index]->depth < depth) {
-        // keep (assuming a shallower depth is more valuable)
-        // printf("REPLACE\n");
+    if (board->transpositions[index] && board->transpositions[index]->depth > depth) {
+        // keep (assuming a deeper depth is more valuable)
         return;
     }
     if (board->transpositions[index] == NULL) {
