@@ -60,6 +60,9 @@ int BLACK_PAWNS = 8;
 #define BISHOP_2(c) (c == black ? 5 : 13)
 #define QUEEN_INDEX(c) (c == black ? 3 : 11)
 #define PAWN_INDEX(c, n) (c == black ? (8 + n) : (n))
+#define EXACT 0
+#define UPPER_BOUND 1
+#define LOWER_BOUND 2
 
 /*
 how to flip an array:
@@ -145,7 +148,7 @@ struct Transposition {
     U64 hash_value;
     int eval;
     int depth;
-    int repetition;
+    int flag;
     struct Board* board;
 };
 typedef struct Transposition Transposition;
@@ -338,6 +341,7 @@ bool is_move_legal(Board* board, Piece* piece, square to);
 // void undo_pretend_move(Board* board, Piece* original, Piece* killed, square original_from, name promotion);
 void undo_pretend_move(Board* board, Move* move, Piece* killed);
 void hash_move_piece(Board* board, Move* move, Piece* killed);
+U64 hash(Board* board, Move* move, Piece* killed);
 bool is_castle_legal(Board* board, Piece* piece, castle_type type);
 Piece* move_single_piece(Board* board, Piece* piece, square to, name promotion);
 void execute_promotion(Piece* piece, name promotion);
@@ -346,7 +350,7 @@ void pop_last_moved(Board* board);
 Transposition* hash_and_save(Board* board, Move* move, Piece* killed, int depth);
 void undo_hash(Board* board, Move* move, Piece* killed);
 bool draw_by_repetition(Board* board);
-void put(Board* board, U64 hash_value, int eval, int depth);
+void put(Board* board, U64 hash_value, int eval, int depth, bool pruned, bool original_mover);
 Transposition* get(Board* board, U64 hash_value, int depth);
 
 // Get all moves
@@ -363,3 +367,4 @@ Grapher* init_grapher(int breadth, int depth, colour start_player);
 void play_game();
 void initialise();
 void free_copy_board(Board* board);
+void free_scores(Scores* scores, int depth);

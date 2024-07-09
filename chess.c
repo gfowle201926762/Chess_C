@@ -3,6 +3,7 @@
 int main(void) {
     initialise();
 
+    test();
     test_evaluation_branching();
 
     // test_wrapper(test_forcing_moves_3, "test_forcing_moves_3");
@@ -159,7 +160,11 @@ int measure_points(Board* board, colour mover) {
     return score;
 }
 
-int evaluate_position(Board* board, colour mover) {
+int evaluate_position(Board* board, colour mover, U64 hash) {
+    // Transposition* t = get(board, hash, 0);
+    // if (t) {
+    //     return t->eval;
+    // }
     int score = 0;
     // score += king_safety_heuristic(board, node, mover, grapher);
     score += initiative_heuristic(board, mover);   
@@ -171,10 +176,6 @@ int evaluate_position(Board* board, colour mover) {
 /* ------------------------------ */
 /* -------- SEARCH GRAPH -------- */
 /* ------------------------------ */
-
-void free_scores(Scores* scores) {
-    // TODO
-}
 
 void update_graph(GraphNode* parent, Move* move) {
     GraphNode* child = calloc(1, sizeof(GraphNode));
@@ -228,7 +229,7 @@ Moves* get_best_moves(Board* board, Moves* moves, colour mover, int max_breadth)
         Move* move = moves->moves[i];
         // Board* copy = copy_board(board);
         Piece* killed = pretend_move(board, move);
-        move->evaluation = evaluate_position(board, mover);
+        move->evaluation = evaluate_position(board, mover, hash(board, move, killed));
         undo_pretend_move(board, move, killed);
         // assert(compare_boards(board, copy, "get_best_moves"));
         // free_copy_board(copy);
@@ -255,11 +256,31 @@ int reverse_depth(Grapher* grapher) {
     return grapher->max_depth - grapher->depth;
 }
 
+Scores* transposition_pruner(Grapher* grapher, GraphNode* parent, Transposition* t, int prune, bool* pruned, bool original_mover) {
+    if (!t) {
+        return NULL;
+    }
+    if (prune != MAX_SCORE && prune != -MAX_SCORE && t && t->flag != LOWER_BOUND && (!original_mover && t->eval <= prune)) {
+        *pruned = true;
+        parent->children[parent->i-1]->move->evaluation = t->eval;
+        return init_scores(parent->children[parent->i-1], reverse_depth(grapher));
+    }
+    if (prune != MAX_SCORE && prune != -MAX_SCORE && t && t->flag != UPPER_BOUND && (original_mover && t->eval >= prune)) {
+        *pruned = true;
+        parent->children[parent->i-1]->move->evaluation = t->eval;
+        return init_scores(parent->children[parent->i-1], reverse_depth(grapher));
+    }
+    if (t && t->flag == EXACT) {
+        parent->children[parent->i-1]->move->evaluation = t->eval;
+        return init_scores(parent->children[parent->i-1], reverse_depth(grapher));
+    }
+    return NULL;
+}
+
 Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover, int prune) {
-    
     if (grapher->depth == grapher->base) {
         board->leaves += 1;
-        parent->move->evaluation = evaluate_position(board, mover);
+        parent->move->evaluation = evaluate_position(board, mover, 0ULL);
         return init_scores(parent, reverse_depth(grapher));
     }
     
@@ -271,6 +292,11 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
     Moves* best_moves = get_best_moves(board, moves, mover, grapher->max_breadth);
     Scores* best_scores;
     bool original_mover = init_original_mover(parent, grapher);
+    // if (prune == MAX_SCORE || prune == -MAX_SCORE) {
+    //     printf("prune: %i, original_mover: %i\n", prune, original_mover);
+    // }
+    
+    bool pruned = false;
     int limit = init_limit(original_mover);
 
     for (int i = 0; i < best_moves->length; i++) {
@@ -278,41 +304,24 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
         // Board* copy = copy_board(board);
         
         Piece* killed = pretend_move(board, move);
-        Transposition* t = hash_and_save(board, move, killed, grapher->depth);
-        
         update_graph(parent, move);
+        Transposition* t = hash_and_save(board, move, killed, grapher->depth);
 
-        Scores* scores;
-        if (!t && !draw_by_repetition(board)) {
+        Scores* scores = transposition_pruner(grapher, parent, t, prune, &pruned, original_mover);
+        
+        if (scores == NULL && !draw_by_repetition(board)) {
             grapher->depth -= 1;
             scores = create_graph(grapher, parent->children[parent->i-1], board, invert_colour(mover), limit);
             grapher->depth += 1;
         }
-        else {
-            parent->children[parent->i-1]->move->evaluation = (t == NULL ? 0 : t->eval);
+        if (scores == NULL) {
+            parent->children[parent->i-1]->move->evaluation = 0; //(t == NULL ? 0 : t->eval);
             scores = init_scores(parent->children[parent->i-1], reverse_depth(grapher));
         }
-        // if (t) {
-        //     if (t->eval != scores->eval) {
-        //         printf("DIFFERENCE DETECTED\n\ntransposition: eval: %i, depth: %i; calculated: eval: %i, depth: %i\n", t->eval, t->depth, scores->eval, grapher->depth);
-        //         print_move(move);
-        //         print_scores(scores);
-        //         printf("ACTUAL BOARD\n");
-        //         print_board_pro(board);
-        //         printf("TRANSPOSITION BOARD\n");
-        //         print_board_pro(t->board);
-        //         compare_boards(board, t->board, "transposition");
-        //         assert(false);
-        //     }
-        //     else {
-        //         printf("MATHCING EVALS:\ntransposition: eval: %i, depth: %i; calculated: eval: %i, depth: %i\n", t->eval, t->depth, scores->eval, grapher->depth);
 
-        //     }
-        // }
         // REVERSE
         undo_hash(board, move, killed);
         undo_pretend_move(board, move, killed);
-    
 
         // assert(compare_boards(board, copy, "create_graph"));
         // free_copy_board(copy);
@@ -322,16 +331,17 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
             best_scores = scores;
         }
         else {
-            free_scores(scores);
+            free_scores(scores, reverse_depth(grapher));
         }
-        if (prune != MAX_SCORE && prune != -MAX_SCORE && ((original_mover && scores->eval > prune) || (!original_mover && scores->eval < prune))) {
+        if (pruned || (prune != MAX_SCORE && prune != -MAX_SCORE && ((original_mover && best_scores->eval >= prune) || (!original_mover && best_scores->eval <= prune)))) {
+            pruned = true;
             break;
         }
     }
     if (parent->move != NULL) {
         best_scores->moves->moves[reverse_depth(grapher) - 1] = parent->move;
     }
-    put(board, board->hash_value, best_scores->eval, grapher->depth);
+    put(board, board->hash_value, best_scores->eval, grapher->depth, pruned, original_mover);
     return best_scores;
 }
 
@@ -725,9 +735,9 @@ Transposition* get(Board* board, U64 hash_value, int depth) {
     return NULL;
 }
 
-void put(Board* board, U64 hash_value, int eval, int depth) {
+void put(Board* board, U64 hash_value, int eval, int depth, bool pruned, bool original_mover) {
     int index = hash_value % HASH_TABLE_SIZE;
-    if (board->transpositions[index] && board->transpositions[index]->depth > depth) {
+    if (board->transpositions[index] && board->transpositions[index]->depth >= depth) {
         // keep (assuming a deeper depth is more valuable)
         return;
     }
@@ -738,7 +748,12 @@ void put(Board* board, U64 hash_value, int eval, int depth) {
     board->transpositions[index]->hash_value = hash_value;
     board->transpositions[index]->eval = eval;
     board->transpositions[index]->depth = depth;
-    // board->transpositions[index]->board = copy_board(board);
+    if (pruned && original_mover) {
+        board->transpositions[index]->flag = LOWER_BOUND;
+    }
+    if (pruned && !original_mover) {
+        board->transpositions[index]->flag = UPPER_BOUND;
+    }
 }
 
 Transposition* hash_and_save(Board* board, Move* move, Piece* killed, int depth) {
@@ -753,6 +768,29 @@ Transposition* hash_and_save(Board* board, Move* move, Piece* killed, int depth)
 
 void undo_hash(Board* board, Move* move, Piece* killed) {
     hash_move_piece(board, move, killed);
+}
+
+U64 hash(Board* board, Move* move, Piece* killed) {
+    U64 value = board->hash_value;
+    
+    value ^= board->keys_position[move->piece->c][move->promotion == none ? move->piece->type : pawn][move->from];
+    if (killed) {
+        value ^= board->keys_position[killed->c][killed->type][killed->cell];
+    }
+    value ^= board->keys_position[move->piece->c][move->promotion == none ? move->piece->type : move->promotion][move->destination];
+
+    if (move->piece->type == pawn && (int)move->from - move->destination == 16) {
+        value ^= board->keys_last_moved[move->destination];
+    }
+
+    if ((move->piece == board->pieces[move->piece->c][KING_INDEX(move->piece->c)] && board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 1 && board->castle_pieces[move->piece->c][king_side]->no_moves == 0) || (board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 0 && move->piece == board->castle_pieces[move->piece->c][king_side] && board->castle_pieces[move->piece->c][king_side]->no_moves == 1)) {
+        value ^= board->keys_castling[move->piece->c][king_side];
+    }
+    if ((move->piece == board->pieces[move->piece->c][KING_INDEX(move->piece->c)] && board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 1 && board->castle_pieces[move->piece->c][queen_side]->no_moves == 0) || (board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 0 && move->piece == board->castle_pieces[move->piece->c][queen_side] && board->castle_pieces[move->piece->c][queen_side]->no_moves == 1)) {
+        value ^= board->keys_castling[move->piece->c][queen_side];
+    }
+    value ^= board->key_mover;
+    return value;
 }
 
 // need two of these functions -> draw by repetition doesn't care about castling rights (ask chess.com)
@@ -1737,3 +1775,10 @@ void free_board(Board* board) {
     free(board);
 }
 
+void free_scores(Scores* scores, int depth) {
+    for (int i = scores->moves->length - 1; i >= depth; i--) {
+        // do not free the piece as well
+        free(scores->moves->moves[i]);
+    }
+    free(scores);
+}
