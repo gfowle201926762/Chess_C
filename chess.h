@@ -212,6 +212,7 @@ typedef struct Move Move;
 struct Moves {
     Move* moves[MOVES_SIZE];
     int length;
+    bool single;
 };
 typedef struct Moves Moves;
 
@@ -224,7 +225,7 @@ struct GraphNode {
 typedef struct GraphNode GraphNode;
 
 struct Grapher {
-    GraphNode* start;
+    Move* start;
     int depth;
     int max_depth;
     int max_breadth;
@@ -311,7 +312,7 @@ void test_wrapper(void (*test_func)(void), char* func_name);
 Board* init_board(void);
 void set_board(Board* board);
 Board* set_board_notation(char* s);
-Scores* init_scores(GraphNode* node, int depth);
+Scores* init_scores(Move* move, int depth);
 int init_limit(bool original_mover);
 
 // Miscellaneous
@@ -359,7 +360,7 @@ Moves* get_all_moves_for_colour(Board* board, colour c);
 
 // Evaluate moves
 int reverse_depth(Grapher* grapher);
-Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover, int prune);
+Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour mover, int prune);
 // int create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover);
 Grapher* init_grapher(int breadth, int depth, colour start_player);
 

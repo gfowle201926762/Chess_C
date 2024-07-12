@@ -90,6 +90,7 @@ void test_forcing_moves_2() {
     Grapher* grapher = init_grapher(4, 4, white);
     Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
     assert(test_board == board->bitboard);
+    // print_scores(scores);
 
     assert(scores->moves->moves[0]->from == e3);
     assert(scores->moves->moves[0]->destination == g3);

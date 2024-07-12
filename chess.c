@@ -3,7 +3,7 @@
 int main(void) {
     initialise();
 
-    test();
+    // test();
     test_evaluation_branching();
 
     // test_wrapper(test_forcing_moves_3, "test_forcing_moves_3");
@@ -92,14 +92,14 @@ void play_game() {
 /* ------- EVALUATE MOVES ------- */
 /* ------------------------------ */
 
-Scores* evaluate_no_moves(Grapher* grapher, GraphNode* parent, Board* board, colour mover) {
+Scores* evaluate_no_moves(Grapher* grapher, Move* move, Board* board, colour mover) {
     if (!is_check(board, mover)) {
         // STALEMATE
-        parent->move->evaluation = 0;
-        return init_scores(parent, reverse_depth(grapher));
+        move->evaluation = 0;
+        return init_scores(move, reverse_depth(grapher));
     }
-    parent->move->evaluation = MAX_SCORE - ((grapher->max_depth - grapher->depth) / 2);
-    return init_scores(parent, reverse_depth(grapher));
+    move->evaluation = MAX_SCORE - ((grapher->max_depth - grapher->depth) / 2);
+    return init_scores(move, reverse_depth(grapher));
 }
 
 int count_bitboard(U64 mask) {
@@ -160,11 +160,7 @@ int measure_points(Board* board, colour mover) {
     return score;
 }
 
-int evaluate_position(Board* board, colour mover, U64 hash) {
-    // Transposition* t = get(board, hash, 0);
-    // if (t) {
-    //     return t->eval;
-    // }
+int evaluate_position(Board* board, colour mover) {
     int score = 0;
     // score += king_safety_heuristic(board, node, mover, grapher);
     score += initiative_heuristic(board, mover);   
@@ -215,32 +211,57 @@ Moves* get_best_scores(Moves* moves, int max_breadth) {
     return best_moves;
 }
 
-Scores* init_scores(GraphNode* node, int depth) {
+Scores* init_scores(Move* move, int depth) {
     Scores* scores = calloc(1, sizeof(Scores));
     scores->moves = calloc(1, sizeof(Moves));
-    scores->eval = node->move->evaluation;
-    scores->moves->moves[depth - 1] = node->move;
+    scores->eval = move->evaluation;
+    scores->moves->moves[depth - 1] = move;
     scores->moves->length = depth;
     return scores;
 }
 
-Moves* get_best_moves(Board* board, Moves* moves, colour mover, int max_breadth) {
+Moves* hacky_Moves(Move* move) {
+    Moves* moves = calloc(1, sizeof(Moves));
+    moves->single = true;
+    moves->moves[0] = move;
+    return moves;
+}
+
+Moves* get_best_moves(Board* board, Moves* moves, colour mover, int max_breadth, int prune, bool original_mover, int depth) {
+    // also check for a cutoff here from the transposition table.
     for (int i = 0; i < moves->length; i++) {
         Move* move = moves->moves[i];
-        // Board* copy = copy_board(board);
         Piece* killed = pretend_move(board, move);
-        move->evaluation = evaluate_position(board, mover, hash(board, move, killed));
+
+        Transposition* t = get(board, hash(board, move, killed), depth);
+        if (prune != MAX_SCORE && prune != -MAX_SCORE && t && t->flag != LOWER_BOUND && (!original_mover && t->eval <= prune)) {
+            // update_graph(parent, move);
+            move->evaluation = t->eval;
+            undo_pretend_move(board, move, killed);
+            return hacky_Moves(move);
+        }
+        if (prune != MAX_SCORE && prune != -MAX_SCORE && t && t->flag != UPPER_BOUND && (original_mover && t->eval >= prune)) {
+            // update_graph(parent, move);
+            move->evaluation = t->eval;
+            undo_pretend_move(board, move, killed);
+            return hacky_Moves(move);
+        }
+        if (t && (t->flag == EXACT)) {
+            // we want the highest scores. Therefore lower bounds can be included.
+            move->evaluation = t->eval;
+        }
+        else {
+            move->evaluation = evaluate_position(board, mover);
+        }
         undo_pretend_move(board, move, killed);
-        // assert(compare_boards(board, copy, "get_best_moves"));
-        // free_copy_board(copy);
     }
 
     return get_best_scores(moves, max_breadth);
 }
 
-bool init_original_mover(GraphNode* node, Grapher* grapher) {
-    if (node->move) {
-        return node->move->piece->c != grapher->start_player;
+bool init_original_mover(Move* move, Grapher* grapher) {
+    if (move) {
+        return move->piece->c != grapher->start_player;
     }
     return true;
 }
@@ -256,67 +277,47 @@ int reverse_depth(Grapher* grapher) {
     return grapher->max_depth - grapher->depth;
 }
 
-Scores* transposition_pruner(Grapher* grapher, GraphNode* parent, Transposition* t, int prune, bool* pruned, bool original_mover) {
-    if (!t) {
-        return NULL;
-    }
-    if (prune != MAX_SCORE && prune != -MAX_SCORE && t && t->flag != LOWER_BOUND && (!original_mover && t->eval <= prune)) {
-        *pruned = true;
-        parent->children[parent->i-1]->move->evaluation = t->eval;
-        return init_scores(parent->children[parent->i-1], reverse_depth(grapher));
-    }
-    if (prune != MAX_SCORE && prune != -MAX_SCORE && t && t->flag != UPPER_BOUND && (original_mover && t->eval >= prune)) {
-        *pruned = true;
-        parent->children[parent->i-1]->move->evaluation = t->eval;
-        return init_scores(parent->children[parent->i-1], reverse_depth(grapher));
-    }
-    if (t && t->flag == EXACT) {
-        parent->children[parent->i-1]->move->evaluation = t->eval;
-        return init_scores(parent->children[parent->i-1], reverse_depth(grapher));
-    }
-    return NULL;
-}
-
-Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover, int prune) {
+Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour mover, int prune) {
     if (grapher->depth == grapher->base) {
         board->leaves += 1;
-        parent->move->evaluation = evaluate_position(board, mover, 0ULL);
-        return init_scores(parent, reverse_depth(grapher));
+        parent_move->evaluation = evaluate_position(board, mover);
+        return init_scores(parent_move, reverse_depth(grapher));
     }
     
     Moves* moves = get_all_moves_for_colour(board, mover);
     if (moves->length == 0) {
-        return evaluate_no_moves(grapher, parent, board, mover);
+        return evaluate_no_moves(grapher, parent_move, board, mover);
     }
 
-    Moves* best_moves = get_best_moves(board, moves, mover, grapher->max_breadth);
-    Scores* best_scores;
-    bool original_mover = init_original_mover(parent, grapher);
-    // if (prune == MAX_SCORE || prune == -MAX_SCORE) {
-    //     printf("prune: %i, original_mover: %i\n", prune, original_mover);
-    // }
-    
+    bool original_mover = init_original_mover(parent_move, grapher);
     bool pruned = false;
     int limit = init_limit(original_mover);
+    Moves* best_moves = get_best_moves(board, moves, mover, grapher->max_breadth, prune, original_mover, grapher->depth);
+    if (best_moves->single) {
+        // prunable
+        put(board, board->hash_value, best_moves->moves[0]->evaluation, grapher->depth, true, original_mover);
+        return init_scores(best_moves->moves[0], reverse_depth(grapher));
+    }
 
+    Scores* best_scores;
     for (int i = 0; i < best_moves->length; i++) {
         Move* move = best_moves->moves[i];
         // Board* copy = copy_board(board);
         
         Piece* killed = pretend_move(board, move);
-        update_graph(parent, move);
+        // update_graph(parent, move);
         Transposition* t = hash_and_save(board, move, killed, grapher->depth);
 
-        Scores* scores = transposition_pruner(grapher, parent, t, prune, &pruned, original_mover);
+        Scores* scores; 
         
-        if (scores == NULL && !draw_by_repetition(board)) {
+        if ((!t || t->flag != EXACT) && !draw_by_repetition(board)) {
             grapher->depth -= 1;
-            scores = create_graph(grapher, parent->children[parent->i-1], board, invert_colour(mover), limit);
+            scores = create_graph(grapher, move, board, invert_colour(mover), limit);
             grapher->depth += 1;
         }
-        if (scores == NULL) {
-            parent->children[parent->i-1]->move->evaluation = 0; //(t == NULL ? 0 : t->eval);
-            scores = init_scores(parent->children[parent->i-1], reverse_depth(grapher));
+        else {
+            move->evaluation = 0; //(t == NULL ? 0 : t->eval);
+            scores = init_scores(move, reverse_depth(grapher));
         }
 
         // REVERSE
@@ -338,8 +339,8 @@ Scores* create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour m
             break;
         }
     }
-    if (parent->move != NULL) {
-        best_scores->moves->moves[reverse_depth(grapher) - 1] = parent->move;
+    if (parent_move != NULL) {
+        best_scores->moves->moves[reverse_depth(grapher) - 1] = parent_move;
     }
     put(board, board->hash_value, best_scores->eval, grapher->depth, pruned, original_mover);
     return best_scores;
@@ -1004,8 +1005,8 @@ Board* init_board(void) {
 
 Grapher* init_grapher(int breadth, int depth, colour start_player) {
     Grapher* grapher = calloc(1, sizeof(Grapher));
-    GraphNode* node = calloc(1, sizeof(GraphNode));
-    grapher->start = node;
+    // GraphNode* node = calloc(1, sizeof(GraphNode));
+    // grapher->start = node;
     grapher->max_breadth = breadth;
     grapher->max_depth = depth * 2;
     grapher->depth = depth * 2;
