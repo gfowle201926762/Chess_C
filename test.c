@@ -21,19 +21,30 @@ void test_wrapper(void (*test_func)(void), char* func_name) {
 }
 
 void test_stack() {
+    // test_moves is not a graphing test.
     // test_wrapper(test_moves, "test_moves");
     test_wrapper(test_forcing_moves, "test_forcing_moves");
     test_wrapper(test_forcing_moves_1, "test_forcing_moves_1");
     test_wrapper(test_forcing_moves_2, "test_forcing_moves_2");
-    // test_wrapper(test_forcing_moves_3, "test_forcing_moves_3");
+    test_wrapper(test_forcing_moves_3, "test_forcing_moves_3");
     test_wrapper(test_puzzle_fork, "test_puzzle_fork");
     test_wrapper(test_puzzle_win_queen, "test_puzzle_win_queen");
     test_wrapper(test_17_june_2024, "test_17_june_2024");
     test_wrapper(test_16_june_2024_partial, "test_16_june_2024_partial");
+
+    // test_16_june_2024 works, just annoyingly slow.
     // test_wrapper(test_16_june_2024, "test_16_june_2024");
+    // test_15_june_2024 does not work.
     // test_wrapper(test_15_june_2024, "test_15_june_2024");
     test_wrapper(test_15_june_2024_partial, "test_15_june_2024_partial");
     test_wrapper(test_15_june_2024_end, "test_15_june_2024_end");
+
+    test_wrapper(test_14_june_2024, "test_14_june_2024");
+    test_wrapper(test_13_june_2024, "test_13_june_2024");
+    test_wrapper(test_12_june_2024, "test_12_june_2024");
+
+    test_wrapper(test_puzzle_trap_bishop, "test_puzzle_trap_bishop");
+    test_wrapper(test_puzzle_win_knight_because_pawn_fork, "test_puzzle_win_knight_because_pawn_fork");
     
     test_wrapper(test_detect_mate_1, "test_detect_mate_1");
     test_wrapper(test_detect_mate_2, "test_detect_mate_2");
@@ -104,24 +115,25 @@ void test_forcing_moves_2() {
 }
 
 void test_forcing_moves_3() {
+    // I think this is mate in 3
     Board* board = set_board_notation("bkg7 bcc6 bpf6 bhg6 wkh1 wqe3 wcg1 ");
     board->pieces[white][KING_INDEX(white)]->no_moves += 1;
     board->pieces[black][KING_INDEX(black)]->no_moves += 1;
-    print_board_pro(board);
+    // print_board_pro(board);
 
     U64 test_board = board->bitboard;
-    Grapher* grapher = init_grapher(6, 6, white);
+    Grapher* grapher = init_grapher(9, 4, white);
     Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
     assert(test_board == board->bitboard);
 
-    print_scores(scores);
+    // print_scores(scores);
 
-    assert(scores->eval > 800);
+    assert(scores->eval == MAX_SCORE - 3);
 
-    assert(scores->moves->moves[0]->from == g1);
-    assert(scores->moves->moves[0]->destination == g6);
+    assert(scores->moves->moves[0]->from == e3);
+    assert(scores->moves->moves[0]->destination == e7);
     assert(scores->moves->moves[0]->piece->c == white);
-    assert(scores->moves->moves[0]->piece->type == castle);
+    assert(scores->moves->moves[0]->piece->type == queen);
 }
 
 void test_forcing_moves_3_partial() {
@@ -282,7 +294,7 @@ void test_17_june_2024() {
 
 void test_16_june_2024() {
     Board* board = set_board_notation("wpb5 wpb2 wpc2 wpf2 wph2 wkc1 wqc3 whd3 wbg3 wcg1 bpa4 bpe6 bpf7 bpg7 bph7 bkg8 bqd5 bbe4 bca8 bcf8 ");
-
+    // print_board_pro(board);
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(9, 6, white);
     Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
@@ -513,7 +525,7 @@ void test_13_june_2024() {
     // print_board_pro(board);
 
     U64 test_board = board->bitboard;
-    Grapher* grapher = init_grapher(5, 4, black);
+    Grapher* grapher = init_grapher(50, 4, black);
     Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
     assert(test_board == board->bitboard);
 
@@ -594,7 +606,7 @@ void test_puzzle_trap_bishop() {
     // print_board_pro(board);
 
     U64 test_board = board->bitboard;
-    Grapher* grapher = init_grapher(200, 2, white);
+    Grapher* grapher = init_grapher(30, 3, white);
     Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
     assert(test_board == board->bitboard);
 
@@ -610,14 +622,14 @@ void test_puzzle_win_knight_because_pawn_fork() {
     Board* board = set_board_notation("wkg1 wqd1 wce1 wca1 wbc4 wbc1 whe4 whg6 wph2 wpg2 wpf2 wpc2 wpb2 wpa2 bkg8 bqd8 bcf7 bca8 bbc8 bbf6 bhb8 bhc5 bph6 bpg7 bpe6 bpd7 bpc7 bpb7 bpa6 ");
     board->pieces[white][KING_INDEX(white)]->no_moves += 1;
     board->pieces[black][KING_INDEX(black)]->no_moves += 1;
-    print_board_pro(board);
+    // print_board_pro(board);
 
     U64 test_board = board->bitboard;
-    Grapher* grapher = init_grapher(200, 2, black);
+    Grapher* grapher = init_grapher(5, 5, black);
     Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
     assert(test_board == board->bitboard);
 
-    print_scores(scores);
+    // print_scores(scores);
 
     assert(scores->moves->moves[0]->from == c5);
     assert(scores->moves->moves[0]->destination == e4);

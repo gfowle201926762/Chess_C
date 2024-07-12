@@ -298,6 +298,11 @@ void test_draw_by_repetition_best_line();
 void test_15_june_2024_partial();
 void test_15_june_2024_partial();
 void test_15_june_2024_end();
+void test_14_june_2024();
+void test_13_june_2024();
+void test_12_june_2024();
+void test_puzzle_trap_bishop();
+void test_puzzle_win_knight_because_pawn_fork();
 void test_wrapper(void (*test_func)(void), char* func_name);
 
 // Initialisation

@@ -4,9 +4,10 @@ int main(void) {
     initialise();
 
     // test();
+    // test_wrapper(test_16_june_2024, "test_16_june_2024");
     test_evaluation_branching();
 
-    // test_wrapper(test_forcing_moves_3, "test_forcing_moves_3");
+    // test_wrapper(test_puzzle_trap_bishop, "test_puzzle_trap_bishop");
     // test_wrapper(test_mate_in_four_2, "test_mate_in_four_2");
     // test();
 
@@ -243,6 +244,7 @@ Moves* get_best_moves(Board* board, Moves* moves, colour mover, int max_breadth,
         else {
             move->evaluation = evaluate_position(board, mover);
         }
+        // move->evaluation = evaluate_position(board, mover);
         undo_pretend_move(board, move, killed);
     }
 
@@ -319,6 +321,11 @@ Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour m
 
         // assert(compare_boards(board, copy, "create_graph"));
         // free_copy_board(copy);
+
+        // if (grapher->depth == grapher->max_depth) {
+        //     printf("%i: score: %i; ", i, scores->eval);
+        //     print_move(move);
+        // }
 
         if ((original_mover && scores->eval > limit) || (!original_mover && scores->eval < limit)) {
             limit = scores->eval;
