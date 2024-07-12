@@ -137,7 +137,7 @@ int initiative_heuristic(Board* board, colour mover) {
     return count;
 }
 
-int king_safety_heuristic(Board* board, GraphNode* node, colour mover, Grapher* grapher) {
+int king_safety_heuristic(Board* board, Move* move, colour mover, Grapher* grapher) {
     int cell = board->pieces[mover][KING_INDEX(mover)]->cell;
     if (mover != grapher->start_player) {
         int row = 7 - (cell / 8);
@@ -172,13 +172,6 @@ int evaluate_position(Board* board, colour mover) {
 /* ------------------------------ */
 /* -------- SEARCH GRAPH -------- */
 /* ------------------------------ */
-
-void update_graph(GraphNode* parent, Move* move) {
-    GraphNode* child = calloc(1, sizeof(GraphNode));
-    child->move = move;
-    parent->children[parent->i] = child;
-    parent->i += 1;
-}
 
 void reorder_best_scores(int* best_scores, Moves* best_moves, int max_breadth, Move* new_move) {
     int i = 0;
@@ -235,19 +228,16 @@ Moves* get_best_moves(Board* board, Moves* moves, colour mover, int max_breadth,
 
         Transposition* t = get(board, hash(board, move, killed), depth);
         if (prune != MAX_SCORE && prune != -MAX_SCORE && t && t->flag != LOWER_BOUND && (!original_mover && t->eval <= prune)) {
-            // update_graph(parent, move);
             move->evaluation = t->eval;
             undo_pretend_move(board, move, killed);
             return hacky_Moves(move);
         }
         if (prune != MAX_SCORE && prune != -MAX_SCORE && t && t->flag != UPPER_BOUND && (original_mover && t->eval >= prune)) {
-            // update_graph(parent, move);
             move->evaluation = t->eval;
             undo_pretend_move(board, move, killed);
             return hacky_Moves(move);
         }
-        if (t && (t->flag == EXACT)) {
-            // we want the highest scores. Therefore lower bounds can be included.
+        if (t && (t->flag == EXACT || (t->flag != UPPER_BOUND && (original_mover && t->eval >= prune)) || LOWER_BOUND && (!original_mover && t->eval <= prune))) {
             move->evaluation = t->eval;
         }
         else {
@@ -305,18 +295,21 @@ Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour m
         // Board* copy = copy_board(board);
         
         Piece* killed = pretend_move(board, move);
-        // update_graph(parent, move);
         Transposition* t = hash_and_save(board, move, killed, grapher->depth);
 
         Scores* scores; 
         
-        if ((!t || t->flag != EXACT) && !draw_by_repetition(board)) {
+        if (t && (t->flag == EXACT || (t->flag != UPPER_BOUND && (original_mover && t->eval >= prune)) || LOWER_BOUND && (!original_mover && t->eval <= prune))) {
+            // found in TT, move->evaluation updated in get_best_moves
+            scores = init_scores(move, reverse_depth(grapher));
+        }
+        else if (!draw_by_repetition(board)) {
             grapher->depth -= 1;
             scores = create_graph(grapher, move, board, invert_colour(mover), limit);
             grapher->depth += 1;
         }
         else {
-            move->evaluation = 0; //(t == NULL ? 0 : t->eval);
+            move->evaluation = 0;
             scores = init_scores(move, reverse_depth(grapher));
         }
 

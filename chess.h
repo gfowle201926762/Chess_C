@@ -216,14 +216,6 @@ struct Moves {
 };
 typedef struct Moves Moves;
 
-
-struct GraphNode {
-    struct GraphNode* children[MOVES_SIZE];
-    Move* move;
-    int i;
-};
-typedef struct GraphNode GraphNode;
-
 struct Grapher {
     Move* start;
     int depth;
