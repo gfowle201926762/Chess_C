@@ -221,9 +221,11 @@ struct Grapher {
     int depth;
     int max_depth;
     int max_breadth;
-    int base;
-    double value_limit;
     colour start_player;
+
+    clock_t timer;
+    bool out_of_time;
+    double time_limit;
 };
 typedef struct Grapher Grapher;
 
@@ -232,6 +234,12 @@ struct Scores {
     int eval;
 };
 typedef struct Scores Scores;
+
+struct ScoresList {
+    Scores* scores[100];
+    int length;
+};
+typedef struct ScoresList ScoresList;
 
 
 
@@ -363,6 +371,7 @@ int reverse_depth(Grapher* grapher);
 Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour mover, int prune);
 // int create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover);
 Grapher* init_grapher(int breadth, int depth, colour start_player);
+Scores* IDDFS(Board* board, int breadth, colour start_player, int time_limit, ScoresList* all_scores);
 
 
 void play_game();

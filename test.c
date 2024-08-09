@@ -5,8 +5,55 @@
 /* ----------------------------- */
 
 
-void output_results() {
+void test_iterative_deepening_m4_2() {
+    Board* board = board_setup_m4_2();
+    // print_board_pro(board);
 
+    ScoresList* all_scores = calloc(1, sizeof(ScoresList));
+    Scores* scores = IDDFS(board, 10, white, 5, all_scores);
+
+    // for (int i = 0; i < all_scores->length; i++) {
+    //     print_scores(all_scores->scores[i]);
+    // }
+    // printf("\n\nBEST\n");
+    // print_scores(scores);
+
+    assert(scores->eval == MAX_SCORE - 3);
+
+    assert(scores->moves->moves[0]->from == e5);
+    assert(scores->moves->moves[0]->destination == f7);
+    assert(scores->moves->moves[0]->piece->c == white);
+    assert(scores->moves->moves[0]->piece->type == knight);
+
+    assert(scores->moves->moves[1]->from == d7);
+    assert(scores->moves->moves[1]->destination == f7);
+    assert(scores->moves->moves[1]->piece->c == black);
+    assert(scores->moves->moves[1]->piece->type == queen);
+
+    assert(scores->moves->moves[2]->from == g5);
+    assert(scores->moves->moves[2]->destination == f7);
+    assert(scores->moves->moves[2]->piece->c == white);
+    assert(scores->moves->moves[2]->piece->type == knight);
+
+    assert(scores->moves->moves[3]->from == d8);
+    assert(scores->moves->moves[3]->destination == d7);
+    assert(scores->moves->moves[3]->piece->c == black);
+    assert(scores->moves->moves[3]->piece->type == king);
+
+    assert(scores->moves->moves[4]->from == c4);
+    assert(scores->moves->moves[4]->destination == b5);
+    assert(scores->moves->moves[4]->piece->c == white);
+    assert(scores->moves->moves[4]->piece->type == bishop);
+
+    assert(scores->moves->moves[5]->from == c7);
+    assert(scores->moves->moves[5]->destination == c6);
+    assert(scores->moves->moves[5]->piece->c == black);
+    assert(scores->moves->moves[5]->piece->type == pawn);
+
+    assert(scores->moves->moves[6]->from == e1);
+    assert(scores->moves->moves[6]->destination == e7);
+    assert(scores->moves->moves[6]->piece->c == white);
+    assert(scores->moves->moves[6]->piece->type == castle);
 }
 
 void test_wrapper(void (*test_func)(void), char* func_name) {
@@ -4261,20 +4308,20 @@ void test_mate_in_four_2() {
     assert(scores->moves->moves[3]->piece->c == black);
     assert(scores->moves->moves[3]->piece->type == king);
 
-    // assert(scores->moves->moves[4]->from == c4);
-    // assert(scores->moves->moves[4]->destination == b5);
-    // assert(scores->moves->moves[4]->piece->c == white);
-    // assert(scores->moves->moves[4]->piece->type == bishop);
+    assert(scores->moves->moves[4]->from == c4);
+    assert(scores->moves->moves[4]->destination == b5);
+    assert(scores->moves->moves[4]->piece->c == white);
+    assert(scores->moves->moves[4]->piece->type == bishop);
 
-    // assert(scores->moves->moves[5]->from == c7);
-    // assert(scores->moves->moves[5]->destination == c6);
-    // assert(scores->moves->moves[5]->piece->c == black);
-    // assert(scores->moves->moves[5]->piece->type == pawn);
+    assert(scores->moves->moves[5]->from == c7);
+    assert(scores->moves->moves[5]->destination == c6);
+    assert(scores->moves->moves[5]->piece->c == black);
+    assert(scores->moves->moves[5]->piece->type == pawn);
 
-    // assert(scores->moves->moves[6]->from == e1);
-    // assert(scores->moves->moves[6]->destination == e7);
-    // assert(scores->moves->moves[6]->piece->c == white);
-    // assert(scores->moves->moves[6]->piece->type == castle);
+    assert(scores->moves->moves[6]->from == e1);
+    assert(scores->moves->moves[6]->destination == e7);
+    assert(scores->moves->moves[6]->piece->c == white);
+    assert(scores->moves->moves[6]->piece->type == castle);
 }
 
 void test_mate_detection() {

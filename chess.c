@@ -3,8 +3,8 @@
 int main(void) {
     initialise();
 
-    test();
-    test_evaluation_branching();
+    test_iterative_deepening_m4_2();
+    // test_evaluation_branching();
 
     return 0;
 }
@@ -283,7 +283,10 @@ int reverse_depth(Grapher* grapher) {
 // Set black and white to be fixed.
 
 Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour mover, int prune) {
-    if (grapher->depth == 0) {
+    if (grapher->depth == 0 || grapher->out_of_time) {
+        if (grapher->timer && ((double)(clock() - grapher->timer) / CLOCKS_PER_SEC) > grapher->time_limit) {
+            grapher->out_of_time = true;
+        }
         return init_scores(parent_move, reverse_depth(grapher));
     }
     if (draw_by_repetition(board)) {
@@ -332,9 +335,6 @@ Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour m
             break;
         }
     }
-    if (best_scores == NULL) {
-        printf("FUCK\n");
-    }
     if (parent_move != NULL) {
         best_scores->moves->moves[reverse_depth(grapher) - 1] = parent_move;
     }
@@ -342,6 +342,35 @@ Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour m
     return best_scores;
 }
 
+
+Scores* IDDFS(Board* board, int breadth, colour start_player, int time_limit, ScoresList* all_scores) {
+    Grapher* grapher = init_grapher(breadth, 1, start_player);
+
+    grapher->timer = clock();
+    grapher->time_limit = time_limit;
+
+    Scores* scores;
+    int depth = 1;
+
+    while (((double)(clock() - grapher->timer) / CLOCKS_PER_SEC) < time_limit) {
+        grapher->max_depth = depth * 2;
+        grapher->depth = depth * 2;
+        scores = create_graph(grapher, grapher->start, board, start_player, init_limit(invert_colour(start_player)));
+        
+        all_scores->scores[depth - 1] = scores;
+        all_scores->length += 1;
+
+        depth += 1;
+    }
+
+    if (scores && all_scores->length >= 2) {
+        return all_scores->scores[all_scores->length - 2];
+        if (all_scores->length == 1) {
+            return all_scores->scores[0];
+        }
+    }
+    return NULL;
+}
 
 
 /* -------------------------------- */
@@ -1001,8 +1030,6 @@ Board* init_board(void) {
 
 Grapher* init_grapher(int breadth, int depth, colour start_player) {
     Grapher* grapher = calloc(1, sizeof(Grapher));
-    // GraphNode* node = calloc(1, sizeof(GraphNode));
-    // grapher->start = node;
     grapher->max_breadth = breadth;
     grapher->max_depth = depth * 2;
     grapher->depth = depth * 2;
