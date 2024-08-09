@@ -143,13 +143,14 @@ struct Piece {
 typedef struct Piece Piece;
 
 struct Board;
+struct Move;
 
 struct Transposition {
     U64 hash_value;
+    colour c;
     int eval;
     int depth;
     int flag;
-    struct Board* board;
 };
 typedef struct Transposition Transposition;
 
@@ -159,8 +160,6 @@ struct HashTable {
     Transposition* transpositions[HASH_TABLE_SIZE];
 };
 typedef struct HashTable HashTable;
-
-struct Move;
 
 struct Board {
     U64 bitboard;
@@ -206,13 +205,14 @@ struct Move {
     name promotion;
     bool castle;
     castle_type castle_side;
+    bool hacky;
 };
 typedef struct Move Move;
 
 struct Moves {
     Move* moves[MOVES_SIZE];
     int length;
-    bool single;
+    bool prune_flag;
 };
 typedef struct Moves Moves;
 
@@ -272,6 +272,7 @@ void test_move_logic_mate_in_four();
 void test_moves_board_setup_1();
 void test_moves_board_setup_2();
 bool compare_boards(Board* board1, Board* board2, char* location);
+bool compare_move(Move* move1, Move* move2);
 Board* copy_board(Board* board);
 Board* board_setup_m4_2();
 void test_mate_detection();
@@ -303,6 +304,7 @@ void test_13_june_2024();
 void test_12_june_2024();
 void test_puzzle_trap_bishop();
 void test_puzzle_win_knight_because_pawn_fork();
+void test_reverse_mate_in_1();
 void test_wrapper(void (*test_func)(void), char* func_name);
 
 // Initialisation
@@ -310,7 +312,7 @@ Board* init_board(void);
 void set_board(Board* board);
 Board* set_board_notation(char* s);
 Scores* init_scores(Move* move, int depth);
-int init_limit(bool original_mover);
+int init_limit(colour mover);
 
 // Miscellaneous
 void clear_board(Board* board);
@@ -329,6 +331,7 @@ void colour_to_string(colour c, char* string);
 void piece_to_string(name n, char* string);
 void print_scores(Scores* scores);
 void print_square(square s);
+void print_colour(colour c);
 
 // Move legal logic
 // void execute_move(Board* board, Piece* piece, square to, name promotion);
@@ -348,7 +351,7 @@ void pop_last_moved(Board* board);
 Transposition* hash_and_save(Board* board, Move* move, Piece* killed, int depth);
 void undo_hash(Board* board, Move* move, Piece* killed);
 bool draw_by_repetition(Board* board);
-void put(Board* board, U64 hash_value, int eval, int depth, bool pruned, bool original_mover);
+void put(Board* board, U64 hash_value, int eval, int depth, bool pruned, colour mover);
 Transposition* get(Board* board, U64 hash_value, int depth);
 
 // Get all moves

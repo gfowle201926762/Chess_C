@@ -31,6 +31,7 @@ void test_stack() {
     test_wrapper(test_puzzle_win_queen, "test_puzzle_win_queen");
     test_wrapper(test_17_june_2024, "test_17_june_2024");
     test_wrapper(test_16_june_2024_partial, "test_16_june_2024_partial");
+    test_wrapper(test_reverse_mate_in_1, "test_reverse_mate_in_1");
 
     // test_16_june_2024 works, just annoyingly slow.
     // test_wrapper(test_16_june_2024, "test_16_june_2024");
@@ -64,7 +65,7 @@ void test_forcing_moves_1() {
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(2, 3, white);
-    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
     assert(test_board == board->bitboard);
     
     assert(scores->moves->moves[0]->from == e3);
@@ -84,7 +85,7 @@ void test_dont_be_stupid() {
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(3, 3, black);
-    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(white));
     assert(test_board == board->bitboard);
 
     assert(scores->moves->moves[0]->from == d6);
@@ -99,7 +100,7 @@ void test_forcing_moves_2() {
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(4, 4, white);
-    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
     assert(test_board == board->bitboard);
     // print_scores(scores);
 
@@ -123,7 +124,7 @@ void test_forcing_moves_3() {
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(9, 4, white);
-    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
     assert(test_board == board->bitboard);
 
     // print_scores(scores);
@@ -147,7 +148,7 @@ void test_puzzle_fork() {
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(4, 3, white);
     
-    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
     assert(test_board == board->bitboard);
 
     // print_scores(scores);
@@ -165,7 +166,7 @@ void test_puzzle_win_queen() {
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(6, 4, black);
 
-    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(white));
     assert(test_board == board->bitboard);
     
     // print_scores(scores);
@@ -204,7 +205,7 @@ void test_forcing_moves() {
     // evaluation function not good enough for a lower breadth...
     // https://www.chess.com/blog/EnPassantFork/2024-03-01-dpa-order-matters
     Grapher* grapher = init_grapher(8, 4, black);
-    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(white));
 
     assert(test_board == board->bitboard);
 
@@ -224,7 +225,7 @@ void test_18_june_2024() {
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(8, 4, white);
-    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
     assert(test_board == board->bitboard);
 
     // print_scores(scores);
@@ -273,7 +274,7 @@ void test_17_june_2024() {
     board->pieces[black][KING_INDEX(black)]->no_moves += 1;
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(8, 4, white);
-    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
     assert(test_board == board->bitboard);
 
     assert(scores->moves->moves[0]->from == h8);
@@ -297,7 +298,7 @@ void test_16_june_2024() {
     // print_board_pro(board);
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(9, 6, white);
-    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
     assert(test_board == board->bitboard);
 
     // print_scores(scores);
@@ -364,7 +365,7 @@ void test_16_june_2024_partial() {
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(9, 3, white);
-    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
     assert(test_board == board->bitboard);
 
     // print_scores(scores);
@@ -396,7 +397,7 @@ void test_15_june_2024() {
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(15, 6, white);
-    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
     assert(test_board == board->bitboard);
 
     print_scores(scores);
@@ -412,7 +413,7 @@ void test_15_june_2024_partial() {
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(12, 3, white);
-    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
     assert(test_board == board->bitboard);
 
     // print_scores(scores);
@@ -453,7 +454,7 @@ void test_15_june_2024_end() {
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(12, 3, white);
-    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
     assert(test_board == board->bitboard);
 
     // print_scores(scores);
@@ -474,7 +475,7 @@ void test_14_june_2024() {
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(5, 4, white);
-    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
     assert(test_board == board->bitboard);
 
     // print_scores(scores);
@@ -526,7 +527,7 @@ void test_13_june_2024() {
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(50, 4, black);
-    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(white));
     assert(test_board == board->bitboard);
 
     // print_scores(scores);
@@ -545,12 +546,12 @@ void test_12_june_2024() {
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(9, 2, black);
-    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(white));
     assert(test_board == board->bitboard);
 
     // print_scores(scores);
 
-    assert(scores->eval == MAX_SCORE - 1);
+    assert(scores->eval == -MAX_SCORE + 1);
 
     assert(scores->moves->moves[0]->from == f2);
     assert(scores->moves->moves[0]->destination == g1);
@@ -576,7 +577,7 @@ void test_11_june_2024() {
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(200, 3, white);
-    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
     assert(test_board == board->bitboard);
 
     print_scores(scores);
@@ -591,7 +592,7 @@ void test_11_june_2024_partial() {
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(200, 2, white);
-    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
     assert(test_board == board->bitboard);
 
     print_scores(scores);
@@ -607,7 +608,7 @@ void test_puzzle_trap_bishop() {
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(30, 3, white);
-    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
     assert(test_board == board->bitboard);
 
     // print_scores(scores);
@@ -626,7 +627,7 @@ void test_puzzle_win_knight_because_pawn_fork() {
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(5, 5, black);
-    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(white));
     assert(test_board == board->bitboard);
 
     // print_scores(scores);
@@ -637,6 +638,67 @@ void test_puzzle_win_knight_because_pawn_fork() {
     assert(scores->moves->moves[0]->piece->type == knight);
 }
 
+void test_mate_in_5() {
+    Board* board = set_board_notation("wkg1 wcf1 wqd1 wca1 wbf4 whb3 wba8 wph2 wpg3 wpf2 wpe2 wpc2 wpb2 wpa4 bkg8 bcf8 bqe7 bbb6 bbh3 bhf6 bph7 bpg7 bpf7 bpd6 bpc6 bpa7 ");
+    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
+    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
+
+    print_board_pro(board);
+
+    U64 test_board = board->bitboard;
+    Grapher* grapher = init_grapher(20, 5, black);
+    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(white));
+    assert(test_board == board->bitboard);
+
+    print_scores(scores);
+
+    assert(scores->eval == MAX_SCORE - 4);
+}
+
+void test_mate_in_5_partial() {
+    Board* board = set_board_notation("wkg1 wcf1 wqd1 wca1 wbf4 whb3 wph2 wpg3 wpf2 wpe2 wpc2 wpb2 wpa4 bkg8 bcf8 bqc6 bbb6 bbh3 bhf6 bph7 bpg7 bpf7 bpd6 bpa7 ");
+    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
+    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
+
+    print_board_pro(board);
+
+    U64 test_board = board->bitboard;
+    Grapher* grapher = init_grapher(50, 4, white);
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
+    assert(test_board == board->bitboard);
+
+    print_scores(scores);
+}
+
+void test_reverse_mate_in_1() {
+    Board* board = set_board_notation("wkg1 wcc8 wcb7 bka1 ");
+    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
+    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
+
+    // print_board_pro(board);
+
+    U64 test_board = board->bitboard;
+    Grapher* grapher = init_grapher(5, 4, white);
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
+    assert(test_board == board->bitboard);
+
+    // print_scores(scores);
+
+    assert(scores->eval == MAX_SCORE);
+    assert(scores->moves->moves[0]->from == c8);
+    assert(scores->moves->moves[0]->destination == a8);
+    assert(scores->moves->moves[0]->piece->c == white);
+    assert(scores->moves->moves[0]->piece->type == castle);
+
+    // NOW ASSERT IT RECOGNISES A LOSING POSITION
+
+    assert(test_board == board->bitboard);
+    grapher = init_grapher(5, 2, black);
+    scores = create_graph(grapher, grapher->start, board, black, init_limit(white));
+
+    // positive score because white wins
+    assert(scores->eval == MAX_SCORE - 1);
+}
 
 
 void test_draw_by_repetition_1() {
@@ -767,8 +829,9 @@ void test_draw_by_repetition_best_line() {
     board->pieces[black][KING_INDEX(black)]->no_moves += 1;
 
     // how the fuck can black not see mate with b=5?
-    Grapher* grapher = init_grapher(6, 5, white);
-    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    
+    Grapher* grapher = init_grapher(6, 6, white);
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
 
     assert(scores->eval == 0);
     // assert(scores->moves->length >= 6); // because of transposition table
@@ -4041,10 +4104,10 @@ void test_detect_mate_2() {
 
     // print_board_pro(board);
     Grapher* grapher = init_grapher(3, 2, black);
-    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(white));
     assert(test_board == board->bitboard);
 
-    assert(scores->eval == MAX_SCORE - 1);
+    assert(scores->eval == -MAX_SCORE + 1);
     assert(scores->moves->moves[0]->from == e8);
     assert(scores->moves->moves[0]->destination == b8);
     assert(scores->moves->moves[0]->piece->c == black);
@@ -4085,7 +4148,7 @@ void test_detect_mate_1() {
     // DIFFICULT MATE IN 4 (no threats made immediately)
     // print_board_pro(board);
     Grapher* grapher = init_grapher(10, 4, black);
-    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(white));
     // assert(score == 0);
     assert(test_board == board->bitboard);
     // print_scores(scores);
@@ -4101,7 +4164,7 @@ void test_detect_mate_1() {
 
     // print_board_pro(board);
     Grapher* grapher2 = init_grapher(1, 4, black);
-    scores = create_graph(grapher2, grapher2->start, board, black, init_limit(true));
+    scores = create_graph(grapher2, grapher2->start, board, black, init_limit(white));
     assert(test_board == board->bitboard);
     // print_scores(scores);
 
@@ -4110,7 +4173,7 @@ void test_detect_mate_1() {
     assert(scores->moves->moves[0]->piece->c == black);
     assert(scores->moves->moves[0]->from == e8);
     assert(scores->moves->moves[0]->destination == a8);
-    assert(scores->eval == MAX_SCORE);
+    assert(scores->eval == -MAX_SCORE);
 }
 
 void test_mate_in_four() {
@@ -4122,12 +4185,12 @@ void test_mate_in_four() {
     // evaluation function needs to be improved
 
     // print_board_pro(board);
-    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(white));
     assert(test_board == board->bitboard);
 
     // print_scores(scores);
 
-    assert(scores->eval == MAX_SCORE - 3);
+    assert(scores->eval == -MAX_SCORE + 3);
 
     assert(scores->moves->moves[0]->from == d7);
     assert(scores->moves->moves[0]->destination == d1);
@@ -4172,7 +4235,7 @@ void test_mate_in_four_2() {
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(10, 4, white);
-    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(true));
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
     assert(test_board == board->bitboard);
     // print_scores(scores);
 
