@@ -229,6 +229,11 @@ Moves* get_best_moves(Board* board, Moves* moves, colour mover, int max_breadth,
 
         if (draw_by_repetition(board)) {
             move->evaluation = 0;
+            if ((t && t->flag != LOWER_BOUND && (mover == black && 0 <= prune)) || (t && t->flag != UPPER_BOUND && (mover == white && 0 >= prune))) {
+                undo_hash(board, move, killed);
+                undo_pretend_move(board, move, killed);
+                return hacky_Moves(move);
+            }
         }
         else if (t && t->flag != LOWER_BOUND && (mover == black && t->eval <= prune)) {
             move->evaluation = t->eval;
