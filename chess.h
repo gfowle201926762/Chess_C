@@ -147,19 +147,11 @@ struct Move;
 
 struct Transposition {
     U64 hash_value;
-    colour c;
     int eval;
     int depth;
     int flag;
 };
 typedef struct Transposition Transposition;
-
-struct HashTable {
-    // index is the hashtable's key (hash_value % HASH_TABLE_SIZE)
-    // the value is the U64 hash (and eval) -> check whether actually match
-    Transposition* transpositions[HASH_TABLE_SIZE];
-};
-typedef struct HashTable HashTable;
 
 struct Board {
     U64 bitboard;
@@ -169,7 +161,6 @@ struct Board {
     U64 keys_position[MAX_COLOUR][MAX_PIECE_TYPE][CELLS];
     U64 keys_castling[MAX_COLOUR][MAX_CASTLING_OPTIONS];
     U64 keys_last_moved[CELLS]; // just need a last moved position... allows for any number of pawns.
-    U64 keys_repetitions[MAX_REPETITIONS];
     U64 key_mover;
 
     Transposition* transpositions[HASH_TABLE_SIZE];
@@ -188,9 +179,7 @@ struct Board {
     Piece* map[CELLS];
     Piece* pieces[MAX_COLOUR][CELLS];
     
-    int max_pieces[MAX_COLOUR];
     name promotable_pieces[MAX_PROMOTABLE_PIECES];
-    name valid_pieces[MAX_ACTUAL_PIECE_TYPE];
 
     int counter;
     int leaves;

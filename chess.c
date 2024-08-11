@@ -3,8 +3,10 @@
 int main(void) {
     initialise();
 
+    test();
+    test_evaluation_branching();
     test_iterative_deepening_m4_2();
-    // test_evaluation_branching();
+    
 
     return 0;
 }
@@ -279,9 +281,6 @@ int reverse_depth(Grapher* grapher) {
     return grapher->max_depth - grapher->depth;
 }
 
-// how should you fix this?
-// Set black and white to be fixed.
-
 Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour mover, int prune) {
     if (grapher->depth == 0 || grapher->out_of_time) {
         if (grapher->timer && ((double)(clock() - grapher->timer) / CLOCKS_PER_SEC) > grapher->time_limit) {
@@ -341,7 +340,6 @@ Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour m
     put(board, board->hash_value, best_scores->eval, grapher->depth, pruned, mover);
     return best_scores;
 }
-
 
 Scores* IDDFS(Board* board, int breadth, colour start_player, int time_limit, ScoresList* all_scores) {
     Grapher* grapher = init_grapher(breadth, 1, start_player);
@@ -775,7 +773,6 @@ void put(Board* board, U64 hash_value, int eval, int depth, bool pruned, colour 
     board->transpositions[index]->hash_value = hash_value;
     board->transpositions[index]->eval = eval;
     board->transpositions[index]->depth = depth;
-    board->transpositions[index]->c = mover;
     if (pruned && mover == white) {
         board->transpositions[index]->flag = LOWER_BOUND;
     }
@@ -872,9 +869,6 @@ void init_hash_keys(Board* board) {
     for (int i = 0; i < CELLS; i++) {
         board->keys_last_moved[i] = rand64();
     }
-    for (int i = 0; i < MAX_REPETITIONS; i++) {
-        board->keys_repetitions[i] = rand64();
-    }
     board->key_mover = rand64();
 }
 
@@ -902,14 +896,6 @@ Board* init_board(void) {
     board->promotable_pieces[1] = castle;
     board->promotable_pieces[2] = bishop;
     board->promotable_pieces[3] = knight;
-
-    board->valid_pieces[0] = king;
-    board->valid_pieces[1] = queen;
-    board->valid_pieces[2] = castle;
-    board->valid_pieces[3] = bishop;
-    board->valid_pieces[4] = knight;
-    board->valid_pieces[5] = pawn;
-
 
     for (int i = 0; i < 32; i++) {
         Piece* piece = calloc(1, sizeof(Piece));
