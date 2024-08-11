@@ -9,6 +9,8 @@
 #include <string.h>
 #include <time.h>
 
+#include "com_chess_application_services_NativeEngineService.h"
+
 #define CELLS 64
 #define MAX_COLOUR 2
 #define MAX_PIECE_TYPE 7

@@ -3,9 +3,12 @@
 int main(void) {
     initialise();
 
-    test();
-    test_evaluation_branching();
-    test_iterative_deepening_m4_2();
+    Board* board = calloc(1, sizeof(Board));
+    init_hash_keys(board);
+
+    // test();
+    // test_evaluation_branching();
+    // test_iterative_deepening_m4_2();
     
 
     return 0;
@@ -16,6 +19,26 @@ void initialise(void) {
     srand(time(NULL));
 }
 
+
+JNIEXPORT jobject JNICALL Java_com_chess_application_services_NativeEngineService_test_1java_1interface
+  (JNIEnv* env, jobject this_object, jobject move) {
+    jclass pieceClass = (*env)->GetObjectClass(env, move);
+
+    jmethodID getOriginMethod = (*env)->GetMethodID(env, pieceClass, "getOrigin", "()J");
+    jmethodID getDestinationMethod = (*env)->GetMethodID(env, pieceClass, "getDestination", "()J");
+
+
+    jlong origin = (jlong) (*env)->CallObjectMethod(env, move, getOriginMethod);
+    jlong destination = (jlong) (*env)->CallObjectMethod(env, move, getDestinationMethod);
+
+    char origin_string[5] = {'\0'};
+    char destination_string[5] = {'\0'};
+    square_to_string(origin, origin_string);
+    square_to_string(destination, destination_string);
+
+    printf("In the C code! origin: %s; destination: %s\n", origin_string, destination_string);
+    return move;
+  }
 
 
 
@@ -860,14 +883,17 @@ void init_hash_keys(Board* board) {
         for (int j = 0; j < MAX_PIECE_TYPE; j++) {
             for (int k = 0; k < CELLS; k++) {
                 board->keys_position[i][j][k] = rand64();
+                printf("%llu\n", board->keys_position[i][j][k]);
             }
         }
         for (int j = 0; j < MAX_CASTLING_OPTIONS; j++) {
             board->keys_castling[i][j] = rand64();
+            printf("%llu\n", board->keys_castling[i][j]);
         }
     }
     for (int i = 0; i < CELLS; i++) {
         board->keys_last_moved[i] = rand64();
+        printf("%llu\n", board->keys_last_moved[i]);
     }
     board->key_mover = rand64();
 }
@@ -884,6 +910,227 @@ void init_hash_value(Board* board) {
         }
     }
     board->hash_repeats = board->hash_value;
+}
+
+
+Piece* make_piece(name type, colour c, square cell) {
+    Piece* piece = calloc(1, sizeof(Piece));
+    piece->alive = true;
+    piece->cell = cell;
+    piece->c = c;
+    switch (type) {
+        case king:
+            piece->value = KING_VALUE;
+            piece->move_func = get_king_mask;
+            piece->type = king;
+            break;
+        case queen:
+            piece->value = QUEEN_VALUE;
+            piece->move_func = get_queen_mask;
+            piece->type = queen;
+            break;
+        case castle:
+            piece->value = CASTLE_VALUE;
+            piece->move_func = get_castle_mask;
+            piece->type = castle;
+            break;
+        case bishop:
+            piece->value = BISHOP_VALUE;
+            piece->move_func = get_bishop_mask;
+            piece->type = bishop;
+            break;
+        case knight:
+            piece->value = KNIGHT_VALUE;
+            piece->move_func = get_knight_mask;
+            piece->type = knight;
+            break;
+        case pawn:
+            piece->value = PAWN_VALUE;
+            piece->move_func = get_pawn_mask;
+            piece->type = pawn;
+            break;
+    }
+    return piece;
+}
+
+Board* process_FEN(char* fen_string) {
+    Board* board = calloc(1, sizeof(Board));
+
+    bool K = false;
+    bool k = false;
+    bool Q = false;
+    bool q = false;
+
+    char en_passant_square[3] = {'\0'};
+    bool processed = false;
+
+    int space_count = 0;
+    int pieces = 0;
+    int i = 0;
+    int cell = 0;
+    while (fen_string[i]) {
+        if (fen_string[i] == ' ') {
+            space_count += 1;
+        }
+        else if (space_count == 0) {
+            Piece* piece = NULL;
+            
+            switch (fen_string[i]) {
+                case '/':
+                    cell -= 1;
+                    break;
+                case 'k':
+                    piece = make_piece(king, black, cell);
+                    board->pieces[black][pieces] = piece;
+                    break;
+                case 'K':
+                    piece = make_piece(king, white, cell);
+                    board->pieces[white][pieces] = piece;
+                    break;
+                case 'q':
+                    piece = make_piece(queen, black, cell);
+                    board->pieces[black][pieces] = piece;
+                    break;
+                case 'Q':
+                    piece = make_piece(queen, white, cell);
+                    board->pieces[white][pieces] = piece;
+                    break;
+                case 'r':
+                    piece = make_piece(castle, black, cell);
+                    board->pieces[black][pieces] = piece;
+                    if (cell % 8 < 4) {
+                        board->castle_pieces[black][queen_side] = piece;
+                    }
+                    else {
+                        board->castle_pieces[black][king_side] = piece;
+                    }
+                    break;
+                case 'R':
+                    piece = make_piece(castle, white, cell);
+                    board->pieces[white][pieces] = piece;
+                    if (cell % 8 < 4) {
+                        board->castle_pieces[white][queen_side] = piece;
+                    }
+                    else {
+                        board->castle_pieces[white][king_side] = piece;
+                    }
+                    break;
+                case 'b':
+                    piece = make_piece(bishop, black, cell);
+                    board->pieces[black][pieces] = piece;
+                    break;
+                case 'B':
+                    piece = make_piece(bishop, white, cell);
+                    board->pieces[white][pieces] = piece;
+                    break;
+                case 'n':
+                    piece = make_piece(knight, black, cell);
+                    board->pieces[black][pieces] = piece;
+                    break;
+                case 'N':
+                    piece = make_piece(knight, white, cell);
+                    board->pieces[white][pieces] = piece;
+                    break;
+                case 'p':
+                    piece = make_piece(pawn, black, cell);
+                    board->pieces[black][pieces] = piece;
+                    break;
+                case 'P':
+                    piece = make_piece(pawn, white, cell);
+                    board->pieces[white][pieces] = piece;
+                    break;
+            }
+            
+            if (piece) {
+                board->map[cell] = piece;
+                pieces += 1;
+                set_bit(board->bitboard, cell);
+            }
+
+            if (fen_string[i] >= '0' && fen_string[i] <= '9') {
+                cell += fen_string[i] - '1';
+            }
+        }
+        else if (space_count == 1) {
+            // whose turn it is
+        }
+        else if (space_count == 2) {
+            switch (fen_string[i]) {
+                case 'k':
+                    k = true;
+                    break;
+                case 'K':
+                    K = true;
+                    break;
+                case 'q':
+                    q = true;
+                    break;
+                case 'Q':
+                    Q = true;
+                    break;
+            }
+        }
+        else if (space_count == 3) {
+            if (!k) {
+                board->castle_pieces[black][king_side]->no_moves += 1;
+            }
+            if (!K) {
+                board->castle_pieces[white][king_side]->no_moves += 1;
+            }
+            if (!q) {
+                board->castle_pieces[black][queen_side]->no_moves += 1;
+            }
+            if (!Q) {
+                board->castle_pieces[white][queen_side]->no_moves += 1;
+            }        
+            strcat(en_passant_square, fen_string[i]);
+        }
+        else if (space_count == 4) {
+            if (en_passant_square[0] != '-' && !processed) {
+                processed = true;
+                square sq = string_to_square(en_passant_square[0], en_passant_square[1]);
+                Move* move = calloc(1, sizeof(Move));
+                board->last_moved[0] = move;
+                if (sq / 8 == 5) {
+                    // white
+                    move->destination = sq - 8;
+                    move->from = sq + 8;
+                    move->piece = board->map[sq - 8];
+                }
+                if (sq / 8 == 2) {
+                    //black
+                    move->destination = sq + 8;
+                    move->from = sq - 8;
+                    move->piece = board->map[sq + 8];
+                }
+            }
+        }
+        else if (space_count == 5) {
+            
+        }
+        i += 1;
+        cell += 1;
+    }
+    board->promotable_pieces[0] = queen;
+    board->promotable_pieces[1] = castle;
+    board->promotable_pieces[2] = bishop;
+    board->promotable_pieces[3] = knight;
+
+    board->castling_coordinates[white][king_side] = g1;
+    board->to_castle_coords[white][king_side] = f1;
+    board->from_castle_coords[white][king_side] = h1;
+
+    board->castling_coordinates[white][queen_side] = c1;
+    board->to_castle_coords[white][queen_side] = d1;
+    board->from_castle_coords[white][queen_side] = a1;
+
+    board->castling_coordinates[black][king_side] = g8;
+    board->to_castle_coords[black][king_side] = f8;
+    board->from_castle_coords[black][king_side] = h8;
+
+    board->castling_coordinates[black][queen_side] = c8;
+    board->to_castle_coords[black][queen_side] = d8;
+    board->from_castle_coords[black][queen_side] = a8;
 }
 
 Board* init_board(void) {

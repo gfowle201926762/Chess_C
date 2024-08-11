@@ -17,6 +17,9 @@ clean: clean_chess clean_chess_s
 make_chess: chess.c chess.h test.c
 	$(CC) chess.c $(RELEASE) -o chess.out
 
+make_chess_java: chess.c chess.h com_chess_application_services_NativeEngineService.h test.c
+	$(CC) -I"/opt/homebrew/Cellar/openjdk@17/17.0.6/libexec/openjdk.jdk/Contents/Home/include/" -I"/opt/homebrew/Cellar/openjdk@17/17.0.6/libexec/openjdk.jdk/Contents/Home/include/darwin/" chess.c $(RELEASE) -o libchess.dylib -arch x86_64
+
 make_chess_s: chess.c chess.h test.c
 	$(CC) chess.c $(SANI) -o chess_s.out
 
