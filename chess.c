@@ -3,9 +3,12 @@
 int main(void) {
     initialise();
 
-    test();
-    test_evaluation_branching();
-    test_iterative_deepening_m4_2();
+    Board* board = calloc(1, sizeof(Board));
+    init_hash_keys(board);
+
+    // test();
+    // test_evaluation_branching();
+    // test_iterative_deepening_m4_2();
     
 
     return 0;
@@ -856,19 +859,31 @@ U64 rand64() {
 }
 
 void init_hash_keys(Board* board) {
+    printf("{\n");
     for (int i = 0; i < MAX_COLOUR; i++) {
+        // printf("\t{\n");
         for (int j = 0; j < MAX_PIECE_TYPE; j++) {
+            // printf("\t\t{\n");
             for (int k = 0; k < CELLS; k++) {
-                board->keys_position[i][j][k] = rand64();
+                board->keys_position[i][j][k] = keys_position[i][j][k]; //rand64();
+                // printf("\t\t\t%lluULL,\n", board->keys_position[i][j][k]);
             }
+            // printf("\t\t},\n");
         }
+        // printf("\t},\n");
+        
+        // printf("\t{\n");
         for (int j = 0; j < MAX_CASTLING_OPTIONS; j++) {
-            board->keys_castling[i][j] = rand64();
+            board->keys_castling[i][j] = keys_castling[i][j]; //rand64();
+            // printf("\t\t%lluULL,\n", board->keys_castling[i][j]);
         }
+        // printf("\t},\n");
     }
     for (int i = 0; i < CELLS; i++) {
-        board->keys_last_moved[i] = rand64();
+        board->keys_last_moved[i] = keys_last_moved[i]; //rand64();
+        printf("\t%lluULL,\n", board->keys_last_moved[i]);
     }
+    printf("}\n");
     board->key_mover = rand64();
 }
 
