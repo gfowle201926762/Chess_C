@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
+#include "hashkeys.h"
 
 #include "com_chess_application_services_NativeEngineService.h"
 
@@ -312,6 +313,7 @@ void set_board(Board* board);
 Board* set_board_notation(char* s);
 Scores* init_scores(Move* move, int depth);
 int init_limit(colour mover);
+void init_hash_keys(Board* board);
 
 // Miscellaneous
 void clear_board(Board* board);
