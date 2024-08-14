@@ -1,3 +1,5 @@
+unsigned long long key_mover = 17556117629724126251ULL;
+
 unsigned long long keys_castling[2][2] = 
 {
 	{

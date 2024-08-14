@@ -313,6 +313,7 @@ Board* set_board_notation(char* s);
 Scores* init_scores(Move* move, int depth);
 int init_limit(colour mover);
 void init_hash_keys(Board* board);
+U64 rand64();
 Board* process_FEN(const char* fen_string);
 
 // Miscellaneous
