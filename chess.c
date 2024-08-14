@@ -3,8 +3,9 @@
 int main(void) {
     initialise();
 
-    Board* board = calloc(1, sizeof(Board));
-    init_hash_keys(board);
+    // Board* board = calloc(1, sizeof(Board));
+    // init_hash_keys(board);
+    printf("%lluULL,\n", rand64());
 
     // test();
     // test_evaluation_branching();
@@ -27,28 +28,81 @@ JNIEXPORT jobject JNICALL Java_com_chess_application_services_NativeEngineServic
     jmethodID getOriginMethod = (*env)->GetMethodID(env, nativePayloadClass, "getOrigin", "()J");
     jmethodID getDestinationMethod = (*env)->GetMethodID(env, nativePayloadClass, "getDestination", "()J");
     jmethodID getFENMethod = (*env)->GetMethodID(env, nativePayloadClass, "getFenString", "()Ljava/lang/String;");
-
+    jmethodID getSettingsMethod = (*env)->GetMethodID(env, nativePayloadClass, "getSettings", "()Lcom/chess/application/controller/model/Settings;");
+    jmethodID getTranspositionsMethod = (*env)->GetMethodID(env, nativePayloadClass, "getTranspositions", "()[Lcom/chess/application/model/Transposition;");
 
     jlong origin = (jlong) (*env)->CallObjectMethod(env, nativePayload, getOriginMethod);
     jlong destination = (jlong) (*env)->CallObjectMethod(env, nativePayload, getDestinationMethod);
     jstring j_fen_string = (jstring) (*env)->CallObjectMethod(env, nativePayload, getFENMethod);
+    jobject engineSettings = (jobject) (*env)->CallObjectMethod(env, nativePayload, getSettingsMethod);
+    jobjectArray transpositionTable = (jobjectArray) (*env)->CallObjectMethod(env, nativePayload, getTranspositionsMethod);
 
+    // GET SETTINGS METHODS
+    jclass settingsClass = (*env)->FindClass(env, "com/chess/application/controller/model/Settings");
+    jmethodID getBreadthMethod = (*env)->GetMethodID(env, settingsClass, "getBreadth", "()J");
+    jmethodID getStartPlayerMethod = (*env)->GetMethodID(env, settingsClass, "getStartPlayer", "()J");
+    jmethodID getTimeLimitMethod = (*env)->GetMethodID(env, settingsClass, "getTimeLimit", "()J");
+
+    if (getBreadthMethod == NULL) {
+        printf("getBreadthMethod is NULL\n");
+    }
+    if (getStartPlayerMethod == NULL) {
+        printf("getStartPlayerMethod is NULL\n");
+    }
+    if (getTimeLimitMethod == NULL) {
+        printf("getTimeLimitMethod is NULL\n");
+    }
+
+    // GET SETTINGS ATTRIBUTES
+    jlong breadth = (jlong) (*env)->CallObjectMethod(env, engineSettings, getBreadthMethod);
+    jlong startPlayer = (jlong) (*env)->CallObjectMethod(env, engineSettings, getStartPlayerMethod);
+    jlong timeLimit = (jlong) (*env)->CallObjectMethod(env, engineSettings, getTimeLimitMethod);
+
+    printf("breadth %li\n", breadth);
+    printf("startPlayer %li\n", startPlayer);
+    printf("timeLimit %li\n", timeLimit);
+    
+
+    // GET TRANSPOSITION METHODS
+    jclass transpositionClass = (*env)->FindClass(env, "com/chess/application/model/Transposition");
+    jmethodID getHashValueMethod = (*env)->GetMethodID(env, transpositionClass, "getHashValue", "()J");
+    jmethodID getEvalMethod = (*env)->GetMethodID(env, transpositionClass, "getEval", "()I");
+    jmethodID getDepthMethod = (*env)->GetMethodID(env, transpositionClass, "getDepth", "()I");
+    jmethodID getFlagMethod = (*env)->GetMethodID(env, transpositionClass, "getFlag", "()I");
+
+    // How to get a transposition from the transposition table.
+    jobject transposition = (*env)->GetObjectArrayElement(env, transpositionTable, 0);
+    jlong hash = (jlong) (*env)->CallObjectMethod(env, transposition, getHashValueMethod);
+
+
+    // INITIALISE BOARD
     const char* fen_string;
     fen_string = (*env)->GetStringUTFChars(env, j_fen_string, NULL);
+    Board* board = process_FEN(fen_string);
+    print_board_pro(board);
 
+    ScoresList* all_scores = calloc(1, sizeof(ScoresList));
+
+
+
+    printf("about to go into IDDFS\n");
+    Scores* scores = IDDFS(board, (int) breadth, (colour) startPlayer, (int) timeLimit, all_scores);
+    
+
+
+
+    // PRINT STUFF
     char origin_string[5] = {'\0'};
     char destination_string[5] = {'\0'};
-    
     square_to_string(origin, origin_string);
     square_to_string(destination, destination_string);
-
     printf("In the C code! origin: %s; destination: %s\n", origin_string, destination_string);
     printf("FEN String: %s\n", fen_string);
 
-
+    
+    // RETURN PAYLOAD
     jclass returnPayloadClass = (*env)->FindClass(env, "com/chess/application/model/ReturnPayload");
     jmethodID constructor = (*env)->GetMethodID(env, returnPayloadClass, "<init>", "(Ljava/lang/String;Ljava/lang/String;JJ)V");
-
 
     return (*env)->NewObject(env, returnPayloadClass, constructor,
                                                     (*env)->NewStringUTF(env, "fen_string_client_test"),
@@ -382,6 +436,7 @@ Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour m
 }
 
 Scores* IDDFS(Board* board, int breadth, colour start_player, int time_limit, ScoresList* all_scores) {
+    printf("INSIDE IDDFS\n");
     Grapher* grapher = init_grapher(breadth, 1, start_player);
 
     grapher->timer = clock();
@@ -949,31 +1004,37 @@ Piece* make_piece(name type, colour c, square cell) {
             piece->value = KING_VALUE;
             piece->move_func = get_king_mask;
             piece->type = king;
+            piece->character = (c == white) ? L'♚' : L'♔';
             break;
         case queen:
             piece->value = QUEEN_VALUE;
             piece->move_func = get_queen_mask;
             piece->type = queen;
+            piece->character = (c == white) ? L'♛' : L'♕';
             break;
         case castle:
             piece->value = CASTLE_VALUE;
             piece->move_func = get_castle_mask;
             piece->type = castle;
+            piece->character = (c == white) ? L'♜' : L'♖';
             break;
         case bishop:
             piece->value = BISHOP_VALUE;
             piece->move_func = get_bishop_mask;
             piece->type = bishop;
+            piece->character = (c == white) ? L'♝' : L'♗';
             break;
         case knight:
             piece->value = KNIGHT_VALUE;
             piece->move_func = get_knight_mask;
             piece->type = knight;
+            piece->character = (c == white) ? L'♞' : L'♘';
             break;
         case pawn:
             piece->value = PAWN_VALUE;
             piece->move_func = get_pawn_mask;
             piece->type = pawn;
+            piece->character = (c == white) ? L'♟' : L'♙';
             break;
         case none:
             break;
@@ -981,7 +1042,7 @@ Piece* make_piece(name type, colour c, square cell) {
     return piece;
 }
 
-Board* process_FEN(char* fen_string) {
+Board* process_FEN(const char* fen_string) {
     Board* board = calloc(1, sizeof(Board));
 
     bool K = false;
