@@ -315,6 +315,7 @@ int init_limit(colour mover);
 void init_hash_keys(Board* board);
 U64 rand64();
 Board* process_FEN(const char* fen_string);
+Move* init_move(Board* board, square origin, square destination, name promotion, bool castle, castle_type castle_side);
 
 // Miscellaneous
 void clear_board(Board* board);

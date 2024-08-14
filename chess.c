@@ -3,9 +3,6 @@
 int main(void) {
     initialise();
 
-    // Board* board = calloc(1, sizeof(Board));
-    // init_hash_keys(board);
-    printf("%lluULL,\n", rand64());
 
     // test();
     // test_evaluation_branching();
@@ -25,14 +22,24 @@ JNIEXPORT jobject JNICALL Java_com_chess_application_services_NativeEngineServic
   (JNIEnv* env, jobject this_object, jobject nativePayload) {
     jclass nativePayloadClass = (*env)->GetObjectClass(env, nativePayload);
 
+    clock_t start, end;
+    double elapsed_time;
+    start = clock();
+
     jmethodID getOriginMethod = (*env)->GetMethodID(env, nativePayloadClass, "getOrigin", "()J");
     jmethodID getDestinationMethod = (*env)->GetMethodID(env, nativePayloadClass, "getDestination", "()J");
+    jmethodID getPromotionMethod = (*env)->GetMethodID(env, nativePayloadClass, "getPromotion", "()J");
+    jmethodID getCastleTypeMethod = (*env)->GetMethodID(env, nativePayloadClass, "getCastleType", "()J");
+    jmethodID getCastleMethod = (*env)->GetMethodID(env, nativePayloadClass, "isCastle", "()Z");
     jmethodID getFENMethod = (*env)->GetMethodID(env, nativePayloadClass, "getFenString", "()Ljava/lang/String;");
     jmethodID getSettingsMethod = (*env)->GetMethodID(env, nativePayloadClass, "getSettings", "()Lcom/chess/application/controller/model/Settings;");
     jmethodID getTranspositionsMethod = (*env)->GetMethodID(env, nativePayloadClass, "getTranspositions", "()[Lcom/chess/application/model/Transposition;");
 
     jlong origin = (jlong) (*env)->CallObjectMethod(env, nativePayload, getOriginMethod);
     jlong destination = (jlong) (*env)->CallObjectMethod(env, nativePayload, getDestinationMethod);
+    jlong promotion = (jlong) (*env)->CallObjectMethod(env, nativePayload, getPromotionMethod);
+    jlong castleType = (jlong) (*env)->CallObjectMethod(env, nativePayload, getCastleTypeMethod);
+    jboolean castle = (jlong) (*env)->CallObjectMethod(env, nativePayload, getCastleMethod);
     jstring j_fen_string = (jstring) (*env)->CallObjectMethod(env, nativePayload, getFENMethod);
     jobject engineSettings = (jobject) (*env)->CallObjectMethod(env, nativePayload, getSettingsMethod);
     jobjectArray transpositionTable = (jobjectArray) (*env)->CallObjectMethod(env, nativePayload, getTranspositionsMethod);
@@ -43,27 +50,12 @@ JNIEXPORT jobject JNICALL Java_com_chess_application_services_NativeEngineServic
     jmethodID getStartPlayerMethod = (*env)->GetMethodID(env, settingsClass, "getStartPlayer", "()J");
     jmethodID getTimeLimitMethod = (*env)->GetMethodID(env, settingsClass, "getTimeLimit", "()J");
 
-    if (getBreadthMethod == NULL) {
-        printf("getBreadthMethod is NULL\n");
-    }
-    if (getStartPlayerMethod == NULL) {
-        printf("getStartPlayerMethod is NULL\n");
-    }
-    if (getTimeLimitMethod == NULL) {
-        printf("getTimeLimitMethod is NULL\n");
-    }
-
     // GET SETTINGS ATTRIBUTES
     jlong breadth = (jlong) (*env)->CallObjectMethod(env, engineSettings, getBreadthMethod);
     jlong startPlayer = (jlong) (*env)->CallObjectMethod(env, engineSettings, getStartPlayerMethod);
     jlong timeLimit = (jlong) (*env)->CallObjectMethod(env, engineSettings, getTimeLimitMethod);
 
-    printf("breadth %li\n", breadth);
-    printf("startPlayer %li\n", startPlayer);
-    printf("timeLimit %li\n", timeLimit);
-    
-
-    // GET TRANSPOSITION METHODS
+    // GET TRANSPOSITION METHODS (whatever, never going to use it anyway.)
     jclass transpositionClass = (*env)->FindClass(env, "com/chess/application/model/Transposition");
     jmethodID getHashValueMethod = (*env)->GetMethodID(env, transpositionClass, "getHashValue", "()J");
     jmethodID getEvalMethod = (*env)->GetMethodID(env, transpositionClass, "getEval", "()I");
@@ -74,42 +66,56 @@ JNIEXPORT jobject JNICALL Java_com_chess_application_services_NativeEngineServic
     jobject transposition = (*env)->GetObjectArrayElement(env, transpositionTable, 0);
     jlong hash = (jlong) (*env)->CallObjectMethod(env, transposition, getHashValueMethod);
 
-
     // INITIALISE BOARD
     const char* fen_string;
     fen_string = (*env)->GetStringUTFChars(env, j_fen_string, NULL);
     Board* board = process_FEN(fen_string);
-    print_board_pro(board);
-
-    ScoresList* all_scores = calloc(1, sizeof(ScoresList));
-
-
-
-    printf("about to go into IDDFS\n");
-    Scores* scores = IDDFS(board, (int) breadth, (colour) startPlayer, (int) timeLimit, all_scores);
-    
-
-
 
     // PRINT STUFF
     char origin_string[5] = {'\0'};
     char destination_string[5] = {'\0'};
     square_to_string(origin, origin_string);
     square_to_string(destination, destination_string);
-    printf("In the C code! origin: %s; destination: %s\n", origin_string, destination_string);
+    printf("Client move origin: %s; destination: %s\n", origin_string, destination_string);
     printf("FEN String: %s\n", fen_string);
+    print_board_pro(board);
 
+    // EXECUTE CLIENT MOVE
+    Move* clientMove = init_move(board, (square) origin, (square) destination, (name) promotion, (bool) castle, (castle_type) castleType);
+    pretend_move(board, clientMove);
+    printf("EXECUTE CLIENT MOVE\n");
+    print_board_pro(board);
+
+    // FIND BEST MOVE
+    ScoresList* all_scores = calloc(1, sizeof(ScoresList));
+    Scores* scores = IDDFS(board, (int) breadth, (colour) startPlayer, (int) timeLimit, all_scores);
+    print_scores(scores);
     
     // RETURN PAYLOAD
     jclass returnPayloadClass = (*env)->FindClass(env, "com/chess/application/model/ReturnPayload");
     jmethodID constructor = (*env)->GetMethodID(env, returnPayloadClass, "<init>", "(Ljava/lang/String;Ljava/lang/String;JJ)V");
+
+    end = clock();
+    printf("%f seconds\n", ((double)(end - start) / CLOCKS_PER_SEC));
 
     return (*env)->NewObject(env, returnPayloadClass, constructor,
                                                     (*env)->NewStringUTF(env, "fen_string_client_test"),
                                                     (*env)->NewStringUTF(env, "fen_string_engine_test"),
                                                     (jlong) f2,
                                                     (jlong) g3);
-  }
+}
+
+
+Move* init_move(Board* board, square origin, square destination, name promotion, bool castle, castle_type castle_side) {
+    Move* move = calloc(1, sizeof(Move));
+    move->from = origin;
+    move->destination = destination;
+    move->promotion = promotion;
+    move->castle = castle;
+    move->castle_side = castle_side;
+    move->piece = board->map[origin];
+    return move;
+}
 
 
 
@@ -436,7 +442,6 @@ Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour m
 }
 
 Scores* IDDFS(Board* board, int breadth, colour start_player, int time_limit, ScoresList* all_scores) {
-    printf("INSIDE IDDFS\n");
     Grapher* grapher = init_grapher(breadth, 1, start_player);
 
     grapher->timer = clock();
@@ -483,7 +488,6 @@ void generate_promotion_moves(Board* board, Moves* moves, Piece* piece, square c
 }
 
 void get_all_moves_for_piece(Board* board, Piece* piece, Moves* moves) {
-
     // print_piece(piece);
     square saved_from = piece->cell;
     U64 mask = piece->move_func(board, piece);
@@ -891,57 +895,57 @@ void undo_hash(Board* board, Move* move, Piece* killed) {
 U64 hash(Board* board, Move* move, Piece* killed) {
     U64 value = board->hash_value;
     
-    value ^= board->keys_position[move->piece->c][move->promotion == none ? move->piece->type : pawn][move->from];
+    value ^= keys_position[move->piece->c][move->promotion == none ? move->piece->type : pawn][move->from];
     if (killed) {
-        value ^= board->keys_position[killed->c][killed->type][killed->cell];
+        value ^= keys_position[killed->c][killed->type][killed->cell];
     }
-    value ^= board->keys_position[move->piece->c][move->promotion == none ? move->piece->type : move->promotion][move->destination];
+    value ^= keys_position[move->piece->c][move->promotion == none ? move->piece->type : move->promotion][move->destination];
 
     if (move->piece->type == pawn && (int)move->from - move->destination == 16) {
-        value ^= board->keys_last_moved[move->destination];
+        value ^= keys_last_moved[move->destination];
     }
 
     if ((move->piece == board->pieces[move->piece->c][KING_INDEX(move->piece->c)] && board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 1 && board->castle_pieces[move->piece->c][king_side]->no_moves == 0) || (board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 0 && move->piece == board->castle_pieces[move->piece->c][king_side] && board->castle_pieces[move->piece->c][king_side]->no_moves == 1)) {
-        value ^= board->keys_castling[move->piece->c][king_side];
+        value ^= keys_castling[move->piece->c][king_side];
     }
     if ((move->piece == board->pieces[move->piece->c][KING_INDEX(move->piece->c)] && board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 1 && board->castle_pieces[move->piece->c][queen_side]->no_moves == 0) || (board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 0 && move->piece == board->castle_pieces[move->piece->c][queen_side] && board->castle_pieces[move->piece->c][queen_side]->no_moves == 1)) {
-        value ^= board->keys_castling[move->piece->c][queen_side];
+        value ^= keys_castling[move->piece->c][queen_side];
     }
-    value ^= board->key_mover;
+    value ^= key_mover;
     return value;
 }
 
 // need two of these functions -> draw by repetition doesn't care about castling rights (ask chess.com)
 void hash_move_piece(Board* board, Move* move, Piece* killed) {
     // hashing moving piece out
-    board->hash_value ^= board->keys_position[move->piece->c][move->promotion == none ? move->piece->type : pawn][move->from];
-    board->hash_repeats ^= board->keys_position[move->piece->c][move->promotion == none ? move->piece->type : pawn][move->from];
+    board->hash_value ^= keys_position[move->piece->c][move->promotion == none ? move->piece->type : pawn][move->from];
+    board->hash_repeats ^= keys_position[move->piece->c][move->promotion == none ? move->piece->type : pawn][move->from];
     if (killed) {
         // hashing killed piece out. Must be killed->cell, not move->destination, because of en passant.
-        board->hash_value ^= board->keys_position[killed->c][killed->type][killed->cell];
-        board->hash_repeats ^= board->keys_position[killed->c][killed->type][killed->cell];
+        board->hash_value ^= keys_position[killed->c][killed->type][killed->cell];
+        board->hash_repeats ^= keys_position[killed->c][killed->type][killed->cell];
     }
     // hashing moving piece in
-    board->hash_value ^= board->keys_position[move->piece->c][move->promotion == none ? move->piece->type : move->promotion][move->destination];
-    board->hash_repeats ^= board->keys_position[move->piece->c][move->promotion == none ? move->piece->type : move->promotion][move->destination];
+    board->hash_value ^= keys_position[move->piece->c][move->promotion == none ? move->piece->type : move->promotion][move->destination];
+    board->hash_repeats ^= keys_position[move->piece->c][move->promotion == none ? move->piece->type : move->promotion][move->destination];
 
     // hashing in position of last move destination if pawn and moved 2 squares (for en passant)
     if (move->piece->type == pawn && (int)move->from - move->destination == 16) {
-        board->hash_value ^= board->keys_last_moved[move->destination];
+        board->hash_value ^= keys_last_moved[move->destination];
     }
     
     // keep track of castling rights... must be at the point of losing the rights.
     // either king just moved or castle just moved, AND that move made the no_moves increment to 1.
     // hash function is made after pretend_move and before undo_pretend_move
     if ((move->piece == board->pieces[move->piece->c][KING_INDEX(move->piece->c)] && board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 1 && board->castle_pieces[move->piece->c][king_side]->no_moves == 0) || (board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 0 && move->piece == board->castle_pieces[move->piece->c][king_side] && board->castle_pieces[move->piece->c][king_side]->no_moves == 1)) {
-        board->hash_value ^= board->keys_castling[move->piece->c][king_side];
+        board->hash_value ^= keys_castling[move->piece->c][king_side];
     }
     if ((move->piece == board->pieces[move->piece->c][KING_INDEX(move->piece->c)] && board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 1 && board->castle_pieces[move->piece->c][queen_side]->no_moves == 0) || (board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 0 && move->piece == board->castle_pieces[move->piece->c][queen_side] && board->castle_pieces[move->piece->c][queen_side]->no_moves == 1)) {
-        board->hash_value ^= board->keys_castling[move->piece->c][queen_side];
+        board->hash_value ^= keys_castling[move->piece->c][queen_side];
     }
 
     // hashing a change of colour
-    board->hash_value ^= board->key_mover;
+    board->hash_value ^= key_mover;
 }
 
 
@@ -950,7 +954,7 @@ U64 rand64() {
         ((U64)rand() << 45) ^ ((U64)rand() << 60);
 }
 
-void init_hash_keys(Board* board) {
+void init_hash_keys_legacy(Board* board) {
     printf("{\n");
     for (int i = 0; i < MAX_COLOUR; i++) {
         // printf("\t{\n");
@@ -987,14 +991,14 @@ void init_hash_keys(Board* board) {
 void init_hash_value(Board* board) {
     for (int i = 0; i < CELLS; i++) {
         if (board->map[i]) {
-            board->hash_value ^= board->keys_position[board->map[i]->c][board->map[i]->type][i];
+            board->hash_value ^= keys_position[board->map[i]->c][board->map[i]->type][i];
         }
     }
     board->hash_repeats = board->hash_value;
 }
 
 
-Piece* make_piece(name type, colour c, square cell) {
+Piece* make_piece(name type, colour c, square cell, Board* board, int* index) {
     Piece* piece = calloc(1, sizeof(Piece));
     piece->alive = true;
     piece->cell = cell;
@@ -1039,6 +1043,8 @@ Piece* make_piece(name type, colour c, square cell) {
         case none:
             break;
     }
+    board->pieces[c][*index] = piece;
+    *index += 1;
     return piece;
 }
 
@@ -1055,7 +1061,8 @@ Board* process_FEN(const char* fen_string) {
 
     int en_passant_count = 0;
     int space_count = 0;
-    int pieces = 0;
+    int white_pieces = 0;
+    int black_pieces = 0;
     int i = 0;
     int cell = 0;
     while (fen_string[i]) {
@@ -1070,24 +1077,19 @@ Board* process_FEN(const char* fen_string) {
                     cell -= 1;
                     break;
                 case 'k':
-                    piece = make_piece(king, black, cell);
-                    board->pieces[black][pieces] = piece;
+                    piece = make_piece(king, black, cell, board, &black_pieces);
                     break;
                 case 'K':
-                    piece = make_piece(king, white, cell);
-                    board->pieces[white][pieces] = piece;
+                    piece = make_piece(king, white, cell, board, &white_pieces);
                     break;
                 case 'q':
-                    piece = make_piece(queen, black, cell);
-                    board->pieces[black][pieces] = piece;
+                    piece = make_piece(queen, black, cell, board, &black_pieces);
                     break;
                 case 'Q':
-                    piece = make_piece(queen, white, cell);
-                    board->pieces[white][pieces] = piece;
+                    piece = make_piece(queen, white, cell, board, &white_pieces);
                     break;
                 case 'r':
-                    piece = make_piece(castle, black, cell);
-                    board->pieces[black][pieces] = piece;
+                    piece = make_piece(castle, black, cell, board, &black_pieces);
                     if (cell % 8 < 4) {
                         board->castle_pieces[black][queen_side] = piece;
                     }
@@ -1096,8 +1098,7 @@ Board* process_FEN(const char* fen_string) {
                     }
                     break;
                 case 'R':
-                    piece = make_piece(castle, white, cell);
-                    board->pieces[white][pieces] = piece;
+                    piece = make_piece(castle, white, cell, board, &white_pieces);
                     if (cell % 8 < 4) {
                         board->castle_pieces[white][queen_side] = piece;
                     }
@@ -1106,34 +1107,27 @@ Board* process_FEN(const char* fen_string) {
                     }
                     break;
                 case 'b':
-                    piece = make_piece(bishop, black, cell);
-                    board->pieces[black][pieces] = piece;
+                    piece = make_piece(bishop, black, cell, board, &black_pieces);
                     break;
                 case 'B':
-                    piece = make_piece(bishop, white, cell);
-                    board->pieces[white][pieces] = piece;
+                    piece = make_piece(bishop, white, cell, board, &white_pieces);
                     break;
                 case 'n':
-                    piece = make_piece(knight, black, cell);
-                    board->pieces[black][pieces] = piece;
+                    piece = make_piece(knight, black, cell, board, &black_pieces);
                     break;
                 case 'N':
-                    piece = make_piece(knight, white, cell);
-                    board->pieces[white][pieces] = piece;
+                    piece = make_piece(knight, white, cell, board, &white_pieces);
                     break;
                 case 'p':
-                    piece = make_piece(pawn, black, cell);
-                    board->pieces[black][pieces] = piece;
+                    piece = make_piece(pawn, black, cell, board, &black_pieces);
                     break;
                 case 'P':
-                    piece = make_piece(pawn, white, cell);
-                    board->pieces[white][pieces] = piece;
+                    piece = make_piece(pawn, white, cell, board, &white_pieces);
                     break;
             }
             
             if (piece) {
                 board->map[cell] = piece;
-                pieces += 1;
                 set_bit(board->bitboard, cell);
             }
 
@@ -1203,6 +1197,7 @@ Board* process_FEN(const char* fen_string) {
         i += 1;
         cell += 1;
     }
+
     board->promotable_pieces[0] = queen;
     board->promotable_pieces[1] = castle;
     board->promotable_pieces[2] = bishop;
@@ -1223,6 +1218,8 @@ Board* process_FEN(const char* fen_string) {
     board->castling_coordinates[black][queen_side] = c8;
     board->to_castle_coords[black][queen_side] = d8;
     board->from_castle_coords[black][queen_side] = a8;
+
+    init_hash_value(board);
 
     return board;
 }
@@ -1330,7 +1327,6 @@ Board* init_board(void) {
         }
     }
 
-    init_hash_keys(board);
     init_hash_value(board);
 
     board->castle_pieces[white][king_side] = board->pieces[white][CASTLE_1(white)];
