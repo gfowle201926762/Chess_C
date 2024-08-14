@@ -3,8 +3,9 @@
 int main(void) {
     initialise();
 
-    Board* board = calloc(1, sizeof(Board));
-    init_hash_keys(board);
+    // Board* board = calloc(1, sizeof(Board));
+    // init_hash_keys(board);
+    printf("%lluULL,\n", rand64());
 
     // test();
     // test_evaluation_branching();
