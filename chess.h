@@ -235,7 +235,6 @@ typedef struct ScoresList ScoresList;
 
 
 
-
 U64 set_multiple_bits(U64 bitboard, int cells[], int length);
 
 // Piece movement functions

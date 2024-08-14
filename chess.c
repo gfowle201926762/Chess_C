@@ -21,23 +21,40 @@ void initialise(void) {
 
 
 JNIEXPORT jobject JNICALL Java_com_chess_application_services_NativeEngineService_test_1java_1interface
-  (JNIEnv* env, jobject this_object, jobject move) {
-    jclass pieceClass = (*env)->GetObjectClass(env, move);
+  (JNIEnv* env, jobject this_object, jobject nativePayload) {
+    jclass nativePayloadClass = (*env)->GetObjectClass(env, nativePayload);
 
-    jmethodID getOriginMethod = (*env)->GetMethodID(env, pieceClass, "getOrigin", "()J");
-    jmethodID getDestinationMethod = (*env)->GetMethodID(env, pieceClass, "getDestination", "()J");
+    jmethodID getOriginMethod = (*env)->GetMethodID(env, nativePayloadClass, "getOrigin", "()J");
+    jmethodID getDestinationMethod = (*env)->GetMethodID(env, nativePayloadClass, "getDestination", "()J");
+    jmethodID getFENMethod = (*env)->GetMethodID(env, nativePayloadClass, "getFenString", "()Ljava/lang/String;");
 
 
-    jlong origin = (jlong) (*env)->CallObjectMethod(env, move, getOriginMethod);
-    jlong destination = (jlong) (*env)->CallObjectMethod(env, move, getDestinationMethod);
+    jlong origin = (jlong) (*env)->CallObjectMethod(env, nativePayload, getOriginMethod);
+    jlong destination = (jlong) (*env)->CallObjectMethod(env, nativePayload, getDestinationMethod);
+    jstring j_fen_string = (jstring) (*env)->CallObjectMethod(env, nativePayload, getFENMethod);
+
+    const char* fen_string;
+    fen_string = (*env)->GetStringUTFChars(env, j_fen_string, NULL);
 
     char origin_string[5] = {'\0'};
     char destination_string[5] = {'\0'};
+    
     square_to_string(origin, origin_string);
     square_to_string(destination, destination_string);
 
     printf("In the C code! origin: %s; destination: %s\n", origin_string, destination_string);
-    return move;
+    printf("FEN String: %s\n", fen_string);
+
+
+    jclass returnPayloadClass = (*env)->FindClass(env, "com/chess/application/model/ReturnPayload");
+    jmethodID constructor = (*env)->GetMethodID(env, returnPayloadClass, "<init>", "(Ljava/lang/String;Ljava/lang/String;JJ)V");
+
+
+    return (*env)->NewObject(env, returnPayloadClass, constructor,
+                                                    (*env)->NewStringUTF(env, "fen_string_client_test"),
+                                                    (*env)->NewStringUTF(env, "fen_string_engine_test"),
+                                                    (jlong) f2,
+                                                    (jlong) g3);
   }
 
 
@@ -958,6 +975,8 @@ Piece* make_piece(name type, colour c, square cell) {
             piece->move_func = get_pawn_mask;
             piece->type = pawn;
             break;
+        case none:
+            break;
     }
     return piece;
 }
@@ -973,6 +992,7 @@ Board* process_FEN(char* fen_string) {
     char en_passant_square[3] = {'\0'};
     bool processed = false;
 
+    int en_passant_count = 0;
     int space_count = 0;
     int pieces = 0;
     int i = 0;
@@ -1080,6 +1100,7 @@ Board* process_FEN(char* fen_string) {
             }
         }
         else if (space_count == 3) {
+            
             if (!k) {
                 board->castle_pieces[black][king_side]->no_moves += 1;
             }
@@ -1091,8 +1112,9 @@ Board* process_FEN(char* fen_string) {
             }
             if (!Q) {
                 board->castle_pieces[white][queen_side]->no_moves += 1;
-            }        
-            strcat(en_passant_square, fen_string[i]);
+            }
+            en_passant_square[en_passant_count] = fen_string[i];
+            en_passant_count += 1;
         }
         else if (space_count == 4) {
             if (en_passant_square[0] != '-' && !processed) {
@@ -1140,6 +1162,8 @@ Board* process_FEN(char* fen_string) {
     board->castling_coordinates[black][queen_side] = c8;
     board->to_castle_coords[black][queen_side] = d8;
     board->from_castle_coords[black][queen_side] = a8;
+
+    return board;
 }
 
 Board* init_board(void) {
