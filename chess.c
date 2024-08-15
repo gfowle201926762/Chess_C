@@ -4,6 +4,9 @@ int main(void) {
     initialise();
 
 
+
+
+
     // test();
     // test_evaluation_branching();
     // test_iterative_deepening_m4_2();
@@ -85,24 +88,36 @@ JNIEXPORT jobject JNICALL Java_com_chess_application_services_NativeEngineServic
     pretend_move(board, clientMove);
     printf("EXECUTE CLIENT MOVE\n");
     print_board_pro(board);
+    char client_fen_string[100] = {'\0'};
+    generate_FEN(board, client_fen_string, (colour) startPlayer);
+    printf("Client FEN: %s\n", client_fen_string);
 
     // FIND BEST MOVE
     ScoresList* all_scores = calloc(1, sizeof(ScoresList));
     Scores* scores = IDDFS(board, (int) breadth, (colour) startPlayer, (int) timeLimit, all_scores);
     print_scores(scores);
+
+    // GENERATE ENGINE FEN STRING
+    pretend_move(board, scores->moves->moves[0]);
+    char engine_fen_string[100] = {'\0'};
+    generate_FEN(board, engine_fen_string, invert_colour((colour) startPlayer));
+    printf("Engine FEN: %s\n", engine_fen_string);
     
     // RETURN PAYLOAD
     jclass returnPayloadClass = (*env)->FindClass(env, "com/chess/application/model/ReturnPayload");
-    jmethodID constructor = (*env)->GetMethodID(env, returnPayloadClass, "<init>", "(Ljava/lang/String;Ljava/lang/String;JJ)V");
+    jmethodID constructor = (*env)->GetMethodID(env, returnPayloadClass, "<init>", "(Ljava/lang/String;Ljava/lang/String;JJJZJ)V");
 
     end = clock();
     printf("%f seconds\n", ((double)(end - start) / CLOCKS_PER_SEC));
 
     return (*env)->NewObject(env, returnPayloadClass, constructor,
-                                                    (*env)->NewStringUTF(env, "fen_string_client_test"),
-                                                    (*env)->NewStringUTF(env, "fen_string_engine_test"),
-                                                    (jlong) f2,
-                                                    (jlong) g3);
+                                                    (*env)->NewStringUTF(env, client_fen_string),
+                                                    (*env)->NewStringUTF(env, engine_fen_string),
+                                                    (jlong) scores->moves->moves[0]->from,
+                                                    (jlong) scores->moves->moves[0]->destination,
+                                                    (jlong) scores->moves->moves[0]->promotion,
+                                                    (jboolean) scores->moves->moves[0]->castle,
+                                                    (jlong) scores->moves->moves[0]->castle_side);
 }
 
 
@@ -115,6 +130,95 @@ Move* init_move(Board* board, square origin, square destination, name promotion,
     move->castle_side = castle_side;
     move->piece = board->map[origin];
     return move;
+}
+
+void generate_FEN(Board* board, char* fen_string, colour mover) {
+    int empty = 0;
+    for (int i = 0; i < CELLS; i++) {
+        if (i != 0 && i % 8 == 0) {
+            if (empty > 0) {
+                strcat(fen_string, (char[2]) {'0' + empty, '\0'});
+            }
+            strcat(fen_string, "/");
+            empty = 0;
+        }
+        if (board->map[i]) {
+            if (empty > 0) {
+                strcat(fen_string, (char[2]) {'0' + empty, '\0'});
+            }
+            empty = 0;
+            char piece_char;
+            Piece* piece = board->map[i];
+            if (piece->c == white && piece->type == king) {
+                strcat(fen_string, "K");
+            }
+            if (piece->c == white && piece->type == queen) {
+                strcat(fen_string, "Q");
+            }
+            if (piece->c == white && piece->type == castle) {
+                strcat(fen_string, "R");
+            }
+            if (piece->c == white && piece->type == bishop) {
+                strcat(fen_string, "B");
+            }
+            if (piece->c == white && piece->type == knight) {
+                strcat(fen_string, "N");
+            }
+            if (piece->c == white && piece->type == pawn) {
+                strcat(fen_string, "P");
+            }
+
+            if (piece->c == black && piece->type == king) {
+                strcat(fen_string, "k");
+            }
+            if (piece->c == black && piece->type == queen) {
+                strcat(fen_string, "q");
+            }
+            if (piece->c == black && piece->type == castle) {
+                strcat(fen_string, "r");
+            }
+            if (piece->c == black && piece->type == bishop) {
+                strcat(fen_string, "b");
+            }
+            if (piece->c == black && piece->type == knight) {
+                strcat(fen_string, "n");
+            }
+            if (piece->c == black && piece->type == pawn) {
+                strcat(fen_string, "p");
+            }
+        }
+        else {
+            empty += 1;
+        }
+    }
+    if (empty > 0) {
+        strcat(fen_string, (char[2]) {'0' + empty, '\0'});
+    }
+
+    strcat(fen_string, " ");
+    strcat(fen_string, mover == white ? "w " : "b ");
+
+    bool castle_rights = false;
+    if (board->castle_pieces[white][king_side]->no_moves == 0 && board->king_pieces[white]->no_moves == 0) {
+        strcat(fen_string, "K");
+        castle_rights = true;
+    }
+    if (board->castle_pieces[white][queen_side]->no_moves == 0 && board->king_pieces[white]->no_moves == 0) {
+        strcat(fen_string, "Q");
+        castle_rights = true;
+    }
+    if (board->castle_pieces[black][king_side]->no_moves == 0 && board->king_pieces[black]->no_moves == 0) {
+        strcat(fen_string, "k");
+        castle_rights = true;
+    }
+    if (board->castle_pieces[black][queen_side]->no_moves == 0 && board->king_pieces[black]->no_moves == 0) {
+        strcat(fen_string, "q");
+        castle_rights = true;
+    }
+    if (!castle_rights) {
+        strcat(fen_string, "-");
+    }
+    strcat(fen_string, " ? ?");
 }
 
 
@@ -1078,9 +1182,11 @@ Board* process_FEN(const char* fen_string) {
                     break;
                 case 'k':
                     piece = make_piece(king, black, cell, board, &black_pieces);
+                    board->king_pieces[black] = piece;
                     break;
                 case 'K':
                     piece = make_piece(king, white, cell, board, &white_pieces);
+                    board->king_pieces[white] = piece;
                     break;
                 case 'q':
                     piece = make_piece(queen, black, cell, board, &black_pieces);

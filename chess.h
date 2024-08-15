@@ -174,6 +174,7 @@ struct Board {
     square from_castle_coords[MAX_COLOUR][MAX_CASTLING_OPTIONS];
     square to_castle_coords[MAX_COLOUR][MAX_CASTLING_OPTIONS];
     Piece* castle_pieces[MAX_COLOUR][MAX_CASTLING_OPTIONS];
+    Piece* king_pieces[MAX_COLOUR];
 
     U64 last_positions[MOVES_SIZE];
     struct Move* last_moved[MOVES_SIZE];
@@ -316,6 +317,7 @@ void init_hash_keys(Board* board);
 U64 rand64();
 Board* process_FEN(const char* fen_string);
 Move* init_move(Board* board, square origin, square destination, name promotion, bool castle, castle_type castle_side);
+void generate_FEN(Board* board, char* fen_string, colour mover);
 
 // Miscellaneous
 void clear_board(Board* board);
