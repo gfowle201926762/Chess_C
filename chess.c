@@ -8,6 +8,8 @@ int main(void) {
     test_iterative_deepening_m4_2();
     // test_detect_mate_2();
     // test_pawn_en_passant_legality_1();
+    // test_detect_mate_1();
+    // test_14_june_2024();
     // test();
     // test_stack();
     
@@ -495,50 +497,73 @@ int count_bitboard(U64 mask) {
     return count;
 }
 
-int count_threats(Board* board, colour mover, U64 mask) {
+int count_threats(Board* board, colour mover, U64 mask, int value) {
     int count = 0;
     for (int i=0; i<board->pieces_quantity[invert_colour(mover)]; i++) {
         if (board->pieces[invert_colour(mover)][i]->alive) {
             if (get_bit(mask, board->pieces[invert_colour(mover)][i]->cell)) {
                 count += board->pieces[invert_colour(mover)][i]->value / 10;
+                count -= value / 100;
             }
+
         }
+    }
+    return count;
+}
+
+int count_bits(U64 mask) {
+    int count = 0;
+    while (mask) {
+        count += mask & 1;
+        mask >>= 1;
     }
     return count;
 }
 
 int initiative_heuristic(Board* board, colour mover) {
+    U64 king_mask_opponent = board->king_pieces[invert_colour(mover)]->move_func(board, board->king_pieces[invert_colour(mover)]);
+    U64 initial_king_mask_opponent = king_mask_opponent;
     int count = 0;
     for (int i=0; i<board->pieces_quantity[mover]; i++) {
-        if (board->pieces[mover][i]->alive) {
-            U64 mask = board->pieces[mover][i]->move_func(board, board->pieces[mover][i]);
+        Piece* piece = board->pieces[mover][i];
+        if (piece->alive) {
+            U64 mask = piece->move_func(board, piece);
             // count += count_bitboard(mask);
-            count += count_threats(board, mover, mask);
+            count += count_threats(board, mover, mask, piece->value);
+
+            U64 and_mask = mask & king_mask_opponent;
+            king_mask_opponent ^= and_mask;
         }
     }
+    count += ((count_bits(initial_king_mask_opponent) - count_bits(king_mask_opponent)) * KING_RESTRICTION_VALUE);
     return count;
 }
 
 int king_safety_heuristic(Board* board, Move* move, colour mover, Grapher* grapher) {
-    int cell = board->king_pieces[mover]->cell;
-    if (mover != grapher->start_player) {
-        int row = 7 - (cell / 8);
-        cell = (row * 8) + (cell % 8);
-        return -KING_EVAL[cell];
-    }
-    return KING_EVAL[cell];
+    // int cell = board->king_pieces[mover]->cell;
+    // if (mover != grapher->start_player) {
+    //     int row = 7 - (cell / 8);
+    //     cell = (row * 8) + (cell % 8);
+    //     return -KING_EVAL[cell];
+    // }
+    // return KING_EVAL[cell];
+    return 0;
 }
 
 int measure_points(Board* board, colour mover) {
     int score = 0;
     for (int i = 0; i < board->pieces_quantity[mover]; i++) {
         if (board->pieces[mover][i]->alive) {
-            score += board->pieces[mover][i]->value;
+            Piece* piece = board->pieces[mover][i];
+            score += piece->value;
+            score += (piece->pst_func(piece) / 10);
         }
     }
     for (int i = 0; i < board->pieces_quantity[invert_colour(mover)]; i++) {
         if (board->pieces[invert_colour(mover)][i]->alive) {
-            score -= board->pieces[invert_colour(mover)][i]->value;
+            Piece* piece = board->pieces[invert_colour(mover)][i];
+            score -= piece->value;
+            score -= (piece->pst_func(piece) / 10);
         }
     }
     return score;
@@ -720,6 +745,10 @@ Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour m
         Move* move = best_moves->moves[i];
         Piece* killed = pretend_move(board, move);
         hash_and_save(board, move, killed, grapher->depth);
+
+        // if (grapher->depth == grapher->max_depth) {
+        //     print_move(move);
+        // }
         
         grapher->depth -= 1;
         Scores* scores = create_graph(grapher, move, board, invert_colour(mover), limit);
@@ -1388,36 +1417,42 @@ Piece* make_piece(name type, colour c, square cell, Board* board, int* index) {
         case king:
             piece->value = KING_VALUE;
             piece->move_func = get_king_mask;
+            piece->pst_func = pst_king;
             piece->type = king;
             piece->character = (c == white) ? L'♚' : L'♔';
             break;
         case queen:
             piece->value = QUEEN_VALUE;
             piece->move_func = get_queen_mask;
+            piece->pst_func = pst_queen;
             piece->type = queen;
             piece->character = (c == white) ? L'♛' : L'♕';
             break;
         case castle:
             piece->value = CASTLE_VALUE;
             piece->move_func = get_castle_mask;
+            piece->pst_func = pst_castle;
             piece->type = castle;
             piece->character = (c == white) ? L'♜' : L'♖';
             break;
         case bishop:
             piece->value = BISHOP_VALUE;
             piece->move_func = get_bishop_mask;
+            piece->pst_func = pst_bishop;
             piece->type = bishop;
             piece->character = (c == white) ? L'♝' : L'♗';
             break;
         case knight:
             piece->value = KNIGHT_VALUE;
             piece->move_func = get_knight_mask;
+            piece->pst_func = pst_knight;
             piece->type = knight;
             piece->character = (c == white) ? L'♞' : L'♘';
             break;
         case pawn:
             piece->value = PAWN_VALUE;
             piece->move_func = get_pawn_mask;
+            piece->pst_func = pst_pawn;
             piece->type = pawn;
             piece->character = (c == white) ? L'♟' : L'♙';
             break;
@@ -1659,6 +1694,7 @@ Board* init_board(void) {
                 piece->value = CASTLE_VALUE;
                 piece->move_func = get_castle_mask;
                 piece->index_func = castle_index;
+                piece->pst_func = pst_castle;
                 if (i < 8) {
                     piece->character = L'♖';
                 }
@@ -1671,6 +1707,7 @@ Board* init_board(void) {
                 piece->value = KNIGHT_VALUE;
                 piece->move_func = get_knight_mask;
                 piece->index_func = knight_index;
+                piece->pst_func = pst_knight;
                 if (i < 8) {
                     piece->character = L'♘';
                 }
@@ -1683,6 +1720,7 @@ Board* init_board(void) {
                 piece->value = BISHOP_VALUE;
                 piece->move_func = get_bishop_mask;
                 piece->index_func = bishop_index;
+                piece->pst_func = pst_bishop;
                 if (i < 8) {
                     piece->character = L'♗';
                 }
@@ -1695,6 +1733,7 @@ Board* init_board(void) {
                 piece->value = QUEEN_VALUE;
                 piece->move_func = get_queen_mask;
                 piece->index_func = queen_index;
+                piece->pst_func = pst_queen;
                 if (i < 8) {
                     piece->character = L'♕';
                 }
@@ -1707,6 +1746,7 @@ Board* init_board(void) {
                 piece->value = KING_VALUE;
                 piece->move_func = get_king_mask;
                 piece->index_func = king_index;
+                piece->pst_func = pst_king;
                 if (i < 8) {
                     piece->character = L'♔';
                     board->king_pieces[black] = piece;
@@ -1722,6 +1762,7 @@ Board* init_board(void) {
             piece->value = PAWN_VALUE;
             piece->move_func = get_pawn_mask;
             piece->index_func = pawn_index;
+            piece->pst_func = pst_pawn;
             if (i < 16) {
                 piece->character = L'♙';
             }
@@ -2049,6 +2090,33 @@ U64 get_pawn_move_mask(Board* board, Piece* piece) {
 }
 
 
+/* -------------------------------- */
+/* -------- GET MOVE MASKS -------- */
+/* -------------------------------- */
+
+int pst_king(Piece* piece) {
+    return mg_king_table[piece->c == white ? piece->cell : FLIP[piece->cell]];
+}
+
+int pst_queen(Piece* piece) {
+    return mg_queen_table[piece->c == white ? piece->cell : FLIP[piece->cell]];
+}
+
+int pst_castle(Piece* piece) {
+    return mg_castle_table[piece->c == white ? piece->cell : FLIP[piece->cell]];
+}
+
+int pst_bishop(Piece* piece) {
+    return mg_bishop_table[piece->c == white ? piece->cell : FLIP[piece->cell]];
+}
+
+int pst_knight(Piece* piece) {
+    return mg_knight_table[piece->c == white ? piece->cell : FLIP[piece->cell]];
+}
+
+int pst_pawn(Piece* piece) {
+    return mg_pawn_table[piece->c == white ? piece->cell : FLIP[piece->cell]];
+}
 
 /* ------------------------------- */
 /* -------- VISUALISATION -------- */

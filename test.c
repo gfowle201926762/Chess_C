@@ -550,13 +550,14 @@ void test_15_june_2024_end() {
 
 void test_14_june_2024() {
     Board* board = process_FEN("2k3b1/2p3p1/5p1p/q7/3N4/1P5P/PB3PP1/4R1K1 w - ? ?");
+    print_board_pro(board);
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(5, 4, white);
     Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
     assert(test_board == board->bitboard);
 
-    // print_scores(scores);
+    print_scores(scores);
 
     assert(scores->moves->moves[0]->from == e1);
     assert(scores->moves->moves[0]->destination == e8);
@@ -4784,10 +4785,10 @@ void test_detect_mate_1() {
 
     // DIFFICULT MATE IN 4 (no threats made immediately)
     // print_board_pro(board);
-    Grapher* grapher = init_grapher(10, 4, black);
-    Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(white));
+    // Grapher* grapher = init_grapher(10, 4, black);
+    // Scores* scores = create_graph(grapher, grapher->start, board, black, init_limit(white));
     // assert(score == 0);
-    assert(test_board == board->bitboard);
+    // assert(test_board == board->bitboard);
     // print_scores(scores);
 
 
@@ -4799,11 +4800,11 @@ void test_detect_mate_1() {
     set_bit(board->bitboard, a1);
     set_bit(test_board, a1);
 
-    // print_board_pro(board);
-    Grapher* grapher2 = init_grapher(1, 4, black);
-    scores = create_graph(grapher2, grapher2->start, board, black, init_limit(white));
+    print_board_pro(board);
+    Grapher* grapher2 = init_grapher(10, 4, black);
+    Scores* scores = create_graph(grapher2, grapher2->start, board, black, init_limit(white));
     assert(test_board == board->bitboard);
-    // print_scores(scores);
+    print_scores(scores);
 
     assert(scores->moves->length == 1);
     assert(scores->moves->moves[0]->piece->type == castle);

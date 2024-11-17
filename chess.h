@@ -9,6 +9,7 @@
 #include <string.h>
 #include <time.h>
 #include "hashkeys.h"
+#include "piece_square_tables.h"
 
 #include "com_chess_application_services_NativeEngineService.h"
 
@@ -33,6 +34,8 @@
 #define BISHOP_VALUE 300
 #define KNIGHT_VALUE 300
 #define PAWN_VALUE 100
+
+#define KING_RESTRICTION_VALUE 5
 
 int WHITE_KINGS = 1;
 int WHITE_QUEENS = 1;
@@ -65,34 +68,6 @@ int BLACK_PAWNS = 8;
 #define EXACT 0
 #define UPPER_BOUND 1
 #define LOWER_BOUND 2
-
-/*
-how to flip an array:
-Just invert the row number...
-*/
-
-int KING_EVAL[64] = {
-  -25, -25, -25, -25, -25, -25, -25, -25,
-  -25, -25, -25, -25, -25, -25, -25, -25,
-  -25, -25, -25, -25, -25, -25, -25, -25,
-  -25, -25, -25, -25, -25, -25, -25, -25,
-  -25, -25, -25, -25, -25, -25, -25, -25,
-  -25, -25, -25, -25, -25, -25, -25, -25,
-  -25, -25, -25, -25, -25, -25, -25, -25,
-  5, 15, 10, -15, -15, -15, 15, 5
-};
-
-int PAWN_EVAL[64] = {
-  20, 20, 20, 20, 20, 20, 20, 20,
-  10, 10, 10, 10, 10, 10, 10, 10,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 15, 15, 0, 0, 0,
-  0, 0, 0, 10, 10, 0, 0, 0,
-  0, 0, 0, 5, 5, 0, 0, 0,
-  0, 0, 0, -25, -25, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0
-};
-
 
 
 enum square {
@@ -154,6 +129,7 @@ struct Piece {
     int value;
     U64 (*move_func)(struct Board*, struct Piece*);
     int (*index_func)(colour c, int i);
+    int (*pst_func)(struct Piece*);
     bool alive;
     int no_moves;
     wchar_t character;
@@ -268,6 +244,13 @@ U64 get_knight_mask(Board* board, Piece* piece);
 U64 get_castle_mask(Board* board, Piece* piece);
 U64 get_bishop_mask(Board* board, Piece* piece);
 U64 get_queen_mask(Board* board, Piece* piece);
+
+int pst_king(Piece* piece);
+int pst_queen(Piece* piece);
+int pst_castle(Piece* piece);
+int pst_bishop(Piece* piece);
+int pst_knight(Piece* piece);
+int pst_pawn(Piece* piece);
 
 // Testing
 void test();
