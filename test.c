@@ -8,7 +8,7 @@
 void test_iterative_deepening_m4_2() {
     Board* board = board_setup_m4_2();
 
-    Scores* scores = IDDFS(board, 10, white, 5);
+    Scores* scores = IDDFS(board, 10, white, 5); // board, breadth, colour, time_limit
 
     assert(scores->eval == MAX_SCORE - 3);
 
@@ -46,6 +46,9 @@ void test_iterative_deepening_m4_2() {
     assert(scores->moves->moves[6]->destination == e7);
     assert(scores->moves->moves[6]->piece->c == white);
     assert(scores->moves->moves[6]->piece->type == castle);
+
+    free_board(board);
+    free_scores(scores, 0);
 }
 
 void test_wrapper(void (*test_func)(void), char* func_name) {
@@ -118,6 +121,10 @@ void test_forcing_moves_1() {
     assert(scores->moves->moves[2]->destination == c6);
     assert(scores->moves->moves[2]->piece->c == white);
     assert(scores->moves->moves[2]->piece->type == queen);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_dont_be_stupid() {
@@ -132,6 +139,10 @@ void test_dont_be_stupid() {
     assert(scores->moves->moves[0]->destination == e6);
     assert(scores->moves->moves[0]->piece->c == black);
     assert(scores->moves->moves[0]->piece->type == castle);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_forcing_moves_2() {
@@ -152,6 +163,10 @@ void test_forcing_moves_2() {
     assert(scores->moves->moves[2]->destination == d6);
     assert(scores->moves->moves[2]->piece->c == white);
     assert(scores->moves->moves[2]->piece->type == queen);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_forcing_moves_3() {
@@ -171,10 +186,10 @@ void test_forcing_moves_3() {
     assert(scores->moves->moves[0]->destination == e7);
     assert(scores->moves->moves[0]->piece->c == white);
     assert(scores->moves->moves[0]->piece->type == queen);
-}
 
-void test_forcing_moves_3_partial() {
-
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_puzzle_fork() {
@@ -193,6 +208,10 @@ void test_puzzle_fork() {
     assert(scores->moves->moves[0]->destination == h5);
     assert(scores->moves->moves[0]->piece->c == white);
     assert(scores->moves->moves[0]->piece->type == castle);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_puzzle_win_queen() {
@@ -230,6 +249,10 @@ void test_puzzle_win_queen() {
     assert(scores->moves->moves[4]->destination == h2);
     assert(scores->moves->moves[4]->piece->c == black);
     assert(scores->moves->moves[4]->piece->type == queen);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_forcing_moves() {
@@ -250,6 +273,10 @@ void test_forcing_moves() {
     assert(scores->moves->moves[0]->destination == h4);
     assert(scores->moves->moves[0]->piece->c == black);
     assert(scores->moves->moves[0]->piece->type == bishop);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_18_june_2024() {
@@ -298,6 +325,10 @@ void test_18_june_2024() {
     assert(scores->moves->moves[6]->destination == g5);
     assert(scores->moves->moves[6]->piece->c == white);
     assert(scores->moves->moves[6]->piece->type == castle);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_17_june_2024() {
@@ -322,6 +353,10 @@ void test_17_june_2024() {
     assert(scores->moves->moves[2]->destination == e6);
     assert(scores->moves->moves[2]->piece->c == white);
     assert(scores->moves->moves[2]->piece->type == knight);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_16_june_2024() {
@@ -389,6 +424,10 @@ void test_16_june_2024() {
     assert(scores->moves->moves[10]->destination == g5);
     assert(scores->moves->moves[10]->piece->c == white);
     assert(scores->moves->moves[10]->piece->type == bishop);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_16_june_2024_partial() {
@@ -416,6 +455,10 @@ void test_16_june_2024_partial() {
     assert(scores->moves->moves[2]->destination == g5);
     assert(scores->moves->moves[2]->piece->c == white);
     assert(scores->moves->moves[2]->piece->type == bishop);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_15_june_2024() {
@@ -431,6 +474,10 @@ void test_15_june_2024() {
     assert(test_board == board->bitboard);
 
     print_scores(scores);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_15_june_2024_partial() {
@@ -469,6 +516,10 @@ void test_15_june_2024_partial() {
     assert(scores->moves->moves[4]->destination == h8);
     assert(scores->moves->moves[4]->piece->c == white);
     assert(scores->moves->moves[4]->piece->type == queen);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_15_june_2024_end() {
@@ -490,6 +541,10 @@ void test_15_june_2024_end() {
     assert(scores->moves->moves[0]->destination == h8);
     assert(scores->moves->moves[0]->piece->c == white);
     assert(scores->moves->moves[0]->piece->type == queen);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 
@@ -541,6 +596,10 @@ void test_14_june_2024() {
     assert(scores->moves->moves[6]->destination == a5);
     assert(scores->moves->moves[6]->piece->c == white);
     assert(scores->moves->moves[6]->piece->type == knight);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_13_june_2024() {
@@ -558,6 +617,10 @@ void test_13_june_2024() {
     assert(scores->moves->moves[0]->destination == b4);
     assert(scores->moves->moves[0]->piece->c == black);
     assert(scores->moves->moves[0]->piece->type == castle);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_12_june_2024() {
@@ -586,6 +649,10 @@ void test_12_june_2024() {
     assert(scores->moves->moves[2]->destination == f2);
     assert(scores->moves->moves[2]->piece->c == black);
     assert(scores->moves->moves[2]->piece->type == knight);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_11_june_2024() {
@@ -598,6 +665,9 @@ void test_11_june_2024() {
     assert(test_board == board->bitboard);
     assert(scores->eval == MAX_SCORE - 2);
 
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_11_june_2024_partial() {
@@ -609,6 +679,10 @@ void test_11_june_2024_partial() {
     Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
     assert(test_board == board->bitboard);
     assert(scores->eval == MAX_SCORE);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_puzzle_trap_bishop() {
@@ -625,6 +699,10 @@ void test_puzzle_trap_bishop() {
     assert(scores->moves->moves[0]->destination == h5);
     assert(scores->moves->moves[0]->piece->c == white);
     assert(scores->moves->moves[0]->piece->type == pawn);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_puzzle_win_knight_because_pawn_fork() {
@@ -641,6 +719,10 @@ void test_puzzle_win_knight_because_pawn_fork() {
     assert(scores->moves->moves[0]->destination == e4);
     assert(scores->moves->moves[0]->piece->c == black);
     assert(scores->moves->moves[0]->piece->type == knight);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_mate_in_5() {
@@ -660,6 +742,10 @@ void test_mate_in_5() {
     print_scores(scores);
 
     assert(scores->eval == MAX_SCORE - 4);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_mate_in_5_partial() {
@@ -675,6 +761,10 @@ void test_mate_in_5_partial() {
     assert(test_board == board->bitboard);
 
     print_scores(scores);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_reverse_mate_in_1() {
@@ -701,6 +791,10 @@ void test_reverse_mate_in_1() {
 
     // positive score because white wins
     assert(scores->eval == MAX_SCORE - 1);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 
@@ -719,6 +813,7 @@ void test_draw_by_repetition_1() {
     assert(!draw_by_repetition(board));
     assert(board->lm_length == 1);
     assert(hash_original != board->hash_value);
+    free_moves(moves);
 
     // 1: black knight b8 -> a6
     moves = get_all_moves_for_colour(board, black);
@@ -728,6 +823,7 @@ void test_draw_by_repetition_1() {
     hash_and_save(board, moves->moves[0], killed, 0);
     assert(!draw_by_repetition(board));
     assert(hash_original != board->hash_value);
+    free_moves(moves);
 
     // 1: white knight a3 -> b1
     moves = get_all_moves_for_colour(board, white);
@@ -737,6 +833,7 @@ void test_draw_by_repetition_1() {
     hash_and_save(board, moves->moves[17], killed, 0);
     assert(!draw_by_repetition(board));
     assert(hash_original != board->hash_value);
+    free_moves(moves);
 
     // 1: black knight a6 -> b8
     moves = get_all_moves_for_colour(board, black);
@@ -746,6 +843,7 @@ void test_draw_by_repetition_1() {
     hash_and_save(board, moves->moves[1], killed, 0);
     assert(!draw_by_repetition(board));
     assert(hash_original == board->hash_value);
+    free_moves(moves);
 
 
     // 2: white knight b1 -> a3
@@ -756,6 +854,7 @@ void test_draw_by_repetition_1() {
     hash_and_save(board, moves->moves[16], killed, 0);
     assert(!draw_by_repetition(board));
     assert(hash_original != board->hash_value);
+    free_moves(moves);
 
     // 2: black knight b8 -> a6
     moves = get_all_moves_for_colour(board, black);
@@ -765,6 +864,7 @@ void test_draw_by_repetition_1() {
     hash_and_save(board, moves->moves[0], killed, 0);
     assert(!draw_by_repetition(board));
     assert(hash_original != board->hash_value);
+    free_moves(moves);
 
     // 2: white knight a3 -> b1
     moves = get_all_moves_for_colour(board, white);
@@ -774,6 +874,7 @@ void test_draw_by_repetition_1() {
     hash_and_save(board, moves->moves[17], killed, 0);
     assert(!draw_by_repetition(board));
     assert(hash_original != board->hash_value);
+    free_moves(moves);
 
     // 2: black knight a6 -> b8
     moves = get_all_moves_for_colour(board, black);
@@ -784,6 +885,7 @@ void test_draw_by_repetition_1() {
     assert(board->lm_length == 8);
     assert(!draw_by_repetition(board));
     assert(hash_original == board->hash_value);
+    free_moves(moves);
 
 
 
@@ -796,6 +898,7 @@ void test_draw_by_repetition_1() {
     hash_and_save(board, moves->moves[16], killed, 0);
     assert(draw_by_repetition(board));
     assert(hash_original != board->hash_value);
+    free_moves(moves);
 
     // 3: black knight b8 -> a6
     moves = get_all_moves_for_colour(board, black);
@@ -805,6 +908,7 @@ void test_draw_by_repetition_1() {
     hash_and_save(board, moves->moves[0], killed, 0);
     assert(draw_by_repetition(board));
     assert(hash_original != board->hash_value);
+    free_moves(moves);
 
     // 3: white knight a3 -> b1
     moves = get_all_moves_for_colour(board, white);
@@ -814,6 +918,7 @@ void test_draw_by_repetition_1() {
     hash_and_save(board, moves->moves[17], killed, 0);
     assert(draw_by_repetition(board));
     assert(hash_original != board->hash_value);
+    free_moves(moves);
 
     // 3: black knight a6 -> b8
     moves = get_all_moves_for_colour(board, black);
@@ -823,7 +928,9 @@ void test_draw_by_repetition_1() {
     hash_and_save(board, moves->moves[1], killed, 0);
     assert(hash_original == board->hash_value);
     assert(draw_by_repetition(board));
+    free_moves(moves);
 
+    free_board(board);
 }
 
 void test_draw_by_repetition_best_line() {
@@ -839,6 +946,10 @@ void test_draw_by_repetition_best_line() {
     assert((scores->moves->moves[0]->destination == h4 || scores->moves->moves[0]->destination == e1) && scores->moves->moves[0]->piece->type == queen);
     assert((scores->moves->moves[2]->destination == h4 || scores->moves->moves[2]->destination == e1) && scores->moves->moves[2]->piece->type == queen);
     // assert((scores->moves->moves[4]->destination == h4 || scores->moves->moves[4]->destination == e1) && scores->moves->moves[4]->piece->type == queen);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 
@@ -1138,6 +1249,9 @@ void test_fen_processing() {
     int timeLimit = 1;
     Scores* scores = IDDFS(board, (int) breadth, (colour) startPlayer, (int) timeLimit);
     print_scores(scores);
+
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_fen_processing_2() {
@@ -1155,6 +1269,9 @@ void test_fen_processing_2() {
     Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(invert_colour(white)));
     print_scores(scores);
 
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_fen_processing_3() {
@@ -1163,6 +1280,9 @@ void test_fen_processing_3() {
     print_board_pro(board);
     Moves* legal_moves = get_all_moves_for_colour(board, black);
     print_moves(legal_moves);
+
+    free_board(board);
+    free_moves(legal_moves);
 }
 
 void test_fen_processing_4() {
@@ -1173,6 +1293,10 @@ void test_fen_processing_4() {
     Grapher* grapher = init_grapher(100, 2, white);
     Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(invert_colour(white)));
     print_scores(scores);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_fen_processing_5() {
@@ -1186,6 +1310,9 @@ void test_fen_processing_5() {
     // Grapher* grapher = init_grapher(100, 2, white);
     // Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(invert_colour(white)));
     // print_scores(scores);
+
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_fen_processing_6() {
@@ -1194,6 +1321,9 @@ void test_fen_processing_6() {
     print_board_pro(board);
     Moves* legal_moves = get_all_moves_for_colour(board, black);
     print_moves(legal_moves);
+
+    free_moves(legal_moves);
+    free_board(board);
 }
 
 void test_fen_processing_7() {
@@ -1217,6 +1347,8 @@ void test_fen_processing_7() {
     // Scores* scores = IDDFS(board, (int) 100, (colour) white, (int) 1, all_scores);
     // print_scores(scores);
 
+    free_moves(legal_moves);
+    free_board(board);
 }
 
 void test_bug_1() {
@@ -1244,6 +1376,8 @@ void test_checkmate_already() {
     assert(scores->moves->moves[0]->destination == 0);
     assert(scores->moves->moves[0]->from == 0);
 
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_hashing_1() {
@@ -1260,6 +1394,15 @@ void test_hashing_1() {
     hash_move_piece(board, moves->moves[1], killed);
     hash_move_piece(board, moves->moves[1], killed);
     assert(board->hash_value == hash);
+
+    for (int i = 0; i < moves->length; i++) {
+        if (i == 1) {
+            continue;
+        }
+        free(moves->moves[i]);
+    }
+    free(moves);
+    free_board(board);
 }
 
 void test_hashing_2() {
@@ -1273,6 +1416,15 @@ void test_hashing_2() {
     hash_move_piece(board, moves->moves[2], killed);
     undo_pretend_move(board, moves->moves[2], killed);
     assert(hash == board->hash_value);
+
+    for (int i = 0; i < moves->length; i++) {
+        if (i == 2) {
+            continue;
+        }
+        free(moves->moves[i]);
+    }
+    free(moves);
+    free_board(board);
 }
 
 void test_hashing_graph_simulation() {
@@ -1297,6 +1449,10 @@ void test_hashing_graph_simulation() {
     hash_move_piece(board, moves->moves[2], killed);
     undo_pretend_move(board, moves->moves[2], killed);
     assert(hash1 == board->hash_value);
+
+    free_moves(moves);
+    free_moves(response);
+    free_board(board);
 }
 
 void test_hashing_en_passant() {
@@ -1404,10 +1560,15 @@ void test_hashing_different_move_order() {
 
 
 void test_hashing() {
+    printf("test_hashing_1\n");
     test_hashing_1();
+    printf("test_hashing_2\n");
     test_hashing_2();
+    printf("test_hashing_graph_simulation\n");
     test_hashing_graph_simulation();
+    printf("test_hashing_en_passant\n");
     test_hashing_en_passant();
+    printf("test_hashing_different_move_order\n");
     test_hashing_different_move_order();
 }
 
@@ -4019,6 +4180,7 @@ void test_moves() {
     test_castling_13();
     printf("test_promotion_1\n");
     test_promotion_1();
+    printf("FINISHED TEST_MOVES\n");
 }
 
 
@@ -4588,6 +4750,10 @@ void test_detect_mate_2() {
     assert(scores->moves->moves[2]->destination == a7);
     assert(scores->moves->moves[2]->piece->c == black);
     assert(scores->moves->moves[2]->piece->type == castle);
+
+    free_grapher(grapher);
+    free_scores(scores, 0);
+    free_board(board);
 }
 
 void test_detect_mate_1() {
@@ -5097,10 +5263,16 @@ void test_copy() {
 void test() {
     test_copy();
     test_moves();
+    printf("TEST test_legality\n");
     test_legality();
+    printf("TEST test_move_selection\n");
     test_move_selection();
+    printf("TEST test_move_logic\n");
     test_move_logic();
+    printf("TEST test_hashing\n");
     test_hashing();
+    printf("TEST test_move_logic_mate_in_four\n");
     test_move_logic_mate_in_four();
+    printf("TEST test_mate_detection\n");
     test_mate_detection();
 }

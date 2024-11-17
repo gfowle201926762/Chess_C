@@ -3,12 +3,13 @@
 int main(void) {
     initialise();
 
-    test_checkmate_already();
-    test_draw_by_repetition_best_line();
+    // test_checkmate_already();
+    // test_draw_by_repetition_best_line();
     test_iterative_deepening_m4_2();
-    test_pawn_en_passant_legality_1();
-    test();
-    test_stack();
+    // test_detect_mate_2();
+    // test_pawn_en_passant_legality_1();
+    // test();
+    // test_stack();
     
     return 0;
 }
@@ -460,6 +461,7 @@ Scores* evaluate_no_moves(Grapher* grapher, Move* move, Board* board, colour mov
         return evaluate_draw(grapher, move, mover);
     }
     if (move == NULL) {
+        printf("move == NULL in evaluate_no_moves\n");
         Scores* scores = calloc(1, sizeof(Scores));
         scores->moves = calloc(1, sizeof(Moves));
         scores->moves->moves[0] = calloc(1, sizeof(Move));
@@ -472,7 +474,7 @@ Scores* evaluate_no_moves(Grapher* grapher, Move* move, Board* board, colour mov
 
 Scores* evaluate_draw(Grapher* grapher, Move* move, colour mover) {
     if (move == NULL) {
-        printf("EVALUATE_DRAW (move=null)\n");
+        printf("move == NULL in evaluate_draw\n");
         Scores* scores = calloc(1, sizeof(Scores));
         scores->moves = calloc(1, sizeof(Moves));
         scores->moves->moves[0] = calloc(1, sizeof(Move));
@@ -572,6 +574,8 @@ void reorder_best_scores(int* best_scores, Moves* best_moves, int max_breadth, M
         best_scores[i] = new_score;
         best_moves->moves[i] = new_move;
         best_moves->length += 1;
+    } else {
+        free(new_move);
     }
 }
 
@@ -581,8 +585,11 @@ Moves* get_best_scores(Moves* moves, int max_breadth) {
     for (int i = 0; i < moves->length; i++) {
         if (max_breadth > best_moves->length || best_scores[max_breadth-1] < moves->moves[i]->evaluation) {
             reorder_best_scores(best_scores, best_moves, max_breadth, moves->moves[i]);
+        } else {
+            free(moves->moves[i]);
         }
     }
+    // printf("reordered: %i, freed moves: %i, moves length: %i, best_moves length: %i\n", reordered, freed, moves->length, best_moves->length);
     free(moves);
     return best_moves;
 }
@@ -647,6 +654,16 @@ Moves* get_best_moves(Board* board, Moves* moves, colour mover, int max_breadth,
     return get_best_scores(moves, max_breadth);
 }
 
+int calculate_breadth(Grapher* grapher) {
+    if (!grapher->dynamic_breadth) {
+        return grapher->max_breadth;
+    }
+    if (grapher->depth == grapher->max_depth) {
+        return MAX_BREADTH;
+    }
+    return grapher->max_breadth;
+}
+
 bool init_original_mover(Move* move, Grapher* grapher) {
     if (move) {
         return move->piece->c != grapher->start_player;
@@ -676,7 +693,6 @@ Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour m
         return init_scores(parent_move, reverse_depth(grapher));
     }
     if (draw_by_repetition(board)) {
-
         return evaluate_draw(grapher, parent_move, mover);
         // parent_move->evaluation = 0;
         // return init_scores(parent_move, reverse_depth(grapher));
@@ -684,10 +700,11 @@ Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour m
 
     Moves* moves = get_all_moves_for_colour(board, mover);
     if (moves->length == 0) {
+        free(moves);
         return evaluate_no_moves(grapher, parent_move, board, mover);
     }
 
-    Moves* best_moves = get_best_moves(board, moves, mover, grapher->max_breadth, prune, grapher->depth);
+    Moves* best_moves = get_best_moves(board, moves, mover, calculate_breadth(grapher), prune, grapher->depth); // grapher->max_breadth
     if (best_moves->prune_flag) {
         // PRUNABLE -> all pruning is handled in get_best_moves.
         Scores* scores = init_scores(best_moves->moves[0], reverse_depth(grapher) + 1);
@@ -698,7 +715,7 @@ Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour m
 
     bool pruned = false;
     int limit = init_limit(mover);
-    Scores* best_scores;
+    Scores* best_scores = NULL;
     for (int i = 0; i < best_moves->length; i++) {
         Move* move = best_moves->moves[i];
         Piece* killed = pretend_move(board, move);
@@ -717,6 +734,9 @@ Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour m
 
         if ((mover == white && scores->eval > limit) || (mover == black && scores->eval < limit)) {
             limit = scores->eval;
+            if (best_scores) {
+                free_scores(best_scores, reverse_depth(grapher));
+            }
             best_scores = scores;
         }
         else {
@@ -724,9 +744,13 @@ Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour m
         }
         if ((mover == white && best_scores->eval >= prune) || (mover == black && best_scores->eval <= prune)) {
             pruned = true;
+            for (int j = i + 1; j < best_moves->length; j++) {
+                free(best_moves->moves[j]);
+            }
             break;
         }
     }
+    free(best_moves);
     if (parent_move != NULL) {
         best_scores->moves->moves[reverse_depth(grapher) - 1] = parent_move;
     }
@@ -737,7 +761,15 @@ Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour m
 Scores* generate_random_move(Board* board, colour start_player) {
     Moves* moves = get_all_moves_for_colour(board, start_player);
     Scores* scores = calloc(1, sizeof(Scores));
-    Move* move = moves->moves[rand() % moves->length];
+    int random_index = rand() % moves->length;
+    for (int i = 0; i < moves->length; i++) {
+        if (i == random_index) {
+            continue;
+        }
+        free(moves->moves[i]);
+    }
+    Move* move = moves->moves[random_index];
+    free(moves);
     return init_scores(move, 1);
 }
 
@@ -764,11 +796,19 @@ Scores* iteratively_deepen(Board* board, Grapher* grapher, int time_limit, colou
         previous_depth = grapher->depth_reached;
         depth += 1;
     }
-    return get_scores_from_scorelist(all_scores);
+    scores = get_scores_from_scorelist(all_scores);
+    free(all_scores);
+    return scores;
 }
 
 Scores* get_scores_from_scorelist(ScoresList* scores_list) {
     if (scores_list->length >= 2) {
+        for (int i = 0; i < scores_list->length; i++) {
+            if (i == scores_list->length - 2) {
+                continue;
+            }
+            free_scores(scores_list->scores[i], 0);
+        }
         return scores_list->scores[scores_list->length - 2];
     }
     if (scores_list->length == 1) {
@@ -782,29 +822,33 @@ Scores* IDDFS(Board* board, int breadth, colour start_player, int time_limit) {
         return generate_random_move(board, start_player);
     }
 
-    int wide_time = (1 > (time_limit / 10)) ? 1 : (time_limit / 10);
+    // int wide_time = (1 > (time_limit / 10)) ? 1 : (time_limit / 10);
 
-    Grapher* grapher = init_grapher(MAX_BREADTH, 1, start_player);
+    Grapher* grapher = init_grapher(breadth, 1, start_player);
     grapher->timer = clock();
-    grapher->time_limit = wide_time;
+    grapher->time_limit = time_limit;
+    grapher->dynamic_breadth = true;
 
-    Scores* wide_scores = iteratively_deepen(board, grapher, wide_time, start_player);
+    Scores* scores = iteratively_deepen(board, grapher, time_limit, start_player);
 
-    Scores* deep_scores = NULL;
-    if (time_limit - wide_time > 0) {
-        grapher = init_grapher(breadth, 1, start_player);
-        grapher->timer = clock();
-        grapher->time_limit = time_limit - wide_time;
-        deep_scores = iteratively_deepen(board, grapher, time_limit - wide_time, start_player);
-    }
+    free_grapher(grapher);
+    return scores;
 
-    if (deep_scores) {
-        if ((wide_scores->eval > deep_scores->eval && start_player == white) || (wide_scores->eval < deep_scores->eval && start_player == black)) {
-            return wide_scores;
-        }
-        return deep_scores;
-    }
-    return wide_scores;
+    // Scores* deep_scores = NULL;
+    // if (time_limit - wide_time > 0) {
+    //     grapher = init_grapher(breadth, 1, start_player);
+    //     grapher->timer = clock();
+    //     grapher->time_limit = time_limit - wide_time;
+    //     deep_scores = iteratively_deepen(board, grapher, time_limit - wide_time, start_player);
+    // }
+
+    // if (deep_scores) {
+    //     if ((wide_scores->eval > deep_scores->eval && start_player == white) || (wide_scores->eval < deep_scores->eval && start_player == black)) {
+    //         return wide_scores;
+    //     }
+    //     return deep_scores;
+    // }
+    // return wide_scores;
 }
 
 
@@ -826,19 +870,19 @@ void generate_promotion_moves(Board* board, Moves* moves, Piece* piece, square c
 
 void get_all_moves_for_piece(Board* board, Piece* piece, Moves* moves) {
     // print_piece(piece);
-    square saved_from = piece->cell;
+    // square saved_from = piece->cell;
     U64 mask = piece->move_func(board, piece);
     // print_board(mask);
     // printf("\n");
     for (int i = 0; i < CELLS; i++) {
-        U64 saved = board->bitboard;
+        // U64 saved = board->bitboard;
         if (mask % 2 == 1) {
             // bit found on the bit board
             if (is_move_legal(board, piece, i)) {
-                if(saved != board->bitboard) {
-                    print_piece(piece);
-                    assert(false);
-                }
+                // if(saved != board->bitboard) {
+                //     print_piece(piece);
+                //     assert(false);
+                // }
                 bool allowed = true;
                 bool castle = false;
                 castle_type type = king_side;
@@ -861,21 +905,21 @@ void get_all_moves_for_piece(Board* board, Piece* piece, Moves* moves) {
                         allowed = false;
                     }
                 }
-                if(saved != board->bitboard) {
-                    char s[10] = {'\0'};
-                    char f[10] = {'\0'};
-                    char fr[10] = {'\0'};
-                    square_to_string(saved_from, fr);
-                    square_to_string(i, s);
-                    square_to_string(piece->cell, f);
-                    printf("moving to %s\n", s);
-                    printf("moving from %s\n", s);
-                    printf("moving from fr: %s\n", fr);
-                    printf("castle status: %i\n", castle);
-                    print_piece(piece);
-                    print_board_pro(board);
-                    assert(false);
-                }
+                // if(saved != board->bitboard) {
+                //     char s[10] = {'\0'};
+                //     char f[10] = {'\0'};
+                //     char fr[10] = {'\0'};
+                //     square_to_string(saved_from, fr);
+                //     square_to_string(i, s);
+                //     square_to_string(piece->cell, f);
+                //     printf("moving to %s\n", s);
+                //     printf("moving from %s\n", s);
+                //     printf("moving from fr: %s\n", fr);
+                //     printf("castle status: %i\n", castle);
+                //     print_piece(piece);
+                //     print_board_pro(board);
+                //     assert(false);
+                // }
                 if (allowed) {
                     moves->moves[moves->length] = calloc(1, sizeof(Move));
                     moves->moves[moves->length]->piece = piece;
@@ -895,19 +939,19 @@ void get_all_moves_for_piece(Board* board, Piece* piece, Moves* moves) {
             //     printf("moving from %s\n", s);
             //     print_piece(piece);
             // }
-            if(saved != board->bitboard) {
-                char s[10] = {'\0'};
-                char f[10] = {'\0'};
-                square_to_string(i, s);
-                square_to_string(piece->cell, f);
-                printf("moving to %s\n", s);
-                printf("moving from %s\n", s);
-                print_piece(piece);
-                print_board(saved);
-                print_board(board->bitboard);
-                print_board_pro(board);
-                assert(false);
-            }
+            // if(saved != board->bitboard) {
+            //     char s[10] = {'\0'};
+            //     char f[10] = {'\0'};
+            //     square_to_string(i, s);
+            //     square_to_string(piece->cell, f);
+            //     printf("moving to %s\n", s);
+            //     printf("moving from %s\n", s);
+            //     print_piece(piece);
+            //     print_board(saved);
+            //     print_board(board->bitboard);
+            //     print_board_pro(board);
+            //     assert(false);
+            // }
         }
         
         mask >>= 1;
@@ -2500,6 +2544,13 @@ void free_piece(Piece* piece) {
     free(piece);
 }
 
+void free_moves(Moves* moves) {
+    for (int i = 0; i < moves->length; i++) {
+        free(moves->moves[i]);
+    }
+    free(moves);
+}
+
 void free_move(Move* move) {
     free_piece(move->piece);
     free(move);
@@ -2519,6 +2570,11 @@ void free_copy_board(Board* board) {
     free(board);
 }
 
+void free_grapher(Grapher* grapher) {
+    free(grapher->start);
+    free(grapher);
+}
+
 void free_board(Board* board) {
     for (int i = 0; i < MAX_COLOUR; i++) {
         for (int j = 0; j < CELLS; j++) {
@@ -2536,9 +2592,13 @@ void free_board(Board* board) {
 }
 
 void free_scores(Scores* scores, int depth) {
+    // printf("\n\n----------\nFREEING SCORES. depth: %i\n", depth);
+    // print_scores(scores);
     for (int i = scores->moves->length - 1; i >= depth; i--) {
         // do not free the piece as well
+        // printf("freeing move %i\n", i);
         free(scores->moves->moves[i]);
     }
+    free(scores->moves);
     free(scores);
 }

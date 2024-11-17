@@ -239,6 +239,7 @@ struct Grapher {
     double time_limit;
 
     int depth_reached;
+    bool dynamic_breadth;
 };
 typedef struct Grapher Grapher;
 
@@ -395,12 +396,17 @@ Scores* IDDFS(Board* board, int breadth, colour start_player, int time_limit);
 Scores* get_scores_from_scorelist(ScoresList* scores_list);
 Scores* iteratively_deepen(Board* board, Grapher* grapher, int time_limit, colour start_player);
 Scores* generate_random_move(Board* board, colour start_player);
+int calculate_breadth(Grapher* grapher);
 
 
 void play_game();
 void initialise();
 void free_copy_board(Board* board);
 void free_scores(Scores* scores, int depth);
+void free_board(Board* board);
+void free_move(Move* move);
+void free_moves(Moves* moves);
+void free_grapher(Grapher* grapher);
 void on_error(char* s);
 
 

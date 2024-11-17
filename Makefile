@@ -16,7 +16,7 @@ clean_chess_s:
 clean: clean_chess clean_chess_s
 
 make_chess: chess.c chess.h test.c
-	$(CC) chess.c $(RELEASE) -o chess.out
+	$(CC) $(INCLUDE) chess.c $(RELEASE) -o chess.out
 
 make_chess_java: chess.c chess.h hashkeys.h com_chess_application_services_NativeEngineService.h test.c
 	$(CC) $(INCLUDE) chess.c $(RELEASE) -o libchess.dylib -arch x86_64
