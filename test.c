@@ -7,16 +7,8 @@
 
 void test_iterative_deepening_m4_2() {
     Board* board = board_setup_m4_2();
-    // print_board_pro(board);
 
-    ScoresList* all_scores = calloc(1, sizeof(ScoresList));
-    Scores* scores = IDDFS(board, 10, white, 5, all_scores);
-
-    // for (int i = 0; i < all_scores->length; i++) {
-    //     print_scores(all_scores->scores[i]);
-    // }
-    // printf("\n\nBEST\n");
-    // print_scores(scores);
+    Scores* scores = IDDFS(board, 10, white, 5);
 
     assert(scores->eval == MAX_SCORE - 3);
 
@@ -99,6 +91,8 @@ void test_stack() {
     test_wrapper(test_mate_in_four, "test_mate_in_four");
     test_wrapper(test_mate_in_four_2, "test_mate_in_four_2");
     test_wrapper(test_draw_by_repetition_best_line, "test_draw_by_repetition_best_line");
+
+    test_wrapper(test_iterative_deepening_m4_2, "test_iterative_deepening_m4_2");
 }
 
 void test_evaluation_branching() {
@@ -107,8 +101,8 @@ void test_evaluation_branching() {
 
 
 void test_forcing_moves_1() {
-    Board* board = set_board_notation("bkg6 bcc6 wqe3 wka1 ");
-    // print_board_pro(board);
+    Board* board = process_FEN("8/8/2r3k1/8/8/4Q3/8/K7 w - ? ?");
+    
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(2, 3, white);
@@ -127,8 +121,7 @@ void test_forcing_moves_1() {
 }
 
 void test_dont_be_stupid() {
-    Board* board = set_board_notation("bkg6 bcd6 wqe6 wka1 ");
-    // print_board_pro(board);
+    Board* board = process_FEN("8/8/3rQ1k1/8/8/8/8/K7 b - ? ?");
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(3, 3, black);
@@ -142,8 +135,7 @@ void test_dont_be_stupid() {
 }
 
 void test_forcing_moves_2() {
-    Board* board = set_board_notation("bkg6 bcd6 wqe3 wka1 ");
-    // print_board_pro(board);
+    Board* board = process_FEN("8/8/3r2k1/8/8/4Q3/8/K7 w - ? ?");
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(4, 4, white);
@@ -164,10 +156,7 @@ void test_forcing_moves_2() {
 
 void test_forcing_moves_3() {
     // I think this is mate in 3
-    Board* board = set_board_notation("bkg7 bcc6 bpf6 bhg6 wkh1 wqe3 wcg1 ");
-    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
-    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
-    // print_board_pro(board);
+    Board* board = process_FEN("8/6k1/2r2pn1/8/8/4Q3/8/6RK w - ? ?");
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(9, 4, white);
@@ -190,8 +179,8 @@ void test_forcing_moves_3_partial() {
 
 void test_puzzle_fork() {
     // bpf6
-    Board* board = set_board_notation("wkb1 wqe3 wch2 whc3 wpb2 wpb4 wpd5 wpf4 wpg3 bkg6 bqd7 bcc4 bbh5 bpa7 bpb6 bpd6 bpf5 bph7 ");
-    // print_board_pro(board);
+    Board* board = process_FEN("8/p2q3p/1p1p2k1/3P1p1b/1Pr2P2/2N1Q1P1/1P5R/1K6 w - ? ?");
+
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(4, 3, white);
     
@@ -207,9 +196,8 @@ void test_puzzle_fork() {
 }
 
 void test_puzzle_win_queen() {
-    Board* board = set_board_notation("wkg1 wqg3 wba4 wbc1 whb1 whd5 wph2 wpg2 wpd2 wpc3 wpb2 wpa2 wca1 bkd8 bqh4 bcf8 bca8 bhc6 bhg4 bph7 bpg7 bpe4 bpd6 bpc7 bpb7 bpa6 ");
-    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
-    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
+    Board* board = process_FEN("r2k1r2/1pp3pp/p1np4/3N4/B3p1nq/2P3Q1/PP1P2PP/RNB3K1 b - ? ?");
+
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(6, 4, black);
 
@@ -265,10 +253,7 @@ void test_forcing_moves() {
 }
 
 void test_18_june_2024() {
-    Board* board = set_board_notation("wkb1 wcd1 wcg7 wbd4 whd5 wpa3 wpb2 wpc2 wpe4 wpf3 wpf5 wph5 bkh8 bqd8 bcb8 bcf8 bbc8 bbe7 bha4 bpa6 bpd2 bpd6 bpf7 bph7 ");
-    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
-    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
-    // print_board_pro(board);
+    Board* board = process_FEN("1rbq1r1k/4bpRp/p2p4/3N1P1P/n2BP3/P4P2/1PPp4/1K1R4 w - ? ?");
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(8, 4, white);
@@ -316,9 +301,8 @@ void test_18_june_2024() {
 }
 
 void test_17_june_2024() {
-    Board* board = set_board_notation("wpa3 wpb4 wpc3 wpg4 whd4 wbe2 wch8 wkg2 bkc8 bce8 bhe6 bhc7 bpa7 bpb6 bpc6 bpf6 bpg5 ");
-    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
-    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
+    Board* board = process_FEN("2k1r2R/p1n5/1pp1np2/6p1/1P1N2P1/P1P5/4B1K1/8 w - ? ?");
+
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(8, 4, white);
     Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
@@ -341,8 +325,8 @@ void test_17_june_2024() {
 }
 
 void test_16_june_2024() {
-    Board* board = set_board_notation("wpb5 wpb2 wpc2 wpf2 wph2 wkc1 wqc3 whd3 wbg3 wcg1 bpa4 bpe6 bpf7 bpg7 bph7 bkg8 bqd5 bbe4 bca8 bcf8 ");
-    // print_board_pro(board);
+    Board* board = process_FEN("r4rk1/5ppp/4p3/1P1q4/p3b3/2QN2B1/1PP2P1P/2K3R1 w - ? ?");
+
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(9, 6, white);
     Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
@@ -408,7 +392,7 @@ void test_16_june_2024() {
 }
 
 void test_16_june_2024_partial() {
-    Board* board = set_board_notation("wpb5 wpb2 wpc2 wpf2 wph2 wkc1 whf4 wbg7 wcg1 bpa4 bpe6 bpf7 bph7 bkh4 bqd5 bbe4 bca8 bcf8 ");
+    Board* board = process_FEN("r4r2/5pBp/4p3/1P1q4/p3bN1k/8/1PP2P1P/2K3R1 w - ? ?");
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(9, 3, white);
@@ -440,7 +424,6 @@ void test_15_june_2024() {
     Board* board = set_board_notation("wkc1 wpb2 wpc2 wpd4 wpf2 wpg5 wbd2 wbd3 whh7 wqh3 wch1 bpa3 bpa5 bpc6 bpe6 bpf7 bpg6 bhd5 bhd7 bcb8 bce8 bqd8 bkg8 bbe7 ");
     board->pieces[white][KING_INDEX(white)]->no_moves += 1;
     board->pieces[black][KING_INDEX(black)]->no_moves += 1;
-    print_board_pro(board);
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(15, 6, white);
@@ -453,10 +436,7 @@ void test_15_june_2024() {
 void test_15_june_2024_partial() {
     // free parking
     // Difficult for heuristic function to see this first move... (knight h7 to f8)
-    Board* board = set_board_notation("wkb1 wpc2 wpd4 wpf2 wpg5 wbc3 wbd3 whf8 wqh3 wch1 bpb2 bpa5 bpc6 bpe6 bpf7 bpg6 bhd7 bcb8 bce8 bqd8 bkg8 bbf6 ");
-    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
-    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
-    // print_board_pro(board);
+    Board* board = process_FEN("1r1qrNk1/3n1p2/2p1pbp1/p5P1/3P4/2BB3Q/1pP2P2/1K5R w - ? ?");
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(12, 3, white);
@@ -494,10 +474,7 @@ void test_15_june_2024_partial() {
 void test_15_june_2024_end() {
     // free parking
     // Difficult for heuristic function to see this first move... (knight h7 to f8)
-    Board* board = set_board_notation("wkb1 wpc2 wpd4 wpf2 wpf6 wbc3 wbd3 whf8 wqh3 wch1 bpb2 bpa5 bpc6 bpe5 bpf7 bpg6 bcb8 bce8 bqd7 bkg8 ");
-    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
-    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
-    // print_board_pro(board);
+    Board* board = process_FEN("1r2rNk1/3q1p2/2p2Pp1/p3p3/3P4/2BB3Q/1pP2P2/1K5R w - ? ?");
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(12, 3, white);
@@ -517,8 +494,7 @@ void test_15_june_2024_end() {
 
 
 void test_14_june_2024() {
-    Board* board = set_board_notation("wce1 wpa2 wpb3 wpf2 wpg2 wph3 wbb2 whd4 wkg1 bkc8 bqa5 bbg8 bpc7 bpf6 bpg7 bph6 ");
-    // print_board_pro(board);
+    Board* board = process_FEN("2k3b1/2p3p1/5p1p/q7/3N4/1P5P/PB3PP1/4R1K1 w - ? ?");
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(5, 4, white);
@@ -569,8 +545,7 @@ void test_14_june_2024() {
 
 void test_13_june_2024() {
     // very difficult for evaluation function to see this...
-    Board* board = set_board_notation("bkg7 bbd2 bcd4 bpf7 bpg6 bpg3 wkg1 wce2 wcc2 wph3 wpg2 wpa2 wpe5 ");
-    // print_board_pro(board);
+    Board* board = process_FEN("8/5pk1/6p1/4P3/3r4/6pP/P1RbR1P1/6K1 b - ? ?");
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(50, 4, black);
@@ -586,10 +561,7 @@ void test_13_june_2024() {
 }
 
 void test_12_june_2024() {
-    Board* board = set_board_notation("bkg8 bqf2 bca8 bhe4 bhf3 bbg3 bph6 bpg7 bpf6 bpe5 bpc6 wkh1 wqc2 wcf1 wce1 wbd2 wbg2 wha5 wph3 wpc3 wpb4 ");
-    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
-    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
-    // print_board_pro(board);
+    Board* board = process_FEN("r5k1/6p1/2p2p1p/N3p3/1P2n3/2P2nbP/2QB1qB1/4RR1K b - ? ?");
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(9, 2, black);
@@ -617,41 +589,30 @@ void test_12_june_2024() {
 }
 
 void test_11_june_2024() {
-    Board* board = set_board_notation("wpa4 wpb2 wpe4 wpf2 wpg5 wkc2 whc3 wch1 wch6 wqh3 bkg7 bqc8 bca8 bch8 bbe7 bhf3 bpa5 bpc6 bpd6 bpe5 bpf7 bpg6 ");
-    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
-    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
+    Board* board = process_FEN("r1q4r/4bpk1/2pp2pR/p3p1P1/P3P3/2N2n1Q/1PK2P2/7R w - ? ?");
     print_board_pro(board);
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(200, 3, white);
     Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
     assert(test_board == board->bitboard);
+    assert(scores->eval == MAX_SCORE - 2);
 
-    print_scores(scores);
 }
 
 void test_11_june_2024_partial() {
     // holy crap it really should be detecting a mate in 1...
-    Board* board = set_board_notation("wpa4 wpb2 wpe4 wpf2 wpg5 wkc2 whc3 wch1 wch8 wqh3 bkg7 bqc8 bca8 bbe7 bhf3 bpa5 bpc6 bpd6 bpe5 bpf7 bpg6 ");
-    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
-    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
-    print_board_pro(board);
+    Board* board = process_FEN("r1q4R/4bpk1/2pp2p1/p3p1P1/P3P3/2N2n1Q/1PK2P2/7R w - ? ?");
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(200, 2, white);
     Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(black));
     assert(test_board == board->bitboard);
-
-    print_scores(scores);
-
     assert(scores->eval == MAX_SCORE);
 }
 
 void test_puzzle_trap_bishop() {
-    Board* board = set_board_notation("wkd2 wca1 wch1 whf3 whg3 wbd3 wpa2 wpb2 wpe4 wpf2 wpg2 wph4 bkg8 bcf8 bca8 bhb4 bhe7 bbg6 bpa6 bpb5 bpd4 bpf7 bpg7 bph7 ");
-    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
-    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
-    // print_board_pro(board);
+    Board* board = process_FEN("r4rk1/4nppp/p5b1/1p6/1n1pP2P/3B1NN1/PP1K1PP1/R6R w - ? ?");
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(30, 3, white);
@@ -667,10 +628,7 @@ void test_puzzle_trap_bishop() {
 }
 
 void test_puzzle_win_knight_because_pawn_fork() {
-    Board* board = set_board_notation("wkg1 wqd1 wce1 wca1 wbc4 wbc1 whe4 whg6 wph2 wpg2 wpf2 wpc2 wpb2 wpa2 bkg8 bqd8 bcf7 bca8 bbc8 bbf6 bhb8 bhc5 bph6 bpg7 bpe6 bpd7 bpc7 bpb7 bpa6 ");
-    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
-    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
-    // print_board_pro(board);
+    Board* board = process_FEN("rnbq2k1/1ppp1rp1/p3pbNp/2n5/2B1N3/8/PPP2PPP/R1BQR1K1 b - ? ?");
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(5, 5, black);
@@ -691,6 +649,8 @@ void test_mate_in_5() {
     board->pieces[black][KING_INDEX(black)]->no_moves += 1;
 
     print_board_pro(board);
+    // board = process_FEN("rnbq2k1/1ppp1rp1/p3pbNp/2n5/2B1N3/8/PPP2PPP/R1BQR1K1 w - ? ?");
+    // print_board_pro(board);
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(20, 5, black);
@@ -718,11 +678,7 @@ void test_mate_in_5_partial() {
 }
 
 void test_reverse_mate_in_1() {
-    Board* board = set_board_notation("wkg1 wcc8 wcb7 bka1 ");
-    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
-    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
-
-    // print_board_pro(board);
+    Board* board = process_FEN("2R5/1R6/8/8/8/8/8/k5K1 w - ? ?");
 
     U64 test_board = board->bitboard;
     Grapher* grapher = init_grapher(5, 4, white);
@@ -871,9 +827,7 @@ void test_draw_by_repetition_1() {
 }
 
 void test_draw_by_repetition_best_line() {
-    Board* board = set_board_notation("wka1 wqf2 bcb8 bcc7 bkh1 bpg2 bpd6 ");
-    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
-    board->pieces[black][KING_INDEX(black)]->no_moves += 1;
+    Board* board = process_FEN("1r6/2r5/3p4/8/8/8/5Qp1/K6k w - - ? ?");
 
     // how the fuck can black not see mate with b=5?
     
@@ -887,6 +841,410 @@ void test_draw_by_repetition_best_line() {
     // assert((scores->moves->moves[4]->destination == h4 || scores->moves->moves[4]->destination == e1) && scores->moves->moves[4]->piece->type == queen);
 }
 
+
+
+
+void test_fen_processing() {
+    printf("COMMENT 1\n");
+    const char* fen_string = "rnbqkb1r/pppppppp/8/8/P2nP3/2P5/1P3PPP/RNBQKBNR b KQkq - ? ?";
+    Board* first_board = process_FEN(fen_string);
+    print_board_pro(first_board);
+
+    printf("COMMENT 2\n");
+    const char* client_fen_string = "rnbqkb1r/pppppppp/8/8/P3P3/2P5/1Pn2PPP/RNBQKBNR w KQkq - ? ?";
+    Board* board = process_FEN(client_fen_string);
+    print_board_pro(board);
+    printf("COMMENT 3\n");
+
+    assert(board->map[a8]);
+    assert(board->map[a8]->c == black);
+    assert(board->map[a8]->type == castle);
+    assert(board->map[a8]->cell == a8);
+    assert(board->map[a8]->alive);
+    assert(board->map[a8]->value == CASTLE_VALUE);
+
+    assert(board->map[b8]);
+    assert(board->map[b8]->c == black);
+    assert(board->map[b8]->type == knight);
+    assert(board->map[b8]->cell == b8);
+    assert(board->map[b8]->alive);
+    assert(board->map[b8]->value == KNIGHT_VALUE);
+
+    assert(board->map[c8]);
+    assert(board->map[c8]->c == black);
+    assert(board->map[c8]->type == bishop);
+    assert(board->map[c8]->cell == c8);
+    assert(board->map[c8]->alive);
+    assert(board->map[c8]->value == BISHOP_VALUE);
+
+    assert(board->map[d8]);
+    assert(board->map[d8]->c == black);
+    assert(board->map[d8]->type == queen);
+    assert(board->map[d8]->cell == d8);
+    assert(board->map[d8]->alive);
+    assert(board->map[d8]->value == QUEEN_VALUE);
+
+    assert(board->map[e8]);
+    assert(board->map[e8]->c == black);
+    assert(board->map[e8]->type == king);
+    assert(board->map[e8]->cell == e8);
+    assert(board->map[e8]->alive);
+    assert(board->map[e8]->value == KING_VALUE);
+
+    assert(board->map[f8]);
+    assert(board->map[f8]->c == black);
+    assert(board->map[f8]->type == bishop);
+    assert(board->map[f8]->cell == f8);
+    assert(board->map[f8]->alive);
+    assert(board->map[f8]->value == BISHOP_VALUE);
+
+    assert(board->map[c2]);
+    assert(board->map[c2]->c == black);
+    assert(board->map[c2]->type == knight);
+    assert(board->map[c2]->cell == c2);
+    assert(board->map[c2]->alive);
+    assert(board->map[c2]->value == KNIGHT_VALUE);
+
+    assert(board->map[h8]);
+    assert(board->map[h8]->c == black);
+    assert(board->map[h8]->type == castle);
+    assert(board->map[h8]->cell == h8);
+    assert(board->map[h8]->alive);
+    assert(board->map[h8]->value == CASTLE_VALUE);
+
+
+
+
+    assert(board->map[a7]);
+    assert(board->map[a7]->c == black);
+    assert(board->map[a7]->type == pawn);
+    assert(board->map[a7]->cell == a7);
+    assert(board->map[a7]->alive);
+    assert(board->map[a7]->value == PAWN_VALUE);
+
+    assert(board->map[b7]);
+    assert(board->map[b7]->c == black);
+    assert(board->map[b7]->type == pawn);
+    assert(board->map[b7]->cell == b7);
+    assert(board->map[b7]->alive);
+    assert(board->map[b7]->value == PAWN_VALUE);
+
+    assert(board->map[c7]);
+    assert(board->map[c7]->c == black);
+    assert(board->map[c7]->type == pawn);
+    assert(board->map[c7]->cell == c7);
+    assert(board->map[c7]->alive);
+    assert(board->map[c7]->value == PAWN_VALUE);
+
+    assert(board->map[d7]);
+    assert(board->map[d7]->c == black);
+    assert(board->map[d7]->type == pawn);
+    assert(board->map[d7]->cell == d7);
+    assert(board->map[d7]->alive);
+    assert(board->map[d7]->value == PAWN_VALUE);
+
+    assert(board->map[e7]);
+    assert(board->map[e7]->c == black);
+    assert(board->map[e7]->type == pawn);
+    assert(board->map[e7]->cell == e7);
+    assert(board->map[e7]->alive);
+    assert(board->map[e7]->value == PAWN_VALUE);
+
+    assert(board->map[f7]);
+    assert(board->map[f7]->c == black);
+    assert(board->map[f7]->type == pawn);
+    assert(board->map[f7]->cell == f7);
+    assert(board->map[f7]->alive);
+    assert(board->map[f7]->value == PAWN_VALUE);
+
+    assert(board->map[g7]);
+    assert(board->map[g7]->c == black);
+    assert(board->map[g7]->type == pawn);
+    assert(board->map[g7]->cell == g7);
+    assert(board->map[g7]->alive);
+    assert(board->map[g7]->value == PAWN_VALUE);
+
+    assert(board->map[h7]);
+    assert(board->map[h7]->c == black);
+    assert(board->map[h7]->type == pawn);
+    assert(board->map[h7]->cell == h7);
+    assert(board->map[h7]->alive);
+    assert(board->map[h7]->value == PAWN_VALUE);
+
+
+
+    assert(board->map[a1]);
+    assert(board->map[a1]->c == white);
+    assert(board->map[a1]->type == castle);
+    assert(board->map[a1]->cell == a1);
+    assert(board->map[a1]->alive);
+    assert(board->map[a1]->value == CASTLE_VALUE);
+
+    assert(board->map[b1]);
+    assert(board->map[b1]->c == white);
+    assert(board->map[b1]->type == knight);
+    assert(board->map[b1]->cell == b1);
+    assert(board->map[b1]->alive);
+    assert(board->map[b1]->value == KNIGHT_VALUE);
+
+    assert(board->map[c1]);
+    assert(board->map[c1]->c == white);
+    assert(board->map[c1]->type == bishop);
+    assert(board->map[c1]->cell == c1);
+    assert(board->map[c1]->alive);
+    assert(board->map[c1]->value == BISHOP_VALUE);
+
+    assert(board->map[d1]);
+    assert(board->map[d1]->c == white);
+    assert(board->map[d1]->type == queen);
+    assert(board->map[d1]->cell == d1);
+    assert(board->map[d1]->alive);
+    assert(board->map[d1]->value == QUEEN_VALUE);
+
+    assert(board->map[e1]);
+    assert(board->map[e1]->c == white);
+    assert(board->map[e1]->type == king);
+    assert(board->map[e1]->cell == e1);
+    assert(board->map[e1]->alive);
+    assert(board->map[e1]->value == KING_VALUE);
+
+    assert(board->map[f1]);
+    assert(board->map[f1]->c == white);
+    assert(board->map[f1]->type == bishop);
+    assert(board->map[f1]->cell == f1);
+    assert(board->map[f1]->alive);
+    assert(board->map[f1]->value == BISHOP_VALUE);
+
+    assert(board->map[g1]);
+    assert(board->map[g1]->c == white);
+    assert(board->map[g1]->type == knight);
+    assert(board->map[g1]->cell == g1);
+    assert(board->map[g1]->alive);
+    assert(board->map[g1]->value == KNIGHT_VALUE);
+
+    assert(board->map[h1]);
+    assert(board->map[h1]->c == white);
+    assert(board->map[h1]->type == castle);
+    assert(board->map[h1]->cell == h1);
+    assert(board->map[h1]->alive);
+    assert(board->map[h1]->value == CASTLE_VALUE);
+
+
+
+
+    assert(board->map[a4]);
+    assert(board->map[a4]->c == white);
+    assert(board->map[a4]->type == pawn);
+    assert(board->map[a4]->cell == a4);
+    assert(board->map[a4]->alive);
+    assert(board->map[a4]->value == PAWN_VALUE);
+
+    assert(board->map[b2]);
+    assert(board->map[b2]->c == white);
+    assert(board->map[b2]->type == pawn);
+    assert(board->map[b2]->cell == b2);
+    assert(board->map[b2]->alive);
+    assert(board->map[b2]->value == PAWN_VALUE);
+
+    assert(board->map[c3]);
+    assert(board->map[c3]->c == white);
+    assert(board->map[c3]->type == pawn);
+    assert(board->map[c3]->cell == c3);
+    assert(board->map[c3]->alive);
+    assert(board->map[c3]->value == PAWN_VALUE);
+
+    assert(board->map[e4]);
+    assert(board->map[e4]->c == white);
+    assert(board->map[e4]->type == pawn);
+    assert(board->map[e4]->cell == e4);
+    assert(board->map[e4]->alive);
+    assert(board->map[e4]->value == PAWN_VALUE);
+
+    assert(board->map[f2]);
+    assert(board->map[f2]->c == white);
+    assert(board->map[f2]->type == pawn);
+    assert(board->map[f2]->cell == f2);
+    assert(board->map[f2]->alive);
+    assert(board->map[f2]->value == PAWN_VALUE);
+
+    assert(board->map[g2]);
+    assert(board->map[g2]->c == white);
+    assert(board->map[g2]->type == pawn);
+    assert(board->map[g2]->cell == g2);
+    assert(board->map[g2]->alive);
+    assert(board->map[g2]->value == PAWN_VALUE);
+
+    assert(board->map[h2]);
+    assert(board->map[h2]->c == white);
+    assert(board->map[h2]->type == pawn);
+    assert(board->map[h2]->cell == h2);
+    assert(board->map[h2]->alive);
+    assert(board->map[h2]->value == PAWN_VALUE);
+
+    assert(board->pieces_quantity[black] == 16);
+    assert(board->pieces_quantity[white] == 15);
+
+    int present = 0;
+    for (int i = 0; i < CELLS; i++) {
+        if (board->map[i]) {
+            present += 1;
+        }
+    }
+    assert(present == (15 + 16));
+
+    U64 test_board = 0ULL;
+
+    set_bit(test_board, a8);
+    set_bit(test_board, b8);
+    set_bit(test_board, c8);
+    set_bit(test_board, d8);
+    set_bit(test_board, e8);
+    set_bit(test_board, f8);
+    set_bit(test_board, c2);
+    set_bit(test_board, h8);
+
+    set_bit(test_board, a7);
+    set_bit(test_board, b7);
+    set_bit(test_board, c7);
+    set_bit(test_board, d7);
+    set_bit(test_board, e7);
+    set_bit(test_board, f7);
+    set_bit(test_board, g7);
+    set_bit(test_board, h7);
+
+    set_bit(test_board, a4);
+    set_bit(test_board, b2);
+    set_bit(test_board, c3);
+    set_bit(test_board, e4);
+    set_bit(test_board, f2);
+    set_bit(test_board, g2);
+    set_bit(test_board, h2);
+
+    set_bit(test_board, a1);
+    set_bit(test_board, b1);
+    set_bit(test_board, c1);
+    set_bit(test_board, d1);
+    set_bit(test_board, e1);
+    set_bit(test_board, f1);
+    set_bit(test_board, g1);
+    set_bit(test_board, h1);
+
+    assert(board->bitboard == test_board);
+
+    print_board(board->bitboard);
+
+    int breadth = 10;
+    colour startPlayer = white;
+    int timeLimit = 1;
+    Scores* scores = IDDFS(board, (int) breadth, (colour) startPlayer, (int) timeLimit);
+    print_scores(scores);
+}
+
+void test_fen_processing_2() {
+    const char* fen_string = "rnbqkb1r/pppp1ppp/1n6/4P3/P2Q4/8/1PP1PPPP/RNB1KBNR w KQkq - ? ?";
+    Board* board = process_FEN(fen_string);
+    print_board_pro(board);
+
+    int breadth = 100;
+    // colour startPlayer = white;
+    // int timeLimit = 20;
+    // ScoresList* all_scores = calloc(1, sizeof(ScoresList));
+    // Scores* scores = IDDFS(board, (int) breadth, (colour) startPlayer, (int) timeLimit, all_scores);
+    
+    Grapher* grapher = init_grapher(breadth, 3, white);
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(invert_colour(white)));
+    print_scores(scores);
+
+}
+
+void test_fen_processing_3() {
+    const char* fen_string = "r2qkb1r/1pp4p/p1Bpbn2/4pp2/6pP/P1N1P1P1/1PPP1P2/R1BQK1NR b KQkq - ? ?";
+    Board* board = process_FEN(fen_string);
+    print_board_pro(board);
+    Moves* legal_moves = get_all_moves_for_colour(board, black);
+    print_moves(legal_moves);
+}
+
+void test_fen_processing_4() {
+    const char* fen_string = "4rk2/p3rppp/1pb5/2p5/P7/R3P2P/1P3KP1/6NR b - - ? ?";
+    Board* board = process_FEN(fen_string);
+    print_board_pro(board);
+
+    Grapher* grapher = init_grapher(100, 2, white);
+    Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(invert_colour(white)));
+    print_scores(scores);
+}
+
+void test_fen_processing_5() {
+    const char* fen_string = "4r2k/p1p2p1p/1p5p/8/1PQ5/5NPP/P3K3/RN3B2 w - - ? ?";
+    Board* board = process_FEN(fen_string);
+    print_board_pro(board);
+
+    Scores* scores = IDDFS(board, (int) 100, (colour) white, (int) 1);
+    print_scores(scores);
+
+    // Grapher* grapher = init_grapher(100, 2, white);
+    // Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(invert_colour(white)));
+    // print_scores(scores);
+}
+
+void test_fen_processing_6() {
+    const char* fen_string = "rn1q1rk1/1b3pp1/p2bpn1p/1p1p3P/8/1QPBPP2/PP1N2PB/R3K1NR b KQ - ? ?";
+    Board* board = process_FEN(fen_string);
+    print_board_pro(board);
+    Moves* legal_moves = get_all_moves_for_colour(board, black);
+    print_moves(legal_moves);
+}
+
+void test_fen_processing_7() {
+    const char* fen_string = "6k1/5pp1/8/2n5/1r1n1P2/3r2P1/P1K4P/R3BNNR w - - ? ?";
+    Board* board = process_FEN(fen_string);
+    print_board_pro(board);
+    assert(board->king_pieces[white]->no_moves > 0);
+    assert(board->king_pieces[black]->no_moves > 0);
+
+    // Grapher* grapher = init_grapher(100, 2, white);
+    // Scores* scores = create_graph(grapher, grapher->start, board, white, init_limit(invert_colour(white)));
+    // print_scores(scores);
+
+    Moves* legal_moves = get_all_moves_for_colour(board, white);
+    print_moves(legal_moves);
+
+    // U64 mask = board->king_pieces[white]->move_func(board, board->king_pieces[white]);
+    // print_board(mask);
+
+    // ScoresList* all_scores = calloc(1, sizeof(ScoresList));
+    // Scores* scores = IDDFS(board, (int) 100, (colour) white, (int) 1, all_scores);
+    // print_scores(scores);
+
+}
+
+void test_bug_1() {
+    char* fen_string = "b2r4/8/p7/8/PPN1kp2/2Pp2p1/8/3RK1N1 w - - ? ?";
+    Board* board = process_FEN(fen_string);
+    Scores* scores = IDDFS(board, (int) 5, (colour) white, (int) 1);
+    print_scores(scores);
+}
+
+void test_bug_2() {
+    char* fen_string = "8/8/8/7Q/1K3k2/1P6/8/8 w - - ? ?";
+    Board* board = process_FEN(fen_string);
+    print_board_pro(board);
+    Scores* scores = IDDFS(board, (int) 5, (colour) white, (int) 1);
+    pretend_move(board, scores->moves->moves[0]);
+    print_board_pro(board);
+    print_scores(scores);
+}
+
+void test_checkmate_already() {
+    Board* board = process_FEN("rr5k/8/8/8/8/8/8/K7 w - ? ?");
+
+    Scores* scores = IDDFS(board, (int) 100, (colour) white, (int) 1);
+    assert(scores->eval == -MAX_SCORE);
+    assert(scores->moves->moves[0]->destination == 0);
+    assert(scores->moves->moves[0]->from == 0);
+
+}
 
 void test_hashing_1() {
     Board* board = set_board_notation("wpe4 bcf5 ");
@@ -1273,6 +1631,39 @@ void test_knight_moves() {
     test_board = 0ULL;
     set_bit(test_board, g3);
     set_bit(test_board, f2);
+    assert(mask == test_board);
+
+    clear_board(board);
+    piece->cell = b8;
+    mask = get_knight_mask(board, piece);
+    test_board = 0ULL;
+    set_bit(test_board, d7);
+    set_bit(test_board, c6);
+    set_bit(test_board, a6);
+    assert(mask == test_board);
+
+    clear_board(board);
+    piece->cell = a8;
+    mask = get_knight_mask(board, piece);
+    test_board = 0ULL;
+    set_bit(test_board, b6);
+    set_bit(test_board, c7);
+    assert(mask == test_board);
+
+    clear_board(board);
+    piece->cell = a1;
+    mask = get_knight_mask(board, piece);
+    test_board = 0ULL;
+    set_bit(test_board, c2);
+    set_bit(test_board, b3);
+    assert(mask == test_board);
+
+    clear_board(board);
+    piece->cell = h8;
+    mask = get_knight_mask(board, piece);
+    test_board = 0ULL;
+    set_bit(test_board, g6);
+    set_bit(test_board, f7);
     assert(mask == test_board);
 }
 
@@ -2339,14 +2730,13 @@ void test_pawn_en_passant_10() {
 void test_pawn_en_passant_legality_1() {
     // This is actually a hypothetical move order,
     // and I don't think it could ever happen.
-    Board* board = set_board_notation("wkh1, wpc5 bbb7 bpd5 ");
-    board->map[h1]->no_moves += 1;
-    Move* move = calloc(1, sizeof(Move));
-    move->piece = board->map[d5];
-    move->from = d7;
-    move->destination = d5;
-    board->last_moved[board->lm_length] = move;
-    board->lm_length += 1;
+    char* fen_string = "8/1b6/8/2Pp4/8/8/8/k6K w - d6 ? ?";
+    Board* board = process_FEN(fen_string);
+
+    char generated_fen_string[100] = {'\0'};
+    generate_FEN(board, generated_fen_string, white);
+    printf("%s\n", generated_fen_string);
+    assert(strcmp(fen_string, generated_fen_string) == 0);
 
     Moves* moves = get_all_moves_for_colour(board, white);
 
@@ -2366,14 +2756,12 @@ void test_pawn_en_passant_legality_1() {
 }
 
 void test_pawn_en_passant_legality_2() {
-    Board* board = set_board_notation("wkc1, wpc5 bcc8 bpd5 ");
-    board->map[c1]->no_moves += 1;
-    Move* move = calloc(1, sizeof(Move));
-    move->piece = board->map[d5];
-    move->from = d7;
-    move->destination = d5;
-    board->last_moved[board->lm_length] = move;
-    board->lm_length += 1;
+    char* fen_string = "2r5/8/8/2Pp4/8/8/8/2K4k w - d6 ? ?";
+    Board* board = process_FEN(fen_string);
+
+    char generated_fen_string[100] = {'\0'};
+    generate_FEN(board, generated_fen_string, white);
+    assert(strcmp(fen_string, generated_fen_string) == 0);
 
     Moves* moves = get_all_moves_for_colour(board, white);
 
@@ -2399,44 +2787,42 @@ void test_pawn_en_passant_legality_2() {
 }
 
 void test_pawn_en_passant_legality_3() {
-    Board* board = set_board_notation("wkb5 wpc5 bcf5 bpd5 ");
-    board->map[b5]->no_moves += 1;
-    Move* move = calloc(1, sizeof(Move));
-    move->piece = board->map[d5];
-    move->from = d7;
-    move->destination = d5;
-    board->last_moved[board->lm_length] = move;
-    board->lm_length += 1;
+    char* fen_string = "8/8/8/1KPp1r2/8/8/8/7k w - d6 ? ?";
+    Board* board = process_FEN(fen_string);
+
+    char generated_fen_string[100] = {'\0'};
+    generate_FEN(board, generated_fen_string, white);
+    assert(strcmp(fen_string, generated_fen_string) == 0);
 
     Moves* moves = get_all_moves_for_colour(board, white);
 
     assert(moves->length == 7);
-    assert(moves->moves[0]->destination == c6);
-    assert(moves->moves[0]->from == c5);
-    assert(moves->moves[0]->piece->type == pawn);
-    assert(moves->moves[1]->destination == a6);
+    assert(moves->moves[0]->destination == a6);
+    assert(moves->moves[0]->from == b5);
+    assert(moves->moves[0]->piece->type == king);
+    assert(moves->moves[1]->destination == b6);
     assert(moves->moves[1]->from == b5);
     assert(moves->moves[1]->piece->type == king);
-    assert(moves->moves[2]->destination == b6);
+    assert(moves->moves[2]->destination == c6);
     assert(moves->moves[2]->from == b5);
     assert(moves->moves[2]->piece->type == king);
-    assert(moves->moves[3]->destination == c6);
+    assert(moves->moves[3]->destination == a5);
     assert(moves->moves[3]->from == b5);
     assert(moves->moves[3]->piece->type == king);
-    assert(moves->moves[4]->destination == a5);
+    assert(moves->moves[4]->destination == a4);
     assert(moves->moves[4]->from == b5);
     assert(moves->moves[4]->piece->type == king);
-    assert(moves->moves[5]->destination == a4);
+    assert(moves->moves[5]->destination == b4);
     assert(moves->moves[5]->from == b5);
     assert(moves->moves[5]->piece->type == king);
-    assert(moves->moves[6]->destination == b4);
-    assert(moves->moves[6]->from == b5);
-    assert(moves->moves[6]->piece->type == king);
+    assert(moves->moves[6]->destination == c6);
+    assert(moves->moves[6]->from == c5);
+    assert(moves->moves[6]->piece->type == pawn);
 
     moves = get_all_moves_for_colour(board, black);
     
     // move castle out the way
-    pretend_move(board, moves->moves[0]);
+    pretend_move(board, moves->moves[1]);
     assert(board->map[f8]);
     assert(board->map[f8]->type == castle);
     assert(board->map[f5] == NULL);
@@ -2447,27 +2833,27 @@ void test_pawn_en_passant_legality_3() {
 
     // still can't do en passant because last moved has changed
     assert(moves->length == 7);
-    assert(moves->moves[0]->destination == c6);
-    assert(moves->moves[0]->from == c5);
-    assert(moves->moves[0]->piece->type == pawn);
-    assert(moves->moves[1]->destination == a6);
+    assert(moves->moves[0]->destination == a6);
+    assert(moves->moves[0]->from == b5);
+    assert(moves->moves[0]->piece->type == king);
+    assert(moves->moves[1]->destination == b6);
     assert(moves->moves[1]->from == b5);
     assert(moves->moves[1]->piece->type == king);
-    assert(moves->moves[2]->destination == b6);
+    assert(moves->moves[2]->destination == c6);
     assert(moves->moves[2]->from == b5);
     assert(moves->moves[2]->piece->type == king);
-    assert(moves->moves[3]->destination == c6);
+    assert(moves->moves[3]->destination == a5);
     assert(moves->moves[3]->from == b5);
     assert(moves->moves[3]->piece->type == king);
-    assert(moves->moves[4]->destination == a5);
+    assert(moves->moves[4]->destination == a4);
     assert(moves->moves[4]->from == b5);
     assert(moves->moves[4]->piece->type == king);
-    assert(moves->moves[5]->destination == a4);
+    assert(moves->moves[5]->destination == b4);
     assert(moves->moves[5]->from == b5);
     assert(moves->moves[5]->piece->type == king);
-    assert(moves->moves[6]->destination == b4);
-    assert(moves->moves[6]->from == b5);
-    assert(moves->moves[6]->piece->type == king);
+    assert(moves->moves[6]->destination == c6);
+    assert(moves->moves[6]->from == c5);
+    assert(moves->moves[6]->piece->type == pawn);
 
     Move* move_2 = calloc(1, sizeof(Move));
     move_2->piece = board->map[d5];
@@ -2478,70 +2864,105 @@ void test_pawn_en_passant_legality_3() {
     moves = get_all_moves_for_colour(board, white);
 
     assert(moves->length == 8);
-    assert(moves->moves[0]->destination == c6);
-    assert(moves->moves[0]->from == c5);
-    assert(moves->moves[0]->piece->type == pawn);
-    assert(moves->moves[1]->destination == d6);
-    assert(moves->moves[1]->from == c5);
-    assert(moves->moves[1]->piece->type == pawn);
-    assert(moves->moves[2]->destination == a6);
+    assert(moves->moves[0]->destination == a6);
+    assert(moves->moves[0]->from == b5);
+    assert(moves->moves[0]->piece->type == king);
+    assert(moves->moves[1]->destination == b6);
+    assert(moves->moves[1]->from == b5);
+    assert(moves->moves[1]->piece->type == king);
+    assert(moves->moves[2]->destination == c6);
     assert(moves->moves[2]->from == b5);
     assert(moves->moves[2]->piece->type == king);
-    assert(moves->moves[3]->destination == b6);
+    assert(moves->moves[3]->destination == a5);
     assert(moves->moves[3]->from == b5);
     assert(moves->moves[3]->piece->type == king);
-    assert(moves->moves[4]->destination == c6);
+    assert(moves->moves[4]->destination == a4);
     assert(moves->moves[4]->from == b5);
     assert(moves->moves[4]->piece->type == king);
-    assert(moves->moves[5]->destination == a5);
+    assert(moves->moves[5]->destination == b4);
     assert(moves->moves[5]->from == b5);
     assert(moves->moves[5]->piece->type == king);
-    assert(moves->moves[6]->destination == a4);
-    assert(moves->moves[6]->from == b5);
-    assert(moves->moves[6]->piece->type == king);
-    assert(moves->moves[7]->destination == b4);
-    assert(moves->moves[7]->from == b5);
-    assert(moves->moves[7]->piece->type == king);
+    assert(moves->moves[6]->destination == c6);
+    assert(moves->moves[6]->from == c5);
+    assert(moves->moves[6]->piece->type == pawn);
+    assert(moves->moves[7]->destination == d6);
+    assert(moves->moves[7]->from == c5);
+    assert(moves->moves[7]->piece->type == pawn);
 }
 
 void test_pawn_en_passant_legality_4() {
-    Board* board = set_board_notation("wpd5 bcc5 ");
-    Move* move = calloc(1, sizeof(Move));
-    move->piece = board->map[c5];
-    move->from = c7;
-    move->destination = c5;
-    board->last_moved[board->lm_length] = move;
-    board->lm_length += 1;
+    char* fen_string = "8/8/8/2rP4/8/8/8/K6k w - - ? ?";
+    Board* board = process_FEN(fen_string);
+
+    char generated_fen_string[100] = {'\0'};
+    generate_FEN(board, generated_fen_string, white);
+    assert(strcmp(fen_string, generated_fen_string) == 0);
 
     Moves* moves = get_all_moves_for_colour(board, white);
 
-    assert(moves->length == 1);
+    assert(moves->length == 4);
     assert(moves->moves[0]->destination == d6);
     assert(moves->moves[0]->from == d5);
+    assert(moves->moves[0]->piece->type == pawn);
+    assert(moves->moves[1]->destination == a2);
+    assert(moves->moves[1]->from == a1);
+    assert(moves->moves[1]->piece->type == king);
+    assert(moves->moves[2]->destination == b2);
+    assert(moves->moves[2]->from == a1);
+    assert(moves->moves[2]->piece->type == king);
+    assert(moves->moves[3]->destination == b1);
+    assert(moves->moves[3]->from == a1);
+    assert(moves->moves[3]->piece->type == king);
 }
 
 void test_pawn_en_passant_legality_5() {
-    Board* board = set_board_notation("wpd5 bpc5 ");
-    Move* move = calloc(1, sizeof(Move));
-    move->piece = board->map[c5];
-    move->from = c6;
-    move->destination = c5;
-    board->last_moved[board->lm_length] = move;
-    board->lm_length += 1;
+    char* fen_string = "8/8/8/2pP4/8/8/8/K6k w - - ? ?";
+    Board* board = process_FEN(fen_string);
+
+    char generated_fen_string[100] = {'\0'};
+    generate_FEN(board, generated_fen_string, white);
+    assert(strcmp(fen_string, generated_fen_string) == 0);
 
     Moves* moves = get_all_moves_for_colour(board, white);
 
-    assert(moves->length == 1);
+    assert(moves->length == 4);
     assert(moves->moves[0]->destination == d6);
     assert(moves->moves[0]->from == d5);
+    assert(moves->moves[0]->piece->type == pawn);
+    assert(moves->moves[1]->destination == a2);
+    assert(moves->moves[1]->from == a1);
+    assert(moves->moves[1]->piece->type == king);
+    assert(moves->moves[2]->destination == b2);
+    assert(moves->moves[2]->from == a1);
+    assert(moves->moves[2]->piece->type == king);
+    assert(moves->moves[3]->destination == b1);
+    assert(moves->moves[3]->from == a1);
+    assert(moves->moves[3]->piece->type == king);
 
-    move->from = c7;
+    char* fen_string_2 = "8/8/8/2pP4/8/8/8/K6k w - c6 ? ?";
+    board = process_FEN(fen_string_2);
+
+    char generated_fen_string_2[100] = {'\0'};
+    generate_FEN(board, generated_fen_string_2, white);
+    assert(strcmp(fen_string_2, generated_fen_string_2) == 0);
+
     Moves* moves_2 = get_all_moves_for_colour(board, white);
-    assert(moves_2->length == 2);
+    assert(moves_2->length == 5);
     assert(moves_2->moves[0]->destination == c6);
     assert(moves_2->moves[0]->from == d5);
+    assert(moves_2->moves[0]->piece->type == pawn);
     assert(moves_2->moves[1]->destination == d6);
     assert(moves_2->moves[1]->from == d5);
+    assert(moves_2->moves[1]->piece->type == pawn);
+    assert(moves_2->moves[2]->destination == a2);
+    assert(moves_2->moves[2]->from == a1);
+    assert(moves_2->moves[2]->piece->type == king);
+    assert(moves_2->moves[3]->destination == b2);
+    assert(moves_2->moves[3]->from == a1);
+    assert(moves_2->moves[3]->piece->type == king);
+    assert(moves_2->moves[4]->destination == b1);
+    assert(moves_2->moves[4]->from == a1);
+    assert(moves_2->moves[4]->piece->type == king);
 }
 
 void test_castling_execution_white_short() {
@@ -2979,7 +3400,7 @@ void test_castling_3() {
     assert(moves->moves[5]->from == e1);
     assert(moves->moves[5]->piece->type == king);
 
-    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
+    board->king_pieces[white]->no_moves += 1;
     moves = get_all_moves_for_colour(board, white);
     for (int i = 0; i < moves->length; i++) {
         assert(!(moves->moves[i]->destination == g1 && moves->moves[i]->from == e1));
@@ -2987,15 +3408,12 @@ void test_castling_3() {
 }
 
 void test_castling_4() {
-    Board* board = set_board_notation("wke1 ");
-    board->castle_pieces[white][queen_side]->alive = true;
-    board->castle_pieces[white][queen_side]->cell = a1;
-    board->map[a1] = board->castle_pieces[white][queen_side];
-    set_bit(board->bitboard, a1);
-    board->castle_pieces[white][king_side]->alive = true;
-    board->castle_pieces[white][king_side]->cell = h1;
-    board->map[h1] = board->castle_pieces[white][king_side];
-    set_bit(board->bitboard, h1);
+    char* fen_string = "4k3/8/8/8/8/8/8/R3K2R w KQ - ? ?";
+    Board* board = process_FEN(fen_string);
+
+    char generated_fen_string[100] = {'\0'};
+    generate_FEN(board, generated_fen_string, white);
+    assert(strcmp(fen_string, generated_fen_string) == 0);
 
     Moves* moves = get_all_moves_for_colour(board, white);
     
@@ -3006,31 +3424,31 @@ void test_castling_4() {
     assert(moves->moves[16]->castle_side == king_side);
     assert(moves->moves[16]->piece->no_moves == 0);
     assert(board->castle_pieces[white][king_side]->no_moves == 0);
-    assert(board->map[e1] == board->pieces[white][KING_INDEX(white)]);
+    assert(board->map[e1] == board->king_pieces[white]); //->pieces[white][KING_INDEX(white)]);
     assert(board->map[board->from_castle_coords[white][king_side]] == board->castle_pieces[white][king_side]);
-    assert(board->map[board->castling_coordinates[white][king_side]] == NULL);
+    assert(board->map[board->to_king_coordinates[white][king_side]] == NULL);
     assert(board->map[board->to_castle_coords[white][king_side]] == NULL);
 
     Piece* killed = pretend_move(board, moves->moves[16]);
 
-    assert(board->pieces[white][KING_INDEX(white)]->cell == board->castling_coordinates[white][king_side]);
+    assert(board->king_pieces[white]->cell == board->to_king_coordinates[white][king_side]);
     assert(board->castle_pieces[white][king_side]->cell == board->to_castle_coords[white][king_side]);
     assert(moves->moves[16]->piece->no_moves == 1);
     assert(board->castle_pieces[white][king_side]->no_moves == 0);
     assert(board->map[e1] == NULL);
     assert(board->map[board->from_castle_coords[white][king_side]] == NULL);
-    assert(board->map[board->castling_coordinates[white][king_side]] == board->pieces[white][KING_INDEX(white)]);
+    assert(board->map[board->to_king_coordinates[white][king_side]] == board->king_pieces[white]);
     assert(board->map[board->to_castle_coords[white][king_side]] == board->castle_pieces[white][king_side]);
 
     undo_pretend_move(board, moves->moves[16], killed);
 
-    assert(board->pieces[white][KING_INDEX(white)]->cell == e1);
+    assert(board->king_pieces[white]->cell == e1);
     assert(board->castle_pieces[white][king_side]->cell == board->from_castle_coords[white][king_side]);
-    assert(board->map[e1] == board->pieces[white][KING_INDEX(white)]);
+    assert(board->map[e1] == board->king_pieces[white]);
     assert(board->map[board->from_castle_coords[white][king_side]] == board->castle_pieces[white][king_side]);
     assert(moves->moves[16]->piece->no_moves == 0);
     assert(board->castle_pieces[white][king_side]->no_moves == 0);
-    assert(board->map[board->castling_coordinates[white][king_side]] == NULL);
+    assert(board->map[board->to_king_coordinates[white][king_side]] == NULL);
     assert(board->map[board->to_castle_coords[white][king_side]] == NULL);
     assert(saved_bitboard == board->bitboard);
 
@@ -3040,38 +3458,38 @@ void test_castling_4() {
     assert(moves->moves[13]->castle_side == queen_side);
     assert(moves->moves[13]->piece->no_moves == 0);
     assert(board->castle_pieces[white][queen_side]->no_moves == 0);
-    assert(board->map[e1] == board->pieces[white][KING_INDEX(white)]);
+    assert(board->map[e1] == board->king_pieces[white]);
     assert(board->map[board->from_castle_coords[white][queen_side]] == board->castle_pieces[white][queen_side]);
-    assert(board->map[board->castling_coordinates[white][queen_side]] == NULL);
+    assert(board->map[board->to_king_coordinates[white][queen_side]] == NULL);
     assert(board->map[board->to_castle_coords[white][queen_side]] == NULL);
 
     killed = pretend_move(board, moves->moves[13]);
 
-    assert(board->pieces[white][KING_INDEX(white)]->cell == board->castling_coordinates[white][queen_side]);
+    assert(board->king_pieces[white]->cell == board->to_king_coordinates[white][queen_side]);
     assert(board->castle_pieces[white][queen_side]->cell == board->to_castle_coords[white][queen_side]);
     assert(moves->moves[13]->piece->no_moves == 1);
     assert(board->castle_pieces[white][queen_side]->no_moves == 0);
     assert(board->map[e1] == NULL);
     assert(board->map[board->from_castle_coords[white][queen_side]] == NULL);
-    assert(board->map[board->castling_coordinates[white][queen_side]] == board->pieces[white][KING_INDEX(white)]);
+    assert(board->map[board->to_king_coordinates[white][queen_side]] == board->king_pieces[white]);
     assert(board->map[board->to_castle_coords[white][queen_side]] == board->castle_pieces[white][queen_side]);
 
     undo_pretend_move(board, moves->moves[13], killed);
 
-    assert(board->pieces[white][KING_INDEX(white)]->cell == e1);
+    assert(board->king_pieces[white]->cell == e1);
     assert(board->castle_pieces[white][queen_side]->cell == board->from_castle_coords[white][queen_side]);
-    assert(board->map[e1] == board->pieces[white][KING_INDEX(white)]);
+    assert(board->map[e1] == board->king_pieces[white]);
     assert(board->map[board->from_castle_coords[white][queen_side]] == board->castle_pieces[white][queen_side]);
     assert(moves->moves[13]->piece->no_moves == 0);
     assert(board->castle_pieces[white][queen_side]->no_moves == 0);
-    assert(board->map[board->castling_coordinates[white][queen_side]] == NULL);
+    assert(board->map[board->to_king_coordinates[white][queen_side]] == NULL);
     assert(board->map[board->to_castle_coords[white][queen_side]] == NULL);
     assert(saved_bitboard == board->bitboard);
 }
 
 void test_castling_5() {
-    Board* board = set_board_notation("wke1 wch1 wca1 ");
-    board->pieces[white][KING_INDEX(white)]->no_moves += 1;
+    Board* board = process_FEN("4k3/8/8/8/8/8/8/R3K2R w - - ? ?");
+
     Moves* moves = get_all_moves_for_colour(board, white);
     
     for (int i = 0; i < moves->length; i++) {
@@ -3080,8 +3498,9 @@ void test_castling_5() {
         assert(!moves->moves[i]->castle);
     }
 
-    board->pieces[white][KING_INDEX(white)]->no_moves = 0;
+    board->king_pieces[white]->no_moves = 0;
     board->castle_pieces[white][king_side]->no_moves = 1;
+    board->castle_pieces[white][queen_side]->no_moves = 0;
     U64 saved_bitboard = board->bitboard;
     moves = get_all_moves_for_colour(board, white);
     
@@ -3096,42 +3515,47 @@ void test_castling_5() {
     assert(moves->moves[13]->castle_side == queen_side);
     assert(moves->moves[13]->piece->no_moves == 0);
     assert(board->castle_pieces[white][queen_side]->no_moves == 0);
-    assert(board->map[e1] == board->pieces[white][KING_INDEX(white)]);
+    assert(board->map[e1] == board->king_pieces[white]);
     assert(board->map[board->from_castle_coords[white][queen_side]] == board->castle_pieces[white][queen_side]);
-    assert(board->map[board->castling_coordinates[white][queen_side]] == NULL);
+    assert(board->map[board->to_king_coordinates[white][queen_side]] == NULL);
     assert(board->map[board->to_castle_coords[white][queen_side]] == NULL);
 
     Piece* killed = pretend_move(board, moves->moves[13]);
 
-    assert(board->pieces[white][KING_INDEX(white)]->cell == board->castling_coordinates[white][queen_side]);
+    assert(board->king_pieces[white]->cell == board->to_king_coordinates[white][queen_side]);
     assert(board->castle_pieces[white][queen_side]->cell == board->to_castle_coords[white][queen_side]);
     assert(moves->moves[13]->piece->no_moves == 1);
     assert(board->castle_pieces[white][queen_side]->no_moves == 0);
     assert(board->map[e1] == NULL);
     assert(board->map[board->from_castle_coords[white][queen_side]] == NULL);
-    assert(board->map[board->castling_coordinates[white][queen_side]] == board->pieces[white][KING_INDEX(white)]);
+    assert(board->map[board->to_king_coordinates[white][queen_side]] == board->king_pieces[white]);
     assert(board->map[board->to_castle_coords[white][queen_side]] == board->castle_pieces[white][queen_side]);
 
     undo_pretend_move(board, moves->moves[13], killed);
 
-    assert(board->pieces[white][KING_INDEX(white)]->cell == e1);
+    assert(board->king_pieces[white]->cell == e1);
     assert(board->castle_pieces[white][queen_side]->cell == board->from_castle_coords[white][queen_side]);
-    assert(board->map[e1] == board->pieces[white][KING_INDEX(white)]);
+    assert(board->map[e1] == board->king_pieces[white]);
     assert(board->map[board->from_castle_coords[white][queen_side]] == board->castle_pieces[white][queen_side]);
     assert(moves->moves[13]->piece->no_moves == 0);
     assert(board->castle_pieces[white][queen_side]->no_moves == 0);
-    assert(board->map[board->castling_coordinates[white][queen_side]] == NULL);
+    assert(board->map[board->to_king_coordinates[white][queen_side]] == NULL);
     assert(board->map[board->to_castle_coords[white][queen_side]] == NULL);
     assert(saved_bitboard == board->bitboard);
 }
 
 void test_castling_6() {
-    Board* board = set_board_notation("wke1 wch1 wbf1 ");
+    char* fen_string = "4k3/8/8/8/8/8/8/4KB1R w - - ? ?";
+    Board* board = process_FEN(fen_string);
     Moves* moves = get_all_moves_for_colour(board, white);
 
     for (int i = 0; i < moves->length; i++) {
         assert(!moves->moves[i]->castle);
     }
+
+    char generated_fen_string[100] = {'\0'};
+    generate_FEN(board, generated_fen_string, white);
+    assert(strcmp(fen_string, generated_fen_string) == 0);
 }
 
 void test_castling_7() {
@@ -4333,6 +4757,9 @@ void test_mate_detection() {
     test_mate_in_four();
     printf("test_mate_in_four_2\n");
     test_mate_in_four_2();
+    printf("test_checkmate_already\n");
+    test_checkmate_already();
+    printf("END MATE DETECTION\n");
 }
 
 Board* forcing_move_setup() {

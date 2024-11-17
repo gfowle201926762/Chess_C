@@ -3,15 +3,13 @@
 int main(void) {
     initialise();
 
-
-
-
-
-    // test();
-    // test_evaluation_branching();
-    // test_iterative_deepening_m4_2();
+    test_checkmate_already();
+    test_draw_by_repetition_best_line();
+    test_iterative_deepening_m4_2();
+    test_pawn_en_passant_legality_1();
+    test();
+    test_stack();
     
-
     return 0;
 }
 
@@ -20,9 +18,30 @@ void initialise(void) {
     srand(time(NULL));
 }
 
+colour get_player_from_FEN(const char* fen_string) {
+    int i = 0;
+    while (fen_string[i] && fen_string[i] != ' ') {
+        i += 1;
+    }
+    if (fen_string[i] == ' ' && fen_string[i + 1]) {
+        if (fen_string[i + 1] == 'b') {
+            return black;
+        }
+        if (fen_string[i + 1] == 'w') {
+            return white;
+        }
+    }
+    on_error("Invalid FEN String");
+    return white;
+}
+
 
 JNIEXPORT jobject JNICALL Java_com_chess_application_services_NativeEngineService_test_1java_1interface
   (JNIEnv* env, jobject this_object, jobject nativePayload) {
+
+    printf("\n\n----- START ------\n");
+
+
     jclass nativePayloadClass = (*env)->GetObjectClass(env, nativePayload);
 
     clock_t start, end;
@@ -35,9 +54,14 @@ JNIEXPORT jobject JNICALL Java_com_chess_application_services_NativeEngineServic
     jmethodID getCastleTypeMethod = (*env)->GetMethodID(env, nativePayloadClass, "getCastleType", "()J");
     jmethodID getCastleMethod = (*env)->GetMethodID(env, nativePayloadClass, "isCastle", "()Z");
     jmethodID getFENMethod = (*env)->GetMethodID(env, nativePayloadClass, "getFenString", "()Ljava/lang/String;");
-    jmethodID getSettingsMethod = (*env)->GetMethodID(env, nativePayloadClass, "getSettings", "()Lcom/chess/application/controller/model/Settings;");
-    jmethodID getTranspositionsMethod = (*env)->GetMethodID(env, nativePayloadClass, "getTranspositions", "()[Lcom/chess/application/model/Transposition;");
-
+    jmethodID getSettingsMethod = (*env)->GetMethodID(env, nativePayloadClass, "getSettings", "()Lcom/chess/application/model/Settings;");
+    // jmethodID getTranspositionsMethod = (*env)->GetMethodID(env, nativePayloadClass, "getTranspositions", "()[Lcom/chess/application/model/Transposition;");
+    jmethodID getHashValuesMethod = (*env)->GetMethodID(env, nativePayloadClass, "getHashValues", "()[J");
+    jmethodID getJavaRequestTypeMethod = (*env)->GetMethodID(env, nativePayloadClass, "getJavaRequestType", "()J");
+    if (getHashValuesMethod == NULL) {
+        printf("getHashValuesMethod is NULL\n");
+    }
+    
     jlong origin = (jlong) (*env)->CallObjectMethod(env, nativePayload, getOriginMethod);
     jlong destination = (jlong) (*env)->CallObjectMethod(env, nativePayload, getDestinationMethod);
     jlong promotion = (jlong) (*env)->CallObjectMethod(env, nativePayload, getPromotionMethod);
@@ -45,79 +69,239 @@ JNIEXPORT jobject JNICALL Java_com_chess_application_services_NativeEngineServic
     jboolean castle = (jlong) (*env)->CallObjectMethod(env, nativePayload, getCastleMethod);
     jstring j_fen_string = (jstring) (*env)->CallObjectMethod(env, nativePayload, getFENMethod);
     jobject engineSettings = (jobject) (*env)->CallObjectMethod(env, nativePayload, getSettingsMethod);
-    jobjectArray transpositionTable = (jobjectArray) (*env)->CallObjectMethod(env, nativePayload, getTranspositionsMethod);
+    // jobjectArray transpositionTable = (jobjectArray) (*env)->CallObjectMethod(env, nativePayload, getTranspositionsMethod);
+    jlongArray hashValuesArray = (jlongArray) (*env)->CallObjectMethod(env, nativePayload, getHashValuesMethod);
+    java_request java_request_type = (jlong) (*env)->CallObjectMethod(env, nativePayload, getJavaRequestTypeMethod);
+    if (hashValuesArray == NULL) {
+        printf("hashValuesArray is NULL\n");
+    }
+    jlong* hashValues = NULL;
+    if (hashValuesArray != NULL) {
+        jboolean isCopy;
+        hashValues = (*env)->GetLongArrayElements(env, hashValuesArray, &isCopy);
+        if (hashValues == NULL) {
+            printf("hashValues is NULL\n");
+        }
+    }
 
     // GET SETTINGS METHODS
-    jclass settingsClass = (*env)->FindClass(env, "com/chess/application/controller/model/Settings");
+    jclass settingsClass = (*env)->FindClass(env, "com/chess/application/model/Settings");
     jmethodID getBreadthMethod = (*env)->GetMethodID(env, settingsClass, "getBreadth", "()J");
-    jmethodID getStartPlayerMethod = (*env)->GetMethodID(env, settingsClass, "getStartPlayer", "()J");
+    jmethodID getStartPlayerMethod = (*env)->GetMethodID(env, settingsClass, "getEngineColour", "()J");
     jmethodID getTimeLimitMethod = (*env)->GetMethodID(env, settingsClass, "getTimeLimit", "()J");
 
+    if (engineSettings == NULL && java_request_type == engine) {
+        on_error("engineSettings is null but java_request_type is set to engine");
+    }
+
     // GET SETTINGS ATTRIBUTES
-    jlong breadth = (jlong) (*env)->CallObjectMethod(env, engineSettings, getBreadthMethod);
-    jlong startPlayer = (jlong) (*env)->CallObjectMethod(env, engineSettings, getStartPlayerMethod);
-    jlong timeLimit = (jlong) (*env)->CallObjectMethod(env, engineSettings, getTimeLimitMethod);
+    jlong breadth;
+    jlong startPlayer;
+    jlong timeLimit;
 
-    // GET TRANSPOSITION METHODS (whatever, never going to use it anyway.)
-    jclass transpositionClass = (*env)->FindClass(env, "com/chess/application/model/Transposition");
-    jmethodID getHashValueMethod = (*env)->GetMethodID(env, transpositionClass, "getHashValue", "()J");
-    jmethodID getEvalMethod = (*env)->GetMethodID(env, transpositionClass, "getEval", "()I");
-    jmethodID getDepthMethod = (*env)->GetMethodID(env, transpositionClass, "getDepth", "()I");
-    jmethodID getFlagMethod = (*env)->GetMethodID(env, transpositionClass, "getFlag", "()I");
-
-    // How to get a transposition from the transposition table.
-    jobject transposition = (*env)->GetObjectArrayElement(env, transpositionTable, 0);
-    jlong hash = (jlong) (*env)->CallObjectMethod(env, transposition, getHashValueMethod);
-
-    // INITIALISE BOARD
     const char* fen_string;
     fen_string = (*env)->GetStringUTFChars(env, j_fen_string, NULL);
+    printf("initial FEN string: %s\n", fen_string);
+
+    if (java_request_type == engine) {
+        breadth = (jlong) (*env)->CallObjectMethod(env, engineSettings, getBreadthMethod);
+        startPlayer = (jlong) (*env)->CallObjectMethod(env, engineSettings, getStartPlayerMethod);
+        timeLimit = (jlong) (*env)->CallObjectMethod(env, engineSettings, getTimeLimitMethod);
+    } else {
+        startPlayer = invert_colour(get_player_from_FEN(fen_string));
+    }
+
+    printf("START PLAYER: (opponent to the client) %i\n", (colour) startPlayer);
+    print_colour((colour) startPlayer);
+    printf("java_request_type: %i\n", java_request_type);
+
+    // // GET TRANSPOSITION METHODS (whatever, never going to use it anyway.)
+    // jclass transpositionClass = (*env)->FindClass(env, "com/chess/application/model/Transposition");
+    // jmethodID getHashValueMethod = (*env)->GetMethodID(env, transpositionClass, "getHashValue", "()J");
+    // jmethodID getEvalMethod = (*env)->GetMethodID(env, transpositionClass, "getEval", "()I");
+    // jmethodID getDepthMethod = (*env)->GetMethodID(env, transpositionClass, "getDepth", "()I");
+    // jmethodID getFlagMethod = (*env)->GetMethodID(env, transpositionClass, "getFlag", "()I");
+
+    // // How to get a transposition from the transposition table.
+    // jobject transposition = (*env)->GetObjectArrayElement(env, transpositionTable, 0);
+    // jlong hash = (jlong) (*env)->CallObjectMethod(env, transposition, getHashValueMethod);
+
     Board* board = process_FEN(fen_string);
+    if (hashValues != NULL) {
+        for (int i = 0; i < (*env)->GetArrayLength(env, hashValuesArray); i++) {
+            U64 hashValue = hashValues[i];
+            board->last_positions[i] = hashValue;
+            board->lm_length = i + 1;
+        }
+    }
 
-    // PRINT STUFF
-    char origin_string[5] = {'\0'};
-    char destination_string[5] = {'\0'};
-    square_to_string(origin, origin_string);
-    square_to_string(destination, destination_string);
-    printf("Client move origin: %s; destination: %s\n", origin_string, destination_string);
-    printf("FEN String: %s\n", fen_string);
-    print_board_pro(board);
-
-    // EXECUTE CLIENT MOVE
-    Move* clientMove = init_move(board, (square) origin, (square) destination, (name) promotion, (bool) castle, (castle_type) castleType);
-    pretend_move(board, clientMove);
-    printf("EXECUTE CLIENT MOVE\n");
-    print_board_pro(board);
+    if (java_request_type == legal_moves) {
+        Moves* legalMoves = get_all_moves_for_colour(board, white); //invert_colour((colour) startPlayer)
+        printf("LEGAL MOVES ONLY (for client)\n");
+        print_moves(legalMoves);
+        return generate_legal_moves_and_return(env, legalMoves, NULL, NULL, board, ongoing, reasonless, NULL, java_request_type);
+    }
+    
     char client_fen_string[100] = {'\0'};
-    generate_FEN(board, client_fen_string, (colour) startPlayer);
-    printf("Client FEN: %s\n", client_fen_string);
+
+    status game_status = ongoing;
+    reason game_reason = reasonless;
+    if (origin != 0 || destination != 0) {
+
+        printf("BOARD BEFORE CLIENT MOVE:\n");
+        print_board_pro(board);
+
+        // EXECUTE CLIENT MOVE
+        Move* clientMove = init_move(board, (square) origin, (square) destination, (name) promotion, (bool) castle, (castle_type) castleType);
+        Piece* killedByClient = pretend_move(board, clientMove);
+        hash_and_save(board, clientMove, killedByClient, 0);
+        printf("EXECUTE CLIENT MOVE\n");
+        print_board_pro(board);
+        generate_FEN(board, client_fen_string, (colour) startPlayer);
+        printf("Client FEN: %s\n", client_fen_string);
+        for (int i = 0; i < board->lm_length; i++) {
+            printf("hash_repeat: %llu, last position: %llu\n", board->hash_repeats, board->last_positions[i]);
+        }
+        if (draw_by_repetition(board)) {
+            printf("DRAW BY REPETITION\n");
+            game_status = draw;
+            game_reason = repetition;
+        }
+        // printf("draw_by_repetition passed, game_status = %i\n", game_status);
+    }    
 
     // FIND BEST MOVE
-    ScoresList* all_scores = calloc(1, sizeof(ScoresList));
-    Scores* scores = IDDFS(board, (int) breadth, (colour) startPlayer, (int) timeLimit, all_scores);
-    print_scores(scores);
+    Scores* scores = NULL;
+    if (java_request_type == engine && game_status == ongoing) {
+        printf("Finding best engine move\n");
+        scores = IDDFS(board, (int) breadth, (colour) startPlayer, (int) timeLimit);
+        printf("SCORES: for engine\n");
+        print_scores(scores);
+    }
 
-    // GENERATE ENGINE FEN STRING
-    pretend_move(board, scores->moves->moves[0]);
+    Moves* legalMoves;
     char engine_fen_string[100] = {'\0'};
-    generate_FEN(board, engine_fen_string, invert_colour((colour) startPlayer));
-    printf("Engine FEN: %s\n", engine_fen_string);
-    
-    // RETURN PAYLOAD
-    jclass returnPayloadClass = (*env)->FindClass(env, "com/chess/application/model/ReturnPayload");
-    jmethodID constructor = (*env)->GetMethodID(env, returnPayloadClass, "<init>", "(Ljava/lang/String;Ljava/lang/String;JJJZJ)V");
+    if (game_status == ongoing && (java_request_type == human || (scores && scores->moves->length > 0))) {
+        printf("IN RETARD BLOCK\n");
+        // GENERATE ENGINE FEN STRING
+        if (java_request_type == engine) {
+            printf("EXECUTE ENGINE MOVE\n");
+            Piece* killedByEngine = pretend_move(board, scores->moves->moves[0]);
+            hash_and_save(board, scores->moves->moves[0], killedByEngine, 0);
+            generate_FEN(board, engine_fen_string, invert_colour((colour) startPlayer));
+            print_board_pro(board);
+            printf("Engine FEN: %s\n", engine_fen_string);
+        } 
+        else if (java_request_type == human) {
+            startPlayer = invert_colour((colour) startPlayer);
+            printf("Inverting colour for human. startPlayer: %li\n", startPlayer);
+            print_colour((colour) startPlayer);
+        }
+
+        // GET CLIENT LEGAL RESPONSES
+        // printf("About to get all moves for colour %i:\n", invert_colour((colour) startPlayer));
+        legalMoves = get_all_moves_for_colour(board, invert_colour((colour) startPlayer));
+        // printf("CLIENT LEGAL RESPONSES:\n");
+        // print_moves(legalMoves);
+        if (draw_by_repetition(board)) {
+            game_status = draw;
+            game_reason = repetition;
+        }
+        if (legalMoves->length == 0) {
+            if (is_check(board, invert_colour(startPlayer))) {
+                // ENGINE VICTORY
+                printf("ENGINE VICTORY\n");
+                game_status = (startPlayer == white) ? white_victory : black_victory;
+                game_reason = checkmate;
+            }
+            else {
+                printf("STALEMATE\n");
+                game_status = draw;
+                game_reason = stalemate;
+            }
+        }
+    }
+    else if (game_status == ongoing) {
+        // CLIENT HAS WON
+        printf("CLIENT HAS WON - ENGINE HAS NO MOVES\n");
+        legalMoves = calloc(1, sizeof(Moves));
+        game_status = (startPlayer == white) ? black_victory : white_victory;
+        game_reason = checkmate;
+    }
+    else {
+        // DRAW BY REPEITION FROM CLIENT MOVE
+        printf("DRAW BY REPETITION\n");
+        legalMoves = calloc(1, sizeof(Moves));
+    }
+    printf("RETARD #END\n");
 
     end = clock();
     printf("%f seconds\n", ((double)(end - start) / CLOCKS_PER_SEC));
 
+    printf("hashes_returned: %llu, %llu\n", ((board->lm_length - 2 >= 0) ? board->last_positions[board->lm_length - 2] : 0), ((board->lm_length - 1 >= 0) ? board->last_positions[board->lm_length - 1] : 0));
+
+    return generate_legal_moves_and_return(env, legalMoves, client_fen_string, engine_fen_string, board, game_status, game_reason, scores, java_request_type);
+}
+
+jobjectArray generate_legal_moves_and_return(JNIEnv* env, Moves* legalMoves, 
+char* client_fen_string, char* engine_fen_string, Board* board, status game_status, reason game_reason, Scores* scores, java_request java_request_type) {
+
+    jclass moveClass = (*env)->FindClass(env, "com/chess/application/model/Move");
+    if (moveClass == NULL) {
+        printf("moveClass is NULL\n");
+    }
+    jmethodID moveConstructor = (*env)->GetMethodID(env, moveClass, "<init>", "(JJJZJJ)V");
+    if (moveConstructor == NULL) {
+        printf("moveConstructor is NULL\n");
+    }
+
+    jclass returnPayloadClass = (*env)->FindClass(env, "com/chess/application/model/ReturnPayload");
+    if (returnPayloadClass == NULL) {
+        printf("returnPayloadClass is NULL\n");
+    }
+    jmethodID constructor = (*env)->GetMethodID(env, returnPayloadClass, "<init>", "(Ljava/lang/String;Ljava/lang/String;Lcom/chess/application/model/Move;[Lcom/chess/application/model/Move;JJJJJ)V");
+    if (constructor == NULL) {
+        printf("constructor is NULL\n");
+    }
+
+    jobjectArray jMoves = (*env)->NewObjectArray(env, MOVES_SIZE, moveClass, NULL);
+    if (jMoves == NULL) {
+        printf("jMoves is NULL\n");
+    }
+    for (int i = 0; i < legalMoves->length; i++) {
+        Move* move = legalMoves->moves[i];
+        jobject jMove = (*env)->NewObject(env, moveClass, moveConstructor, 
+                                                            (jlong) move->from, 
+                                                            (jlong) move->destination,
+                                                            (jlong) move->promotion,
+                                                            (jboolean) move->castle,
+                                                            (jlong) move->castle_side);
+        (*env)->SetObjectArrayElement(env, jMoves, i, jMove);
+        (*env)->DeleteLocalRef(env, jMove);
+    }
+
+    jobject engineMove = (*env)->NewObject(env, moveClass, moveConstructor,
+                                                            (jlong) (scores ? scores->moves->moves[0]->from : 0), 
+                                                            (jlong) (scores ? scores->moves->moves[0]->destination : 0),
+                                                            (jlong) (scores ? scores->moves->moves[0]->promotion : 0),
+                                                            (jboolean) (scores ? scores->moves->moves[0]->castle : false),
+                                                            (jlong) (scores ? scores->moves->moves[0]->castle_side : 0),
+                                                            (jlong) (scores ? scores->eval : 0));
+    if (engineMove == NULL) {
+        printf("engineMove is NULL\n");
+    }
+
     return (*env)->NewObject(env, returnPayloadClass, constructor,
                                                     (*env)->NewStringUTF(env, client_fen_string),
                                                     (*env)->NewStringUTF(env, engine_fen_string),
-                                                    (jlong) scores->moves->moves[0]->from,
-                                                    (jlong) scores->moves->moves[0]->destination,
-                                                    (jlong) scores->moves->moves[0]->promotion,
-                                                    (jboolean) scores->moves->moves[0]->castle,
-                                                    (jlong) scores->moves->moves[0]->castle_side);
+                                                    engineMove,
+                                                    jMoves,
+                                                    (jlong) legalMoves->length,
+                                                    (jlong) game_status,
+                                                    (jlong) game_reason,
+                                                    (jlong) ((board->lm_length - 2 >= 0 && java_request_type == engine) ? board->last_positions[board->lm_length - 2] : 0),
+                                                    (jlong) ((board->lm_length - 1 >= 0) ? board->last_positions[board->lm_length - 1] : 0)
+                                                    );
 }
 
 
@@ -199,25 +383,50 @@ void generate_FEN(Board* board, char* fen_string, colour mover) {
     strcat(fen_string, mover == white ? "w " : "b ");
 
     bool castle_rights = false;
-    if (board->castle_pieces[white][king_side]->no_moves == 0 && board->king_pieces[white]->no_moves == 0) {
+    if (board->castle_pieces[white][king_side] && board->castle_pieces[white][king_side]->no_moves == 0 && board->king_pieces[white]->no_moves == 0) {
         strcat(fen_string, "K");
         castle_rights = true;
     }
-    if (board->castle_pieces[white][queen_side]->no_moves == 0 && board->king_pieces[white]->no_moves == 0) {
+    if (board->castle_pieces[white][queen_side] && board->castle_pieces[white][queen_side]->no_moves == 0 && board->king_pieces[white]->no_moves == 0) {
         strcat(fen_string, "Q");
         castle_rights = true;
     }
-    if (board->castle_pieces[black][king_side]->no_moves == 0 && board->king_pieces[black]->no_moves == 0) {
+    if (board->castle_pieces[black][king_side] && board->castle_pieces[black][king_side]->no_moves == 0 && board->king_pieces[black]->no_moves == 0) {
         strcat(fen_string, "k");
         castle_rights = true;
     }
-    if (board->castle_pieces[black][queen_side]->no_moves == 0 && board->king_pieces[black]->no_moves == 0) {
+    if (board->castle_pieces[black][queen_side] && board->castle_pieces[black][queen_side]->no_moves == 0 && board->king_pieces[black]->no_moves == 0) {
         strcat(fen_string, "q");
         castle_rights = true;
     }
     if (!castle_rights) {
         strcat(fen_string, "-");
     }
+
+    strcat(fen_string, " ");
+
+    // en passant?
+    if (board->lm_length == 0) {
+        strcat(fen_string, "-");
+    }
+    else {
+        Move* move = board->last_moved[board->lm_length - 1];
+        if (move != NULL && move->piece->type == pawn && abs((int)(move->from - move->destination)) == 16) {
+            char square_string[3] = {'\0'};
+            if (move->from > move->destination) {
+                // white
+                square_to_string(move->from - 8, square_string);
+            }
+            else {
+                square_to_string(move->from + 8, square_string);
+            }
+            
+            strcat(fen_string, square_string);
+        } else {
+            strcat(fen_string, "-");
+        }
+    }
+
     strcat(fen_string, " ? ?");
 }
 
@@ -238,54 +447,6 @@ square string_to_square(char c1, char c2) {
     return s;
 }
 
-void play_game() {
-    Board* board = init_board();
-    print_board_pro(board);
-
-    Grapher* grapher;
-    Scores* scores;
-    Moves* moves;
-    int length = 1;
-
-
-    // char from1;
-    // char from2;
-    // char to1 = 'c';
-    // char to2;
-
-    while (length) {
-        // printf("From: ");
-        // scanf("%c%c%*c", &from1, &from2);
-        // printf("To: ");
-        // scanf("%c%c%*c", &to1, &to2);
-        // square from = string_to_square(from1, from2);
-        // square to = string_to_square(to1, to2);
-        grapher = init_grapher(8, 4, white);
-        scores = create_graph(grapher, grapher->start, board, white, init_limit(white));
-        moves = scores->moves;
-        if (moves->length == 0) {
-            printf("BLACK WINS\n");
-            return;
-        }
-        pretend_move(board, moves->moves[0]);
-
-        print_board_pro(board);
-
-        grapher = init_grapher(8, 4, black);
-        scores = create_graph(grapher, grapher->start, board, black, init_limit(black));
-        moves = scores->moves;
-        pretend_move(board, moves->moves[0]);
-        if (moves->length == 0) {
-            printf("WHITE WINS\n");
-            return;
-        }
-
-        print_board_pro(board);
-        length = moves->length;
-    }
-    
-
-}
 
 
 
@@ -296,11 +457,28 @@ void play_game() {
 
 Scores* evaluate_no_moves(Grapher* grapher, Move* move, Board* board, colour mover) {
     if (!is_check(board, mover)) {
-        // STALEMATE
-        move->evaluation = 0;
-        return init_scores(move, reverse_depth(grapher));
+        return evaluate_draw(grapher, move, mover);
+    }
+    if (move == NULL) {
+        Scores* scores = calloc(1, sizeof(Scores));
+        scores->moves = calloc(1, sizeof(Moves));
+        scores->moves->moves[0] = calloc(1, sizeof(Move));
+        scores->eval = (mover == white) ? -MAX_SCORE : MAX_SCORE;
+        return scores;
     }
     move->evaluation = MAX_SCORE - ((grapher->max_depth - grapher->depth) / 2);
+    return init_scores(move, reverse_depth(grapher));
+}
+
+Scores* evaluate_draw(Grapher* grapher, Move* move, colour mover) {
+    if (move == NULL) {
+        printf("EVALUATE_DRAW (move=null)\n");
+        Scores* scores = calloc(1, sizeof(Scores));
+        scores->moves = calloc(1, sizeof(Moves));
+        scores->moves->moves[0] = calloc(1, sizeof(Move));
+        return scores;
+    }
+    move->evaluation = 0;
     return init_scores(move, reverse_depth(grapher));
 }
 
@@ -317,7 +495,7 @@ int count_bitboard(U64 mask) {
 
 int count_threats(Board* board, colour mover, U64 mask) {
     int count = 0;
-    for (int i=0; i<16; i++) {
+    for (int i=0; i<board->pieces_quantity[invert_colour(mover)]; i++) {
         if (board->pieces[invert_colour(mover)][i]->alive) {
             if (get_bit(mask, board->pieces[invert_colour(mover)][i]->cell)) {
                 count += board->pieces[invert_colour(mover)][i]->value / 10;
@@ -329,7 +507,7 @@ int count_threats(Board* board, colour mover, U64 mask) {
 
 int initiative_heuristic(Board* board, colour mover) {
     int count = 0;
-    for (int i=0; i<16; i++) {
+    for (int i=0; i<board->pieces_quantity[mover]; i++) {
         if (board->pieces[mover][i]->alive) {
             U64 mask = board->pieces[mover][i]->move_func(board, board->pieces[mover][i]);
             // count += count_bitboard(mask);
@@ -340,7 +518,7 @@ int initiative_heuristic(Board* board, colour mover) {
 }
 
 int king_safety_heuristic(Board* board, Move* move, colour mover, Grapher* grapher) {
-    int cell = board->pieces[mover][KING_INDEX(mover)]->cell;
+    int cell = board->king_pieces[mover]->cell;
     if (mover != grapher->start_player) {
         int row = 7 - (cell / 8);
         cell = (row * 8) + (cell % 8);
@@ -351,10 +529,12 @@ int king_safety_heuristic(Board* board, Move* move, colour mover, Grapher* graph
 
 int measure_points(Board* board, colour mover) {
     int score = 0;
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < board->pieces_quantity[mover]; i++) {
         if (board->pieces[mover][i]->alive) {
             score += board->pieces[mover][i]->value;
         }
+    }
+    for (int i = 0; i < board->pieces_quantity[invert_colour(mover)]; i++) {
         if (board->pieces[invert_colour(mover)][i]->alive) {
             score -= board->pieces[invert_colour(mover)][i]->value;
         }
@@ -431,36 +611,36 @@ Moves* get_best_moves(Board* board, Moves* moves, colour mover, int max_breadth,
         Move* move = moves->moves[i];
         Piece* killed = pretend_move(board, move);
 
-        Transposition* t = hash_and_save(board, move, killed, depth);
+        // Transposition* t = hash_and_save(board, move, killed, depth);
 
-        if (draw_by_repetition(board)) {
-            move->evaluation = 0;
-            if ((t && t->flag != LOWER_BOUND && (mover == black && 0 <= prune)) || (t && t->flag != UPPER_BOUND && (mover == white && 0 >= prune))) {
-                undo_hash(board, move, killed);
-                undo_pretend_move(board, move, killed);
-                return hacky_Moves(move);
-            }
-        }
-        else if (t && t->flag != LOWER_BOUND && (mover == black && t->eval <= prune)) {
-            move->evaluation = t->eval;
-            undo_hash(board, move, killed);
-            undo_pretend_move(board, move, killed);
-            return hacky_Moves(move);
+        // if (draw_by_repetition(board)) {
+        //     move->evaluation = 0;
+        //     if ((t && t->flag != LOWER_BOUND && (mover == black && 0 <= prune)) || (t && t->flag != UPPER_BOUND && (mover == white && 0 >= prune))) {
+        //         undo_hash(board, move, killed);
+        //         undo_pretend_move(board, move, killed);
+        //         return hacky_Moves(move);
+        //     }
+        // }
+        // else if (t && t->flag != LOWER_BOUND && (mover == black && t->eval <= prune)) {
+        //     move->evaluation = t->eval;
+        //     undo_hash(board, move, killed);
+        //     undo_pretend_move(board, move, killed);
+        //     return hacky_Moves(move);
             
-        }
-        else if (t && t->flag != UPPER_BOUND && (mover == white && t->eval >= prune)) {
-            move->evaluation = t->eval;
-            undo_hash(board, move, killed);
-            undo_pretend_move(board, move, killed);
-            return hacky_Moves(move);
-        }
-        else if (t && (t->flag == EXACT || (t->flag == LOWER_BOUND && mover == white) || (t->flag == UPPER_BOUND && mover == black))) {
-            move->evaluation = t->eval;
-        }
-        else {
+        // }
+        // else if (t && t->flag != UPPER_BOUND && (mover == white && t->eval >= prune)) {
+        //     move->evaluation = t->eval;
+        //     undo_hash(board, move, killed);
+        //     undo_pretend_move(board, move, killed);
+        //     return hacky_Moves(move);
+        // }
+        // else if (t && (t->flag == EXACT || (t->flag == LOWER_BOUND && mover == white) || (t->flag == UPPER_BOUND && mover == black))) {
+        //     move->evaluation = t->eval;
+        // }
+        // else {
             move->evaluation = evaluate_position(board, mover);
-        }
-        undo_hash(board, move, killed);
+        // }
+        // undo_hash(board, move, killed);
         undo_pretend_move(board, move, killed);
     }
 
@@ -486,6 +666,9 @@ int reverse_depth(Grapher* grapher) {
 }
 
 Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour mover, int prune) {
+    if (reverse_depth(grapher) > grapher->depth_reached) {
+        grapher->depth_reached = reverse_depth(grapher);
+    }
     if (grapher->depth == 0 || grapher->out_of_time) {
         if (grapher->timer && ((double)(clock() - grapher->timer) / CLOCKS_PER_SEC) > grapher->time_limit) {
             grapher->out_of_time = true;
@@ -493,8 +676,10 @@ Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour m
         return init_scores(parent_move, reverse_depth(grapher));
     }
     if (draw_by_repetition(board)) {
-        parent_move->evaluation = 0;
-        return init_scores(parent_move, reverse_depth(grapher));
+
+        return evaluate_draw(grapher, parent_move, mover);
+        // parent_move->evaluation = 0;
+        // return init_scores(parent_move, reverse_depth(grapher));
     }
 
     Moves* moves = get_all_moves_for_colour(board, mover);
@@ -517,11 +702,15 @@ Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour m
     for (int i = 0; i < best_moves->length; i++) {
         Move* move = best_moves->moves[i];
         Piece* killed = pretend_move(board, move);
-        Transposition* t = hash_and_save(board, move, killed, grapher->depth);
-
+        hash_and_save(board, move, killed, grapher->depth);
+        
         grapher->depth -= 1;
         Scores* scores = create_graph(grapher, move, board, invert_colour(mover), limit);
         grapher->depth += 1;
+
+        // if (grapher->depth == grapher->max_depth) {
+        //     print_scores(scores);
+        // }
 
         undo_hash(board, move, killed);
         undo_pretend_move(board, move, killed);
@@ -541,37 +730,81 @@ Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour m
     if (parent_move != NULL) {
         best_scores->moves->moves[reverse_depth(grapher) - 1] = parent_move;
     }
-    put(board, board->hash_value, best_scores->eval, grapher->depth, pruned, mover);
+    // put(board, board->hash_value, best_scores->eval, grapher->depth, pruned, mover);
     return best_scores;
 }
 
-Scores* IDDFS(Board* board, int breadth, colour start_player, int time_limit, ScoresList* all_scores) {
-    Grapher* grapher = init_grapher(breadth, 1, start_player);
+Scores* generate_random_move(Board* board, colour start_player) {
+    Moves* moves = get_all_moves_for_colour(board, start_player);
+    Scores* scores = calloc(1, sizeof(Scores));
+    Move* move = moves->moves[rand() % moves->length];
+    return init_scores(move, 1);
+}
 
-    grapher->timer = clock();
-    grapher->time_limit = time_limit;
-
+Scores* iteratively_deepen(Board* board, Grapher* grapher, int time_limit, colour start_player) {
+    ScoresList* all_scores = calloc(1, sizeof(ScoresList));
     Scores* scores;
     int depth = 1;
-
+    int previous_depth = 0;
+    
     while (((double)(clock() - grapher->timer) / CLOCKS_PER_SEC) < time_limit) {
         grapher->max_depth = depth * 2;
         grapher->depth = depth * 2;
         scores = create_graph(grapher, grapher->start, board, start_player, init_limit(invert_colour(start_player)));
+
+        if (scores->moves->moves[0]->from == 0 && scores->moves->moves[0]->destination == 0) {
+            return scores;
+        }
+        if (previous_depth == grapher->depth_reached) {
+            return scores;
+        }
         
         all_scores->scores[depth - 1] = scores;
         all_scores->length += 1;
-
+        previous_depth = grapher->depth_reached;
         depth += 1;
     }
+    return get_scores_from_scorelist(all_scores);
+}
 
-    if (scores && all_scores->length >= 2) {
-        return all_scores->scores[all_scores->length - 2];
-        if (all_scores->length == 1) {
-            return all_scores->scores[0];
-        }
+Scores* get_scores_from_scorelist(ScoresList* scores_list) {
+    if (scores_list->length >= 2) {
+        return scores_list->scores[scores_list->length - 2];
+    }
+    if (scores_list->length == 1) {
+        return scores_list->scores[0];
     }
     return NULL;
+}
+
+Scores* IDDFS(Board* board, int breadth, colour start_player, int time_limit) {
+    if (time_limit == 0) {
+        return generate_random_move(board, start_player);
+    }
+
+    int wide_time = (1 > (time_limit / 10)) ? 1 : (time_limit / 10);
+
+    Grapher* grapher = init_grapher(MAX_BREADTH, 1, start_player);
+    grapher->timer = clock();
+    grapher->time_limit = wide_time;
+
+    Scores* wide_scores = iteratively_deepen(board, grapher, wide_time, start_player);
+
+    Scores* deep_scores = NULL;
+    if (time_limit - wide_time > 0) {
+        grapher = init_grapher(breadth, 1, start_player);
+        grapher->timer = clock();
+        grapher->time_limit = time_limit - wide_time;
+        deep_scores = iteratively_deepen(board, grapher, time_limit - wide_time, start_player);
+    }
+
+    if (deep_scores) {
+        if ((wide_scores->eval > deep_scores->eval && start_player == white) || (wide_scores->eval < deep_scores->eval && start_player == black)) {
+            return wide_scores;
+        }
+        return deep_scores;
+    }
+    return wide_scores;
 }
 
 
@@ -610,12 +843,12 @@ void get_all_moves_for_piece(Board* board, Piece* piece, Moves* moves) {
                 bool castle = false;
                 castle_type type = king_side;
                 if (piece->type == king && piece->no_moves == 0) {
-                    if (i == board->castling_coordinates[piece->c][king_side]) {
+                    if (i == board->to_king_coordinates[piece->c][king_side]) {
                         allowed = is_castle_legal(board, piece, king_side);
                         type = king_side;
                         castle = true;
                     }
-                    else if (i == board->castling_coordinates[piece->c][queen_side]) {
+                    else if (i == board->to_king_coordinates[piece->c][queen_side]) {
                         allowed = is_castle_legal(board, piece, queen_side);
                         type = queen_side;
                         castle = true;
@@ -683,7 +916,7 @@ void get_all_moves_for_piece(Board* board, Piece* piece, Moves* moves) {
 
 Moves* get_all_moves_for_colour(Board* board, colour c) {
     Moves* moves = calloc(1, sizeof(Moves));
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < board->pieces_quantity[c]; i++) {
         if (board->pieces[c][i]->alive) {
             get_all_moves_for_piece(board, board->pieces[c][i], moves);
         }
@@ -729,7 +962,7 @@ bool is_castle_legal(Board* board, Piece* piece, castle_type type) {
     }
 
     // test legality of moves up to castling square
-    diff = board->castling_coordinates[piece->c][type] - piece->cell;
+    diff = board->to_king_coordinates[piece->c][type] - piece->cell;
     for (int i = 1; i < abs(diff); i++) {
         if (!is_move_legal(board, piece, type == king_side ? piece->cell + i : piece->cell - i)) {
             return false;
@@ -738,7 +971,7 @@ bool is_castle_legal(Board* board, Piece* piece, castle_type type) {
     // test legality of final castled move
     square king_original = piece->cell;
     square castle_original = board->castle_pieces[piece->c][type]->cell;
-    move_single_piece(board, piece, board->castling_coordinates[piece->c][type], none);
+    move_single_piece(board, piece, board->to_king_coordinates[piece->c][type], none);
     move_single_piece(board, board->castle_pieces[piece->c][type], type == king_side ? piece->cell - 1 : piece->cell + 1, none);
     bool allowed = true;
     if (is_check(board, piece->c)) {
@@ -867,10 +1100,10 @@ void pop_last_moved(Board* board) {
 }
 
 bool is_check(Board* board, colour c) {
-    for (int i = 0; i < 16; i++){
+    for (int i = 0; i < board->pieces_quantity[invert_colour(c)]; i++){
         if (board->pieces[invert_colour(c)][i]->alive) {
             U64 mask = board->pieces[invert_colour(c)][i]->move_func(board, board->pieces[invert_colour(c)][i]);
-            if (get_bit(mask, board->pieces[c][KING_INDEX(c)]->cell)) {
+            if (get_bit(mask, board->king_pieces[c]->cell)) {
                 return true;
             }
         }
@@ -957,7 +1190,6 @@ int (*get_index_func(name n))(colour c, int i) {
 
 Transposition* get(Board* board, U64 hash_value, int depth) {
     if (board->transpositions[hash_value % HASH_TABLE_SIZE] && board->transpositions[hash_value % HASH_TABLE_SIZE]->hash_value == hash_value && board->transpositions[hash_value % HASH_TABLE_SIZE]->depth >= depth) {
-
         return board->transpositions[hash_value % HASH_TABLE_SIZE];
     }
     return NULL;
@@ -1009,10 +1241,10 @@ U64 hash(Board* board, Move* move, Piece* killed) {
         value ^= keys_last_moved[move->destination];
     }
 
-    if ((move->piece == board->pieces[move->piece->c][KING_INDEX(move->piece->c)] && board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 1 && board->castle_pieces[move->piece->c][king_side]->no_moves == 0) || (board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 0 && move->piece == board->castle_pieces[move->piece->c][king_side] && board->castle_pieces[move->piece->c][king_side]->no_moves == 1)) {
+    if ((move->piece == board->king_pieces[move->piece->c] && board->king_pieces[move->piece->c]->no_moves == 1 && board->castle_pieces[move->piece->c][king_side] && board->castle_pieces[move->piece->c][king_side]->no_moves == 0) || (board->king_pieces[move->piece->c]->no_moves == 0 && move->piece == board->castle_pieces[move->piece->c][king_side] && board->castle_pieces[move->piece->c][king_side]->no_moves == 1)) {
         value ^= keys_castling[move->piece->c][king_side];
     }
-    if ((move->piece == board->pieces[move->piece->c][KING_INDEX(move->piece->c)] && board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 1 && board->castle_pieces[move->piece->c][queen_side]->no_moves == 0) || (board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 0 && move->piece == board->castle_pieces[move->piece->c][queen_side] && board->castle_pieces[move->piece->c][queen_side]->no_moves == 1)) {
+    if ((move->piece == board->king_pieces[move->piece->c] && board->king_pieces[move->piece->c]->no_moves == 1 && board->castle_pieces[move->piece->c][queen_side] && board->castle_pieces[move->piece->c][queen_side]->no_moves == 0) || (board->king_pieces[move->piece->c]->no_moves == 0 && move->piece == board->castle_pieces[move->piece->c][queen_side] && board->castle_pieces[move->piece->c][queen_side]->no_moves == 1)) {
         value ^= keys_castling[move->piece->c][queen_side];
     }
     value ^= key_mover;
@@ -1040,11 +1272,12 @@ void hash_move_piece(Board* board, Move* move, Piece* killed) {
     
     // keep track of castling rights... must be at the point of losing the rights.
     // either king just moved or castle just moved, AND that move made the no_moves increment to 1.
+    // WHAT IF CASTLE GETS TAKEN?
     // hash function is made after pretend_move and before undo_pretend_move
-    if ((move->piece == board->pieces[move->piece->c][KING_INDEX(move->piece->c)] && board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 1 && board->castle_pieces[move->piece->c][king_side]->no_moves == 0) || (board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 0 && move->piece == board->castle_pieces[move->piece->c][king_side] && board->castle_pieces[move->piece->c][king_side]->no_moves == 1)) {
+    if ((move->piece == board->king_pieces[move->piece->c] && board->king_pieces[move->piece->c]->no_moves == 1 && board->castle_pieces[move->piece->c][king_side] && board->castle_pieces[move->piece->c][king_side]->no_moves == 0) || (board->king_pieces[move->piece->c]->no_moves == 0 && move->piece == board->castle_pieces[move->piece->c][king_side] && board->castle_pieces[move->piece->c][king_side]->no_moves == 1)) {
         board->hash_value ^= keys_castling[move->piece->c][king_side];
     }
-    if ((move->piece == board->pieces[move->piece->c][KING_INDEX(move->piece->c)] && board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 1 && board->castle_pieces[move->piece->c][queen_side]->no_moves == 0) || (board->pieces[move->piece->c][KING_INDEX(move->piece->c)]->no_moves == 0 && move->piece == board->castle_pieces[move->piece->c][queen_side] && board->castle_pieces[move->piece->c][queen_side]->no_moves == 1)) {
+    if ((move->piece == board->king_pieces[move->piece->c] && board->king_pieces[move->piece->c]->no_moves == 1 && board->castle_pieces[move->piece->c][queen_side] && board->castle_pieces[move->piece->c][queen_side]->no_moves == 0) || (board->king_pieces[move->piece->c]->no_moves == 0 && move->piece == board->castle_pieces[move->piece->c][queen_side] && board->castle_pieces[move->piece->c][queen_side]->no_moves == 1)) {
         board->hash_value ^= keys_castling[move->piece->c][queen_side];
     }
 
@@ -1262,16 +1495,16 @@ Board* process_FEN(const char* fen_string) {
         }
         else if (space_count == 3) {
             
-            if (!k) {
+            if (!k && board->castle_pieces[black][king_side]) {
                 board->castle_pieces[black][king_side]->no_moves += 1;
             }
-            if (!K) {
+            if (!K && board->castle_pieces[white][king_side]) {
                 board->castle_pieces[white][king_side]->no_moves += 1;
             }
-            if (!q) {
+            if (!q && board->castle_pieces[black][queen_side]) {
                 board->castle_pieces[black][queen_side]->no_moves += 1;
             }
-            if (!Q) {
+            if (!Q && board->castle_pieces[white][queen_side]) {
                 board->castle_pieces[white][queen_side]->no_moves += 1;
             }
             en_passant_square[en_passant_count] = fen_string[i];
@@ -1304,26 +1537,43 @@ Board* process_FEN(const char* fen_string) {
         cell += 1;
     }
 
+    if (en_passant_square[0] != '-') {
+        board->lm_length += 1;
+    }
+
+    board->pieces_quantity[black] = black_pieces;
+    board->pieces_quantity[white] = white_pieces;
+
     board->promotable_pieces[0] = queen;
     board->promotable_pieces[1] = castle;
     board->promotable_pieces[2] = bishop;
     board->promotable_pieces[3] = knight;
 
-    board->castling_coordinates[white][king_side] = g1;
+    board->from_king_coordinates[white] = e1;
+    board->from_king_coordinates[black] = e8;
+
+    board->to_king_coordinates[white][king_side] = g1;
     board->to_castle_coords[white][king_side] = f1;
     board->from_castle_coords[white][king_side] = h1;
 
-    board->castling_coordinates[white][queen_side] = c1;
+    board->to_king_coordinates[white][queen_side] = c1;
     board->to_castle_coords[white][queen_side] = d1;
     board->from_castle_coords[white][queen_side] = a1;
 
-    board->castling_coordinates[black][king_side] = g8;
+    board->to_king_coordinates[black][king_side] = g8;
     board->to_castle_coords[black][king_side] = f8;
     board->from_castle_coords[black][king_side] = h8;
 
-    board->castling_coordinates[black][queen_side] = c8;
+    board->to_king_coordinates[black][queen_side] = c8;
     board->to_castle_coords[black][queen_side] = d8;
     board->from_castle_coords[black][queen_side] = a8;
+
+    if (board->king_pieces[white]->cell != board->from_king_coordinates[white]) {
+        board->king_pieces[white]->no_moves += 1;
+    }
+    if (board->king_pieces[black]->cell != board->from_king_coordinates[black]) {
+        board->king_pieces[black]->no_moves += 1;
+    }
 
     init_hash_value(board);
 
@@ -1332,6 +1582,8 @@ Board* process_FEN(const char* fen_string) {
 
 Board* init_board(void) {
     Board* board = calloc(1, sizeof(Board));
+    board->pieces_quantity[white] = 16;
+    board->pieces_quantity[black] = 16;
     board->bitboard = 0ULL;
     int cells[32] = {a8, b8, c8, d8, e8, f8, g8, h8, a7, b7, c7, d7, e7, f7, g7, h7, a2, b2, c2, d2, e2, f2, g2, h2, a1, b1, c1, d1, e1, f1, g1, h1};
     board->bitboard = set_multiple_bits(board->bitboard, cells, 32);
@@ -1413,9 +1665,11 @@ Board* init_board(void) {
                 piece->index_func = king_index;
                 if (i < 8) {
                     piece->character = L'♔';
+                    board->king_pieces[black] = piece;
                 }
                 else {
                     piece->character = L'♚';
+                    board->king_pieces[white] = piece;
                 }
             }
         }
@@ -1435,23 +1689,26 @@ Board* init_board(void) {
 
     init_hash_value(board);
 
+    board->from_king_coordinates[white] = e1;
+    board->from_king_coordinates[black] = e8;
+
     board->castle_pieces[white][king_side] = board->pieces[white][CASTLE_1(white)];
-    board->castling_coordinates[white][king_side] = g1;
+    board->to_king_coordinates[white][king_side] = g1;
     board->to_castle_coords[white][king_side] = f1;
     board->from_castle_coords[white][king_side] = h1;
 
     board->castle_pieces[white][queen_side] = board->pieces[white][CASTLE_2(white)];
-    board->castling_coordinates[white][queen_side] = c1;
+    board->to_king_coordinates[white][queen_side] = c1;
     board->to_castle_coords[white][queen_side] = d1;
     board->from_castle_coords[white][queen_side] = a1;
 
     board->castle_pieces[black][king_side] = board->pieces[black][CASTLE_1(black)];
-    board->castling_coordinates[black][king_side] = g8;
+    board->to_king_coordinates[black][king_side] = g8;
     board->to_castle_coords[black][king_side] = f8;
     board->from_castle_coords[black][king_side] = h8;
 
     board->castle_pieces[black][queen_side] = board->pieces[black][CASTLE_2(black)];
-    board->castling_coordinates[black][queen_side] = c8;
+    board->to_king_coordinates[black][queen_side] = c8;
     board->to_castle_coords[black][queen_side] = d8;
     board->from_castle_coords[black][queen_side] = a8;
     return board;
@@ -1475,7 +1732,7 @@ void set_board(Board* board) {
     }
 }
 
-void on_error(const char* s)
+void on_error(char* s)
 {
    fprintf(stderr, "%s\n", s);
    exit(EXIT_FAILURE);
@@ -1557,17 +1814,20 @@ Board* set_board_notation(char* s) {
             if (p == knight) knights += 1;
             if (p == pawn) pawns += 1;
             if (p == castle) castles += 1;
+            if (p == king) {
+                board->king_pieces[c] = board->pieces[c][get_index_func(p)(c, n)];
+            }
             inner = -1;
         }
         i += 1;
         inner += 1;
     }
     set_board(board);
-    if (board->pieces[white][KING_INDEX(white)]->cell != e1) {
-        board->pieces[white][KING_INDEX(white)]->no_moves += 1;
+    if (board->king_pieces[white]->cell != board->from_king_coordinates[white]) {
+        board->king_pieces[white]->no_moves += 1;
     }
-    if (board->pieces[black][KING_INDEX(black)]->cell != e8) {
-        board->pieces[black][KING_INDEX(black)]->no_moves += 1;
+    if (board->king_pieces[black]->cell != board->from_king_coordinates[black]) {
+        board->king_pieces[black]->no_moves += 1;
     }
     return board;
 }
@@ -1647,6 +1907,7 @@ U64 get_knight_mask(Board* board, Piece* piece) {
     int cell = piece->cell;
     for (int i = -2; i <= 2; i++) {
         if (i == 0) continue;
+        if (cell + i < 0) continue;
         if (i < 0 && ((cell + i) % 8 > cell % 8)) continue;
         if (i > 0 && ((cell + i) % 8 < cell % 8)) continue;
         if (abs(i) == 1) {
@@ -1677,12 +1938,12 @@ U64 get_king_mask(Board* board, Piece* piece) {
     if (cell % 8 > 0) set_bit(mask, (cell - 1));
     if (cell % 8 < 7) set_bit(mask, (cell + 1));
 
-    if (piece->no_moves == 0 && board->castle_pieces[piece->c][king_side]->alive && board->castle_pieces[piece->c][king_side]->no_moves == 0) {
-        set_bit(mask, board->castling_coordinates[piece->c][king_side]);
+    if (piece->no_moves == 0 && board->castle_pieces[piece->c][king_side] && board->castle_pieces[piece->c][king_side]->alive && board->castle_pieces[piece->c][king_side]->no_moves == 0) {
+        set_bit(mask, board->to_king_coordinates[piece->c][king_side]);
     }
 
-    if (piece->no_moves == 0 && board->castle_pieces[piece->c][queen_side]->alive && board->castle_pieces[piece->c][queen_side]->no_moves == 0) {
-        set_bit(mask, board->castling_coordinates[piece->c][queen_side]);
+    if (piece->no_moves == 0 && board->castle_pieces[piece->c][queen_side] && board->castle_pieces[piece->c][queen_side]->alive && board->castle_pieces[piece->c][queen_side]->no_moves == 0) {
+        set_bit(mask, board->to_king_coordinates[piece->c][queen_side]);
     }
 
     return mask;
@@ -1782,14 +2043,14 @@ void print_board_pro(Board* board) {
 }
 
 void print_pieces(Board* board) {
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < board->pieces_quantity[white]; i++) {
         if (board->pieces[white][i]->alive) {
             char string[3] = {'\0'};
             square_to_string(board->pieces[white][i]->cell, string);
             printf("colour: %i; type: %i; cell: %i; square: %s\n", board->pieces[white][i]->c, board->pieces[white][i]->type, board->pieces[white][i]->cell, string);
         }
     }
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < board->pieces_quantity[black]; i++) {
         if (board->pieces[black][i]->alive) {
             char string[3] = {'\0'};
             square_to_string(board->pieces[black][i]->cell, string);
@@ -1850,7 +2111,7 @@ void append_piece_to_string(Piece* piece, char* string) {
     strcat(whole, square);
 
     char moves[6] = {'\0'};
-    sprintf(moves, "%i", piece->no_moves);
+    snprintf(moves, 4, "%i", piece->no_moves);
     strcat(whole, ", # Moves: ");
     strcat(whole, moves);
     strcat(whole, "\n");
@@ -1859,6 +2120,9 @@ void append_piece_to_string(Piece* piece, char* string) {
 }
 
 void print_moves(Moves* moves) {
+    if (moves == NULL) {
+        return;
+    }
     for (int i = 0; i < moves->length; i++) {
         printf("move %i: ", i);
         print_move(moves->moves[i]);
@@ -2019,6 +2283,9 @@ void piece_to_string(name n, char* string) {
 
 
 void print_scores(Scores* scores) {
+    if (scores == NULL) {
+        return;
+    }
     printf("EVALUATION: %i\n", scores->eval);
     print_moves(scores->moves);
 }

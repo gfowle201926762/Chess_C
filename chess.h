@@ -21,9 +21,8 @@
 #define MAX_PROMOTABLE_PIECES 4
 #define MAX_REPETITIONS 3
 #define U64 unsigned long long
-#define MOVES_SIZE 100
+#define MOVES_SIZE 200
 #define MAX_SCORE 100000
-#define SAVED_SIZE 100
 #define MAX_BREADTH 10000
 #define MAX_BRANCH 10
 #define DRAW_REPITIONS 3
@@ -113,12 +112,18 @@ enum file {
 };
 typedef enum file file;
 
+enum java_request {
+    engine, human, legal_moves
+};
+typedef enum java_request java_request;
+
 enum colour {
     white, black
 };
 typedef enum colour colour;
 
-// none name is just for promotions so you don't have to pass NULL in
+// none name is just for promotions so you don't have to pass NULL in.
+// You can't pass in NULL anyway you idiot, it's not pointer convertible.
 enum name {
     none, king, queen, castle, bishop, knight, pawn
 };
@@ -128,6 +133,16 @@ enum castle_type {
     king_side, queen_side
 };
 typedef enum castle_type castle_type;
+
+enum status {
+    ongoing, white_victory, draw, black_victory
+};
+typedef enum status status;
+
+enum reason {
+    reasonless, checkmate, abandonment, resignation, stalemate, repetition, insufficient_material
+};
+typedef enum reason reason;
 
 struct Board;
 
@@ -170,7 +185,8 @@ struct Board {
     // Transposition* last_positions[HASH_TABLE_SIZE];
 
     // bool castling_allowed[MAX_COLOUR][MAX_CASTLING_OPTIONS];
-    square castling_coordinates[MAX_COLOUR][MAX_CASTLING_OPTIONS];
+    square from_king_coordinates[MAX_COLOUR];
+    square to_king_coordinates[MAX_COLOUR][MAX_CASTLING_OPTIONS];
     square from_castle_coords[MAX_COLOUR][MAX_CASTLING_OPTIONS];
     square to_castle_coords[MAX_COLOUR][MAX_CASTLING_OPTIONS];
     Piece* castle_pieces[MAX_COLOUR][MAX_CASTLING_OPTIONS];
@@ -182,6 +198,8 @@ struct Board {
 
     Piece* map[CELLS];
     Piece* pieces[MAX_COLOUR][CELLS];
+
+    int pieces_quantity[MAX_COLOUR];
     
     name promotable_pieces[MAX_PROMOTABLE_PIECES];
 
@@ -219,6 +237,8 @@ struct Grapher {
     clock_t timer;
     bool out_of_time;
     double time_limit;
+
+    int depth_reached;
 };
 typedef struct Grapher Grapher;
 
@@ -306,6 +326,8 @@ void test_puzzle_trap_bishop();
 void test_puzzle_win_knight_because_pawn_fork();
 void test_reverse_mate_in_1();
 void test_wrapper(void (*test_func)(void), char* func_name);
+void test_bug_1();
+void test_bug_2();
 
 // Initialisation
 Board* init_board(void);
@@ -358,6 +380,7 @@ void undo_hash(Board* board, Move* move, Piece* killed);
 bool draw_by_repetition(Board* board);
 void put(Board* board, U64 hash_value, int eval, int depth, bool pruned, colour mover);
 Transposition* get(Board* board, U64 hash_value, int depth);
+Scores* evaluate_draw(Grapher* grapher, Move* move, colour mover);
 
 // Get all moves
 void get_all_moves_for_piece(Board* board, Piece* piece, Moves* moves);
@@ -368,10 +391,19 @@ int reverse_depth(Grapher* grapher);
 Scores* create_graph(Grapher* grapher, Move* parent_move, Board* board, colour mover, int prune);
 // int create_graph(Grapher* grapher, GraphNode* parent, Board* board, colour mover);
 Grapher* init_grapher(int breadth, int depth, colour start_player);
-Scores* IDDFS(Board* board, int breadth, colour start_player, int time_limit, ScoresList* all_scores);
+Scores* IDDFS(Board* board, int breadth, colour start_player, int time_limit);
+Scores* get_scores_from_scorelist(ScoresList* scores_list);
+Scores* iteratively_deepen(Board* board, Grapher* grapher, int time_limit, colour start_player);
+Scores* generate_random_move(Board* board, colour start_player);
 
 
 void play_game();
 void initialise();
 void free_copy_board(Board* board);
 void free_scores(Scores* scores, int depth);
+void on_error(char* s);
+
+
+// JAVA
+jobjectArray generate_legal_moves_and_return(JNIEnv* env, Moves* legalMoves, 
+char* client_fen_string, char* engine_fen_string, Board* board, status game_status, reason game_reason, Scores* scores, java_request java_request_type);
